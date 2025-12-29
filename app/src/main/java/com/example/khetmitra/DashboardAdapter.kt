@@ -24,9 +24,14 @@ class DashboardAdapter(private val itemList: List<DashboardModel>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = itemList[position]
+
         holder.tvTitle.text = item.title
         holder.tvSubtitle.text = item.subtitle
         holder.tvIcon.setImageResource(item.iconDrawable)
+
+        // We must clear the 'tag' so the Translator doesn't get confused by old tags from recycled views.
+        holder.tvTitle.tag = null
+        holder.tvSubtitle.tag = null
     }
 
     override fun getItemCount(): Int {
