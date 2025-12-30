@@ -7,8 +7,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class DashboardAdapter(private val itemList: List<DashboardModel>) :
-    RecyclerView.Adapter<DashboardAdapter.ViewHolder>() {
+class DashboardAdapter(
+    private val itemList: List<DataModels>,
+    private val onItemClick: (DataModels) -> Unit
+) : RecyclerView.Adapter<DashboardAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvTitle: TextView = itemView.findViewById(R.id.tvCardTitle)
@@ -32,6 +34,10 @@ class DashboardAdapter(private val itemList: List<DashboardModel>) :
         // We must clear the 'tag' so the Translator doesn't get confused by old tags from recycled views.
         holder.tvTitle.tag = null
         holder.tvSubtitle.tag = null
+
+        holder.itemView.setOnClickListener {
+            onItemClick(item)
+        }
     }
 
     override fun getItemCount(): Int {

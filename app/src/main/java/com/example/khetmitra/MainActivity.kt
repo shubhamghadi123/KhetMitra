@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
@@ -9,6 +10,7 @@ import android.widget.Spinner
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.mlkit.nl.translate.TranslateLanguage
+import androidx.core.content.edit
 
 class MainActivity : BaseActivity() {
 
@@ -17,15 +19,25 @@ class MainActivity : BaseActivity() {
         setContentView(R.layout.activity_main)
 
         val dashboardItems = listOf(
-            DashboardModel("Weather", "Sunny, 24°C", R.drawable.ic_weather),
-            DashboardModel("Plans", "3 tasks for today", R.drawable.ic_plans),
-            DashboardModel("Chat", "2 new messages", R.drawable.ic_chat),
-            DashboardModel("Market", "Up by 10%", R.drawable.ic_market)
+            DataModels("Weather", "Sunny, 24°C", R.drawable.ic_weather),
+            DataModels("Plans", "3 tasks for today", R.drawable.ic_plans),
+            DataModels("Chat", "2 new messages", R.drawable.ic_chat),
+            DataModels("Market", "Up by 10%", R.drawable.ic_market)
         )
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = DashboardAdapter(dashboardItems)
+
+        val spacingInPixels = (5 * resources.displayMetrics.density).toInt()
+        recyclerView.addItemDecoration(VerticalSpacingItemDecoration(spacingInPixels))
+
+        val adapter = DashboardAdapter(dashboardItems) {selectedItem ->
+            if (selectedItem.title == "Weather") {
+                val intent = Intent(this, WeatherActivity::class.java)
+                startActivity(intent)
+            }
+        }
+        recyclerView.adapter = adapter
 
         setupLanguageSpinner()
         recyclerView.post {
@@ -71,7 +83,7 @@ class MainActivity : BaseActivity() {
                 val savedCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
 
                 if (selectedCode != savedCode) {
-                    prefs.edit().putString("Language", selectedCode).apply()
+                    prefs.edit { putString("Language", selectedCode) }
                     recreate()
                 }
             }
