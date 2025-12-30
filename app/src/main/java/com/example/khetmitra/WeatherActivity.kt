@@ -1,12 +1,13 @@
 package com.example.khetmitra
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.ImageView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.mlkit.nl.translate.TranslateLanguage
 
-class WeatherActivity : AppCompatActivity() {
+class WeatherActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +52,8 @@ class WeatherActivity : AppCompatActivity() {
 
         // Attach the Adapter
         recyclerForecast.adapter = ForecastAdapter(forecastList)
+
+        checkAndTranslateList(recyclerForecast)
     }
 
     private fun setupInsightsRecycler() {
@@ -68,5 +71,18 @@ class WeatherActivity : AppCompatActivity() {
         recyclerInsights.addItemDecoration(VerticalSpacingItemDecoration(spacingInPixels))
 
         recyclerInsights.adapter = InsightAdapter(insightList)
+
+        checkAndTranslateList(recyclerInsights)
+    }
+
+    private fun checkAndTranslateList(recyclerView: RecyclerView) {
+        recyclerView.post {
+            val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+            val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
+
+            if (langCode != TranslateLanguage.ENGLISH) {
+                TranslationHelper.translateViewHierarchy(recyclerView, langCode!!) {}
+            }
+        }
     }
 }
