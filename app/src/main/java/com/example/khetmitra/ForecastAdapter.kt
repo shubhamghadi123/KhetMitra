@@ -28,6 +28,9 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
         holder.tvDay.text = item.dayName
         holder.tvTemp.text = item.dayTemp
         holder.imgIcon.setImageResource(item.weatherIcon)
+
+        holder.tvDay.tag = null
+        holder.tvTemp.tag = null
     }
 
     override fun getItemCount(): Int {

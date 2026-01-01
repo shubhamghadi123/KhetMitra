@@ -7,8 +7,25 @@ import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
+import java.util.Locale
 
 object TranslationHelper {
+
+    private val manualCorrections = mapOf(
+        // Days
+        "mon" to mapOf(TranslateLanguage.HINDI to "सोम", TranslateLanguage.MARATHI to "सोम", TranslateLanguage.GUJARATI to "સોમ"),
+        "tue" to mapOf(TranslateLanguage.HINDI to "मंगल", TranslateLanguage.MARATHI to "मंगळ", TranslateLanguage.GUJARATI to "મંગળ"),
+        "wed" to mapOf(TranslateLanguage.HINDI to "बुध", TranslateLanguage.MARATHI to "बुध", TranslateLanguage.GUJARATI to "બુધ"),
+        "thu" to mapOf(TranslateLanguage.HINDI to "गुरु", TranslateLanguage.MARATHI to "गुरु", TranslateLanguage.GUJARATI to "ગુરુ"),
+        "fri" to mapOf(TranslateLanguage.HINDI to "शुक्र", TranslateLanguage.MARATHI to "शुक्र", TranslateLanguage.GUJARATI to "શુક્ર"),
+        "sat" to mapOf(TranslateLanguage.HINDI to "शनि", TranslateLanguage.MARATHI to "शनि", TranslateLanguage.GUJARATI to "શનિ"),
+        "sun" to mapOf(TranslateLanguage.HINDI to "रवि", TranslateLanguage.MARATHI to "रवि", TranslateLanguage.GUJARATI to "રવિ"),
+
+        // Weather
+        "sunny" to mapOf(TranslateLanguage.HINDI to "धूप", TranslateLanguage.MARATHI to "स्वच्छ आकाश"),
+        "clear" to mapOf(TranslateLanguage.HINDI to "साफ", TranslateLanguage.MARATHI to "स्वच्छ"),
+        "rain" to mapOf(TranslateLanguage.HINDI to "बारिश", TranslateLanguage.MARATHI to "पाऊस")
+    )
 
     private fun getAllTextViews(view: View, list: ArrayList<TextView>) {
         if (view is TextView) list.add(view)
@@ -53,16 +70,26 @@ object TranslationHelper {
                         continue
                     }
 
-                    translator.translate(originalText)
-                        .addOnSuccessListener { translated ->
-                            tv.text = translated
-                            completedCount++
-                            if (completedCount == allTextViews.size) onFinished()
-                        }
-                        .addOnFailureListener {
-                            completedCount++
-                            if (completedCount == allTextViews.size) onFinished()
-                        }
+                    val lowerCaseText = originalText.lowercase(Locale.getDefault())
+                    val manualFix = manualCorrections[lowerCaseText]?.get(targetLang)
+
+                    if (manualFix != null) {
+                        tv.text = manualFix
+                        completedCount++
+                        if (completedCount == allTextViews.size) onFinished()
+                    } else {
+                        // 3. Fallback to ML Kit
+                        translator.translate(originalText)
+                            .addOnSuccessListener { translated ->
+                                tv.text = translated
+                                completedCount++
+                                if (completedCount == allTextViews.size) onFinished()
+                            }
+                            .addOnFailureListener {
+                                completedCount++
+                                if (completedCount == allTextViews.size) onFinished()
+                            }
+                    }
                 }
             }
             .addOnFailureListener {
