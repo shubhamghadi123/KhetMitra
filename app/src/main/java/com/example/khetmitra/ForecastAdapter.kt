@@ -31,6 +31,18 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
 
         holder.tvDay.tag = null
         holder.tvTemp.tag = null
+
+        val prefs = holder.itemView.context.getSharedPreferences("AppSettings", android.content.Context.MODE_PRIVATE)
+        val targetLang = prefs.getString("Language", com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH)
+            ?: com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
+
+        // Only run translation if the target language is NOT English
+        if (targetLang != com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH) {
+            // Translate the Day Name
+            TranslationHelper.translateViewHierarchy(holder.tvDay, targetLang) { }
+            // Translate the Temp (if it contains text like 'Sunny' or 'Cloudy')
+            TranslationHelper.translateViewHierarchy(holder.tvTemp, targetLang) { }
+        }
     }
 
     override fun getItemCount(): Int {
