@@ -15,7 +15,7 @@
         <View
             android:id="@+id/headerBg"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="85dp"
             android:background="#E0E0E0"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -24,25 +24,27 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginStart="16dp"
-            android:src="@drawable/abc_ic_ab_back_material"
+            android:src="@drawable/round_arrow_back_24"
             app:layout_constraintBottom_toBottomOf="@id/headerBg"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/headerBg"
+            app:layout_constraintVertical_bias="0.833"
             app:tint="#000000"
             tools:ignore="ContentDescription" />
 
         <TextView
             android:id="@+id/tvHeaderTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="80dp"
+            android:layout_height="31dp"
             android:layout_marginStart="16dp"
-            android:text="Market"
+            android:text="@string/market_title"
             android:textColor="#000000"
             android:textSize="20sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="@id/btnBack"
             app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintTop_toTopOf="@id/btnBack" />
+            app:layout_constraintTop_toTopOf="@id/btnBack"
+            app:layout_constraintVertical_bias="0.0" />
 
 
         <com.google.android.material.card.MaterialCardView
