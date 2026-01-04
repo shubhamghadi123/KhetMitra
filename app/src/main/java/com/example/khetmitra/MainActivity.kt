@@ -33,11 +33,14 @@ class MainActivity : BaseActivity() {
 
         val adapter = DashboardAdapter(dashboardItems) {selectedItem ->
             if (selectedItem.title == "Weather") {
-                val intent = Intent(this, WeatherActivity::class.java)
-                startActivity(intent)
+                startActivity(Intent(this, WeatherActivity::class.java))
+            }
+            else if (selectedItem.title == "Market") {
+                startActivity(Intent(this, MarketActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
+
 
         setupLanguageSpinner()
         recyclerView.post {
