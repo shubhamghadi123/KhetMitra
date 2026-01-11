@@ -18,6 +18,8 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        TranslationHelper.initTranslations(this)
+
         val dashboardItems = listOf(
             DataModels("Weather", "Sunny, 24°C", R.drawable.ic_weather),
             DataModels("Plans", "3 tasks for today", R.drawable.ic_plans),

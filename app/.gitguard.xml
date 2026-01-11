@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules>
+    <rule>
+        <name>No API Keys</name>
+        <type>code-quality</type>
+        <blocking>true</blocking>
+        <errorMessage>🚨 SECURITY ALERT: You are trying to push an API Key!</errorMessage>
+        <parameter key="pattern">(API_KEY|AIza[0-9A-Za-z-_]{35})</parameter>
+    </rule>
+</rules>
