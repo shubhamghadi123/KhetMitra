@@ -26,7 +26,7 @@ import java.util.Locale
 
 class WeatherActivity : BaseActivity() {
 
-    private val API_KEY = "BuildConfig.WEATHER_API_KEY" // Your WeatherAPI Key
+    private val API_KEY = BuildConfig.WEATHER_API_KEY // Your WeatherAPI Key
     private var currentLocationQuery = "Mumbai" // Default city if GPS fails
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
