@@ -14,5 +14,6 @@ data class ForecastModel(
 
 data class InsightModel(
     val title: String,
-    val description: String
+    val description: String,
+    val imageRes: Int
 )

@@ -171,25 +171,73 @@ class WeatherActivity : BaseActivity() {
     }
 
     private fun setupInsightsRecycler(days: List<ForecastDay>) {
-        val chanceRain = days[0].day.daily_chance_of_rain
         val insightList = mutableListOf<InsightModel>()
 
-        if (chanceRain > 50) {
-            insightList.add(InsightModel("Rainfall Alert", "High chance of rain ($chanceRain%). Delay watering."))
+        // 1. TODAY'S INSIGHT
+        val todayRain = days[0].day.daily_chance_of_rain
+        if (todayRain > 50) {
+            insightList.add(InsightModel(
+                "Rainfall Alert",
+                "High chance of rain today ($todayRain%). Delay spraying pesticides.",
+                R.drawable.ic_rainyweather // Use your rain image
+            ))
         } else {
-            insightList.add(InsightModel("Rainfall Probability", "Low chance of rain. Good time for irrigation."))
+            insightList.add(InsightModel(
+                "Today's Activity",
+                "Conditions are clear. Good for field work.",
+                R.drawable.ic_sunnyweather // Use your sun/field image
+            ))
         }
 
-        // Add more insights...
-        insightList.add(InsightModel("Soil Moisture", if (chanceRain > 70) "Soil likely wet." else "Check moisture levels."))
-        insightList.add(InsightModel("Pest Alert", "No major pest activity."))
+        // 2. FUTURE LOOKAHEAD
+        var upcomingRainDay: String? = null
+        for (i in 1..3) {
+            if (i < days.size && days[i].day.daily_chance_of_rain > 60) {
+                upcomingRainDay = getDayName(days[i].date)
+                break
+            }
+        }
+
+        if (upcomingRainDay != null) {
+            insightList.add(InsightModel(
+                "Upcoming Weather",
+                "Heavy rain expected on $upcomingRainDay. Plan drainage.",
+                R.drawable.ic_rainyweather // Rain image
+            ))
+        } else {
+            if (todayRain < 30) {
+                insightList.add(InsightModel(
+                    "Irrigation Advice",
+                    "No rain in the next 3 days. Perfect time to irrigate.",
+                    R.drawable.ic_clearweather // Water/Irrigation image
+                ))
+            }
+        }
+
+        // 3. SOIL MOISTURE
+        if (todayRain > 70) {
+            insightList.add(InsightModel(
+                "Soil Status",
+                "Soil is likely wet. Avoid heavy machinery.",
+                R.drawable.ic_cloudyweather // Mud/Soil image
+            ))
+        } else {
+            insightList.add(InsightModel(
+                "Soil Status",
+                "Soil moisture is likely stable.",
+                R.drawable.ic_clearweather // Plant/Soil image
+            ))
+        }
 
         val recycler = findViewById<RecyclerView>(R.id.recyclerInsights)
+
         if (recycler.itemDecorationCount == 0) {
-            recycler.addItemDecoration(VerticalSpacingItemDecoration((20 * resources.displayMetrics.density).toInt()))
+            recycler.addItemDecoration(VerticalSpacingItemDecoration((12 * resources.displayMetrics.density).toInt()))
         }
+
         recycler.layoutManager = LinearLayoutManager(this)
         recycler.adapter = InsightAdapter(insightList)
+
         checkAndTranslateList(recycler)
     }
 
