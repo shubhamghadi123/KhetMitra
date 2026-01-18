@@ -38,7 +38,6 @@ class WeatherActivity : BaseActivity() {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // Start the chain: Check Permission -> Get GPS -> Call API
         checkLocationPermissionAndFetch()
     }
 
@@ -90,13 +89,10 @@ class WeatherActivity : BaseActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val weatherData = response.body()!!
 
-                    // 1. Update Big Card
                     updateCurrentWeatherUI(weatherData.current)
 
-                    // 2. Update Forecast List
                     setupForecastRecycler(weatherData.forecast.forecastday)
 
-                    // 3. Update Insights List
                     setupInsightsRecycler(weatherData.forecast.forecastday)
                 }
             }
@@ -113,15 +109,13 @@ class WeatherActivity : BaseActivity() {
         val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
         val ivIcon = findViewById<ImageView>(R.id.iconCurrentWeather)
 
-        // 1. Raw Data (English)
         val rawCondition = current.condition.text
         val rawTemp = "${current.temp_c.toInt()}°C"
         val rawFeelsLike = "${current.feelslike_c.toInt()}°C"
 
-        // 2. Set Icon
+
         ivIcon.setImageResource(getIconForCondition(rawCondition))
 
-        // 3. TRANSLATION LOGIC (Crucial for "Feels like" issue)
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
 
@@ -144,7 +138,6 @@ class WeatherActivity : BaseActivity() {
             tvTemp.tag = null
             tvFeelsLike.tag = null
 
-            // Fallback for condition
             if (TranslationHelper.getManualTranslation(rawCondition, langCode) == null) {
                 tvCondition.tag = rawCondition
                 TranslationHelper.translateViewHierarchy(tvCondition, langCode) {}
@@ -173,23 +166,46 @@ class WeatherActivity : BaseActivity() {
     private fun setupInsightsRecycler(days: List<ForecastDay>) {
         val insightList = mutableListOf<InsightModel>()
 
-        // 1. TODAY'S INSIGHT
+        // 1. Get Current Language
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
+        fun getText(englishText: String): String {
+            if (langCode == TranslateLanguage.ENGLISH) return englishText
+            return TranslationHelper.getManualTranslation(englishText, langCode) ?: englishText
+        }
+
+        fun num(number: Any): String {
+            return TranslationHelper.convertDigits(number.toString(), langCode)
+        }
+
+        // --- INSIGHT 1: TODAY'S RAIN ---
         val todayRain = days[0].day.daily_chance_of_rain
+
         if (todayRain > 50) {
+            val part1 = getText("High chance of rain")
+            val part2 = getText("Delay spraying pesticides")
+
+            val finalMsg = "$part1 (${num(todayRain)}%). $part2"
+
             insightList.add(InsightModel(
-                "Rainfall Alert",
-                "High chance of rain today ($todayRain%). Delay spraying pesticides.",
-                R.drawable.ic_rainyweather // Use your rain image
+                getText("Rainfall Alert"),
+                finalMsg,
+                R.drawable.rain_image
             ))
         } else {
+            val part1 = getText("Low chance of rain")
+            val part2 = getText("Good time for irrigation")
+            val finalMsg = "$part1. $part2"
+
             insightList.add(InsightModel(
-                "Today's Activity",
-                "Conditions are clear. Good for field work.",
-                R.drawable.ic_sunnyweather // Use your sun/field image
+                getText("Today's Activity"),
+                finalMsg,
+                R.drawable.soilirrigation_image
             ))
         }
 
-        // 2. FUTURE LOOKAHEAD
+        // --- INSIGHT 2: FUTURE LOOKAHEAD ---
         var upcomingRainDay: String? = null
         for (i in 1..3) {
             if (i < days.size && days[i].day.daily_chance_of_rain > 60) {
@@ -199,36 +215,50 @@ class WeatherActivity : BaseActivity() {
         }
 
         if (upcomingRainDay != null) {
+            val translatedDay = if (langCode != TranslateLanguage.ENGLISH) {
+                TranslationHelper.getManualTranslation(upcomingRainDay, langCode) ?: upcomingRainDay
+            } else upcomingRainDay
+
+            val part1 = getText("Heavy rain expected on")
+            val part2 = getText("Plan drainage")
+
             insightList.add(InsightModel(
-                "Upcoming Weather",
-                "Heavy rain expected on $upcomingRainDay. Plan drainage.",
-                R.drawable.ic_rainyweather // Rain image
+                getText("Upcoming Weather"),
+                "$part1 $translatedDay. $part2",
+                R.drawable.rain_image
             ))
         } else {
             if (todayRain < 30) {
+                val part1 = getText("No rain in the next 3 days")
+                val part2 = getText("Perfect time to irrigate")
+
                 insightList.add(InsightModel(
-                    "Irrigation Advice",
-                    "No rain in the next 3 days. Perfect time to irrigate.",
-                    R.drawable.ic_clearweather // Water/Irrigation image
+                    getText("Irrigation Advice"),
+                    "$part1. $part2",
+                    R.drawable.irrigation_image
                 ))
             }
         }
 
-        // 3. SOIL MOISTURE
+        // --- INSIGHT 3: SOIL MOISTURE ---
         if (todayRain > 70) {
+            val part1 = getText("Soil is likely wet")
+            val part2 = getText("Avoid heavy machinery")
+
             insightList.add(InsightModel(
-                "Soil Status",
-                "Soil is likely wet. Avoid heavy machinery.",
-                R.drawable.ic_cloudyweather // Mud/Soil image
+                getText("Soil Status"),
+                "$part1. $part2",
+                R.drawable.wetsoil_image
             ))
         } else {
             insightList.add(InsightModel(
-                "Soil Status",
-                "Soil moisture is likely stable.",
-                R.drawable.ic_clearweather // Plant/Soil image
+                getText("Soil Status"),
+                getText("Soil moisture is likely stable"),
+                R.drawable.soilmoisture_image
             ))
         }
 
+        // --- SETUP RECYCLER ---
         val recycler = findViewById<RecyclerView>(R.id.recyclerInsights)
 
         if (recycler.itemDecorationCount == 0) {
@@ -238,7 +268,6 @@ class WeatherActivity : BaseActivity() {
         recycler.layoutManager = LinearLayoutManager(this)
         recycler.adapter = InsightAdapter(insightList)
 
-        checkAndTranslateList(recycler)
     }
 
     // --- Helpers ---
