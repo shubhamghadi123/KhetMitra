@@ -9,6 +9,7 @@ interface WeatherService {
     fun getForecast(
         @Query("key") apiKey: String,
         @Query("q") city: String,
-        @Query("days") days: Int // Add this integer parameter
+        @Query("days") days: Int = 7,
+        @Query("aqi") aqi: String = "yes"
     ): Call<WeatherResponse>
 }
