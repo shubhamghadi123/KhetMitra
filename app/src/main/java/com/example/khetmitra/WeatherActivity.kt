@@ -263,20 +263,37 @@ class WeatherActivity : BaseActivity() {
 
     private fun setupForecastRecycler(days: List<ForecastDay>) {
         val forecastList = ArrayList<ForecastModel>()
+
+        val inFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+        val dayFormat = SimpleDateFormat("EEE", Locale.ENGLISH)
+        val dateFormat = SimpleDateFormat("dd/MM", Locale.ENGLISH)
+
         for (day in days) {
-            val dayName = getDayName(day.date)
-            val temp = "${day.day.avgtemp_c.toInt()}°C"
-            val icon = getIconForCondition(day.day.condition.text)
-            forecastList.add(ForecastModel(dayName, icon, temp))
+            val dateObj = inFormat.parse(day.date)
+
+            val dayName = if (dateObj != null) dayFormat.format(dateObj) else day.date
+            val dateStr = if (dateObj != null) dateFormat.format(dateObj) else ""
+
+            // Get High/Low temps
+            val high = "${day.day.maxtemp_c.toInt()}°"
+            val low = "${day.day.mintemp_c.toInt()}°"
+
+            val iconRes = getIconForCondition(day.day.condition.text)
+
+            forecastList.add(ForecastModel(dayName, dateStr, iconRes, high, low))
         }
 
-        val recycler = findViewById<RecyclerView>(R.id.recyclerForecast)
-        if (recycler.itemDecorationCount == 0) {
-            recycler.addItemDecoration(HorizontalSpacingItemDecoration((10 * resources.displayMetrics.density).toInt()))
+        val recyclerForecast = findViewById<RecyclerView>(R.id.recyclerForecast)
+
+        if (recyclerForecast.itemDecorationCount == 0) {
+            val spacingInPixels = (-6 * resources.displayMetrics.density).toInt()
+            recyclerForecast.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
         }
-        recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recycler.adapter = ForecastAdapter(forecastList)
-        checkAndTranslateList(recycler)
+
+        recyclerForecast.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerForecast.adapter = ForecastAdapter(forecastList)
+
+        checkAndTranslateList(recyclerForecast)
     }
 
     private fun setupInsightsRecycler(days: List<ForecastDay>) {

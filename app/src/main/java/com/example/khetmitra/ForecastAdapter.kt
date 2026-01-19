@@ -12,8 +12,10 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvDay: TextView = itemView.findViewById(R.id.tvDayName)
-        val tvTemp: TextView = itemView.findViewById(R.id.tvDayTemp)
-        val imgIcon: ImageView = itemView.findViewById(R.id.imgWeatherIcon)
+        val tvDate: TextView = itemView.findViewById(R.id.tvDate)
+        val ivIcon: ImageView = itemView.findViewById(R.id.imgWeatherIcon)
+        val tvHigh: TextView = itemView.findViewById(R.id.tvHighTemp)
+        val tvLow: TextView = itemView.findViewById(R.id.tvLowTemp)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -25,12 +27,16 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = forecastList[position]
-        holder.tvDay.text = item.dayName
-        holder.tvTemp.text = item.dayTemp
-        holder.imgIcon.setImageResource(item.weatherIcon)
+        holder.tvDay.text = item.day
+        holder.tvDate.text = item.date
+        holder.tvHigh.text = item.highTemp
+        holder.tvLow.text = item.lowTemp
+        holder.ivIcon.setImageResource(item.icon)
 
         holder.tvDay.tag = null
-        holder.tvTemp.tag = null
+        holder.tvDate.tag = null
+        holder.tvHigh.tag = null
+        holder.tvLow.tag = null
 
         val prefs = holder.itemView.context.getSharedPreferences("AppSettings", android.content.Context.MODE_PRIVATE)
         val targetLang = prefs.getString("Language", com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH)
@@ -38,14 +44,13 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
 
         // Only run translation if the target language is NOT English
         if (targetLang != com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH) {
-            // Translate the Day Name
+
             TranslationHelper.translateViewHierarchy(holder.tvDay, targetLang) { }
-            // Translate the Temp (if it contains text like 'Sunny' or 'Cloudy')
-            TranslationHelper.translateViewHierarchy(holder.tvTemp, targetLang) { }
+            TranslationHelper.translateViewHierarchy(holder.tvDate, targetLang) { }
+            TranslationHelper.translateViewHierarchy(holder.tvHigh, targetLang) { }
+            TranslationHelper.translateViewHierarchy(holder.tvLow, targetLang) { }
         }
     }
 
-    override fun getItemCount(): Int {
-        return forecastList.size
-    }
+    override fun getItemCount() = forecastList.size
 }

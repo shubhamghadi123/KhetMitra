@@ -23,7 +23,6 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:layout_editor_absoluteX="0dp" />
 
-
         <androidx.cardview.widget.CardView
             android:id="@+id/profileCard"
             android:layout_width="80dp"

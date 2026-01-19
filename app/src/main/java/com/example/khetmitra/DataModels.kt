@@ -7,9 +7,11 @@ data class DataModels(
 )
 
 data class ForecastModel(
-    val dayName: String,
-    val weatherIcon: Int,
-    val dayTemp: String
+    val day: String,
+    val date: String,
+    val icon: Int,
+    val highTemp: String,
+    val lowTemp: String
 )
 
 data class InsightModel(
