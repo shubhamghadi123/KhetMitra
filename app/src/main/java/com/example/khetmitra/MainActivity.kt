@@ -40,6 +40,9 @@ class MainActivity : BaseActivity() {
             else if (selectedItem.title == "Market") {
                 startActivity(Intent(this, MarketActivity::class.java))
             }
+            else if (selectedItem.title == "Chat") {
+                startActivity(Intent(this, ChatbotActivity::class.java))
+            }
         }
         recyclerView.adapter = adapter
 

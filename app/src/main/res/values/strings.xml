@@ -7,18 +7,20 @@
 
     <string name="market_title">Market</string>
 
-        <string-array name="market_locations">
-            <item>Karnal</item>
-            <item>Pune</item>
-            <item>Delhi</item>
-            <item>Mumbai</item>
-        </string-array>
+    <string name="chatbot_title">Chat</string>
 
-        <string-array name="crop_names">
-            <item>Wheat</item>
-            <item>Rice</item>
-            <item>Corn</item>
-            <item>Sugarcane</item>
-        </string-array>
+    <string-array name="market_locations">
+        <item>Karnal</item>
+        <item>Pune</item>
+        <item>Delhi</item>
+        <item>Mumbai</item>
+    </string-array>
+
+    <string-array name="crop_names">
+        <item>Wheat</item>
+        <item>Rice</item>
+        <item>Corn</item>
+        <item>Sugarcane</item>
+    </string-array>
 
 </resources>
