@@ -15,34 +15,26 @@ import java.util.Locale
 
 object TranslationHelper {
 
-    // 1. Variable to hold the loaded data (Empty by default)
     private var loadedCorrections: Map<String, Map<String, String>> = emptyMap()
-
-    // 2. INITIALIZE: Call this once in your MainActivity onCreate()
     fun initTranslations(context: Context) {
         try {
-            // Reads "manual_corrections.json" from the assets folder
             val jsonString = context.assets.open("manual_corrections.json").bufferedReader().use { it.readText() }
 
-            // Defines the type: Map<String, Map<String, String>>
             val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
 
-            // Parses JSON into the map
             loadedCorrections = Gson().fromJson(jsonString, type)
         } catch (e: IOException) {
             e.printStackTrace()
         }
     }
 
-    // 3. LOOKUP: Checks the loaded JSON map for translations
     fun getManualTranslation(text: String, langCode: String): String? {
         val cleanText = text.trim()
-        // Try exact match or lowercase match
         return loadedCorrections[cleanText]?.get(langCode)
             ?: loadedCorrections[cleanText.lowercase(Locale.getDefault())]?.get(langCode)
     }
 
-    // DIGIT CONVERTER (The missing piece for 123 -> १२३)
+    // DIGIT CONVERTER
     fun convertDigits(text: String, langCode: String): String {
         return when (langCode) {
             TranslateLanguage.HINDI, TranslateLanguage.MARATHI ->
@@ -70,7 +62,6 @@ object TranslationHelper {
         }
     }
 
-    // MAIN FUNCTION
     fun translateViewHierarchy(rootView: View, targetLang: String, onFinished: () -> Unit) {
         val allTextViews = ArrayList<TextView>()
         getAllTextViews(rootView, allTextViews)

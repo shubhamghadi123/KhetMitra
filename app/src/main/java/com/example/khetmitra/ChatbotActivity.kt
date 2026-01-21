@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -24,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 class ChatbotActivity : AppCompatActivity() {
 
@@ -32,13 +34,19 @@ class ChatbotActivity : AppCompatActivity() {
     private lateinit var etInput: EditText
     private lateinit var recyclerChat: RecyclerView
     private lateinit var btnAction: ImageView
+    private var currentLangCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
+    }
 
     // Camera Launcher
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
             if (imageBitmap != null) {
-                addMessageWithAttachment("[Photo Captured]", true, bitmap = imageBitmap)
+                addMessageWithAttachment(t("[Photo Captured]"), true, bitmap = imageBitmap)
             }
         }
     }
@@ -46,7 +54,7 @@ class ChatbotActivity : AppCompatActivity() {
     // Gallery Launcher
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
-            addMessageWithAttachment("[Photo Selected]", true, uri = uri)
+            addMessageWithAttachment(t("[Photo Selected]"), true, uri = uri)
         }
     }
 
@@ -54,11 +62,9 @@ class ChatbotActivity : AppCompatActivity() {
     private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             val name = getFileName(uri)
-            // Mark isImage = false so the adapter knows to show the file bubble
-            addMessageWithAttachment("[File Attached]", true, uri = uri, isImage = false, fileName = name)
+            addMessageWithAttachment(t("[File Attached]"), true, uri = uri, isImage = false, fileName = name)
         }
     }
-
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -71,11 +77,18 @@ class ChatbotActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chatbot)
 
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
         etInput = findViewById(R.id.etMessageInput)
         recyclerChat = findViewById(R.id.recyclerChat)
         btnAction = findViewById(R.id.btnMic)
         val btnBack = findViewById<ImageView>(R.id.btnBack)
         val btnPlus = findViewById<View>(R.id.btnPlus)
+
+        findViewById<TextView>(R.id.tvHeaderTitle)?.text = t("Chat")
+
+        etInput.hint = t("Ask anything")
 
         btnPlus.setOnClickListener { showAttachmentOptions() }
 
@@ -83,7 +96,7 @@ class ChatbotActivity : AppCompatActivity() {
         recyclerChat.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         recyclerChat.adapter = chatAdapter
 
-        addMessage("Namaste! I am your KhetMitra AI. Ask me anything.", false)
+        addMessage(t("Namaste! I am your KhetMitra AI. Ask me anything."), false)
 
         etInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -120,7 +133,10 @@ class ChatbotActivity : AppCompatActivity() {
         val view = layoutInflater.inflate(R.layout.bottom_sheet_chat_attachments, null)
         bottomSheetDialog.setContentView(view)
 
-        // Camera
+        view.findViewById<TextView>(R.id.tvCameraLabel)?.text = t("Camera")
+        view.findViewById<TextView>(R.id.tvGalleryLabel)?.text = t("Gallery")
+        view.findViewById<TextView>(R.id.tvFileLabel)?.text = t("File")
+
         view.findViewById<View>(R.id.optionCamera).setOnClickListener {
             bottomSheetDialog.dismiss()
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -130,13 +146,11 @@ class ChatbotActivity : AppCompatActivity() {
             }
         }
 
-        // Gallery
         view.findViewById<View>(R.id.optionGallery).setOnClickListener {
             bottomSheetDialog.dismiss()
             pickImageLauncher.launch("image/*")
         }
 
-        // File
         view.findViewById<View>(R.id.optionFile).setOnClickListener {
             bottomSheetDialog.dismiss()
             pickFileLauncher.launch("*/*")
@@ -194,7 +208,8 @@ class ChatbotActivity : AppCompatActivity() {
         updateList()
 
         recyclerChat.postDelayed({
-            addMessage("I received your ${if (isImage) "photo" else "file"}. Analyzing...", false)
+            val msgKey = if (isImage) "I received your photo. Analyzing..." else "I received your file. Analyzing..."
+            addMessage(t(msgKey), false)
         }, 1000)
     }
 
@@ -205,8 +220,12 @@ class ChatbotActivity : AppCompatActivity() {
 
     private fun fetchAIResponse(query: String) {
         recyclerChat.postDelayed({
-            val dummyResponse = "I understood: '$query'. \n\n(AI Model Placeholder)"
-            addMessage(dummyResponse, false)
+            val understoodPart = t("I understood")
+            val placeholderPart = t("(AI Model Placeholder)")
+
+            val finalResponse = "$understoodPart: '$query'. \n\n$placeholderPart"
+
+            addMessage(finalResponse, false)
         }, 1000)
     }
 
@@ -240,8 +259,7 @@ class ChatbotActivity : AppCompatActivity() {
                 if (msg.imageBitmap != null) {
                     holder.cardUserImage.visibility = View.VISIBLE
                     holder.ivUserImage.setImageBitmap(msg.imageBitmap)
-                }
-                else if (msg.fileUri != null) {
+                } else if (msg.fileUri != null) {
                     if (msg.isImage) {
                         holder.cardUserImage.visibility = View.VISIBLE
                         holder.ivUserImage.setImageURI(msg.fileUri)
@@ -249,8 +267,7 @@ class ChatbotActivity : AppCompatActivity() {
                         holder.cardUserFile.visibility = View.VISIBLE
                         holder.tvFileName.text = msg.fileName
                     }
-                }
-                else {
+                } else {
                     holder.tvUser.visibility = View.VISIBLE
                     holder.tvUser.text = msg.message
                 }

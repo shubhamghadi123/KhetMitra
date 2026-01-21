@@ -276,10 +276,27 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
+                <ImageView
+                    android:id="@+id/trending_up"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:src="@drawable/round_trending_up_24"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="10dp"/>
+
+                <ImageView
+                    android:id="@+id/trending_down"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:src="@drawable/round_trending_down_24"
+                    android:layout_gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="10dp"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="0dp"
                     android:text="Price will go UP"
                     android:textColor="#000000"
                     android:textSize="24sp"
