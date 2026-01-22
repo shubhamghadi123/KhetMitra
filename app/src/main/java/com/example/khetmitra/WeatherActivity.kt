@@ -3,8 +3,17 @@ package com.example.khetmitra
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -23,6 +32,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 class WeatherActivity : BaseActivity() {
 
@@ -113,17 +123,107 @@ class WeatherActivity : BaseActivity() {
                     val weatherData = response.body()!!
 
                     updateCurrentWeatherUI(weatherData.current, weatherData.forecast.forecastday[0])
-
                     setupForecastRecycler(weatherData.forecast.forecastday)
-
+                    setupHourlyRecycler(weatherData.forecast.forecastday)
                     setupInsightsRecycler(weatherData.forecast.forecastday)
                 }
             }
-
             override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                 Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun setupHourlyRecycler(days: List<ForecastDay>) {
+        val hourlyModels = ArrayList<HourlyModel>()
+
+        val currentMillis = System.currentTimeMillis()
+        val sdfApi = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH)
+        val sdfDisplay = SimpleDateFormat("h a", Locale.ENGLISH)
+
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
+
+        fun num(n: Any): String = TranslationHelper.convertDigits(n.toString(), langCode ?: TranslateLanguage.ENGLISH)
+        fun txt(s: String): String = if (langCode != TranslateLanguage.ENGLISH) TranslationHelper.getManualTranslation(s, langCode!!) ?: s else s
+
+        val allHours = ArrayList<Hour>()
+
+        if (days.isNotEmpty()) allHours.addAll(days[0].hour)
+        if (days.size > 1) allHours.addAll(days[1].hour)
+
+        for (hourObj in allHours) {
+            try {
+                val timeObj = sdfApi.parse(hourObj.time)
+                if (timeObj != null) {
+                    if (timeObj.time >= currentMillis - 3000000) {
+
+                        var rawTime = sdfDisplay.format(timeObj)
+
+                        if (!rawTime.contains(":")) {
+                            rawTime = rawTime.replace(" AM", ":00 AM")
+                                .replace(" PM", ":00 PM")
+                        }
+
+                        if (langCode != TranslateLanguage.ENGLISH) {
+                            if (rawTime.contains("AM")) {
+                                rawTime = rawTime.replace("AM", "").trim() + "\n" + txt("AM")
+                            } else if (rawTime.contains("PM")) {
+                                rawTime = rawTime.replace("PM", "").trim() + "\n" + txt("PM")
+                            } else {
+                                rawTime = rawTime.replace(" ", "\n")
+                            }
+
+                            val numberRegex = Regex("\\d+")
+                            rawTime = numberRegex.replace(rawTime) { matchResult ->
+                                num(matchResult.value)
+                            }
+                        } else {
+                            rawTime = rawTime.replace(" ", "\n")
+                        }
+
+                        val spannable = SpannableString(rawTime)
+                        val newlineIndex = rawTime.indexOf('\n')
+
+                        if (newlineIndex != -1 && newlineIndex < rawTime.length - 1) {
+                            val startIndex = newlineIndex + 1
+                            val endIndex = rawTime.length
+
+                            spannable.setSpan(
+                                RelativeSizeSpan(0.85f),
+                                startIndex,
+                                endIndex,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+
+                            spannable.setSpan(
+                                ForegroundColorSpan("#9E9E9E".toColorInt()),
+                                startIndex,
+                                endIndex,
+                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
+
+                        val temp = "${num(hourObj.temp_c.toInt())}°"
+                        val iconRes = getIconForCondition(hourObj.condition.text)
+                        hourlyModels.add(HourlyModel(spannable, temp, iconRes))
+                        if (hourlyModels.size >= 24) break
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val recyclerHourly = findViewById<RecyclerView>(R.id.recyclerHourly)
+
+        if (recyclerHourly.itemDecorationCount == 0) {
+            val spacingInPixels = (-6 * resources.displayMetrics.density).toInt()
+            recyclerHourly.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
+        }
+
+        recyclerHourly.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerHourly.adapter = HourlyAdapter(hourlyModels)
     }
 
     private fun updateCurrentWeatherUI(current: Current, todayForecast: ForecastDay) {
@@ -131,8 +231,8 @@ class WeatherActivity : BaseActivity() {
         val tvTemp = findViewById<TextView>(R.id.tvTempBig)
         val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
         val ivIcon = findViewById<ImageView>(R.id.iconCurrentWeather)
-        val tvHighLow = findViewById<TextView>(R.id.tvHighLow) // New View
-        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody) // New View
+        val tvHighLow = findViewById<TextView>(R.id.tvHighLow)
+        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
 
         // Raw Data
         val rawCondition = current.condition.text
@@ -154,8 +254,6 @@ class WeatherActivity : BaseActivity() {
             tvHighLow.text = "↑$rawHigh ↓$rawLow"
             tvSummaryBody.text = generateQuickSummary(current, todayForecast, langCode)
         } else {
-            // --- TRANSLATION LOGIC ---
-
             // 1. Condition
             val translatedCond = TranslationHelper.getManualTranslation(rawCondition, langCode!!) ?: rawCondition
             tvCondition.text = translatedCond
@@ -176,7 +274,6 @@ class WeatherActivity : BaseActivity() {
             // 5. Summary
             tvSummaryBody.text = generateQuickSummary(current, todayForecast, langCode)
 
-            // Manual fallback for condition if not in map
             if (TranslationHelper.getManualTranslation(rawCondition, langCode) == null) {
                 tvCondition.tag = rawCondition
                 TranslationHelper.translateViewHierarchy(tvCondition, langCode) {}
@@ -431,4 +528,29 @@ class WeatherActivity : BaseActivity() {
             }
         }
     }
+}
+
+class HourlyAdapter(private val hourlyList: List<HourlyModel>) :
+    RecyclerView.Adapter<HourlyAdapter.HourlyViewHolder>() {
+
+    class HourlyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvTime: TextView = itemView.findViewById(R.id.tvHourTime)
+        val tvTemp: TextView = itemView.findViewById(R.id.tvHourTemp)
+        val ivIcon: ImageView = itemView.findViewById(R.id.ivHourIcon)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HourlyViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_hourly, parent, false)
+        return HourlyViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: HourlyViewHolder, position: Int) {
+        val item = hourlyList[position]
+        holder.tvTime.text = item.time
+        holder.tvTemp.text = item.temp
+        holder.ivIcon.setImageResource(item.icon)
+    }
+
+    override fun getItemCount() = hourlyList.size
 }

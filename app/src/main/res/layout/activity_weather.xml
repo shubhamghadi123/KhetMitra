@@ -212,6 +212,38 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <TextView
+            android:id="@+id/tvHourlyTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="24dp"
+            android:text="Hourly Forecast"
+            android:textColor="#000000"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cardQuickSummary" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardHourlyContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="#E0E0E0"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
+            app:layout_constraintTop_toBottomOf="@id/tvHourlyTitle">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerHourly"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:padding="15dp" />
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/tvForecastTitle"
@@ -224,7 +256,7 @@
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/cardQuickSummary" />
+            app:layout_constraintTop_toBottomOf="@id/cardHourlyContainer" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardForecastContainer"
