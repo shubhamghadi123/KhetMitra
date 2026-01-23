@@ -27,28 +27,31 @@ class ForecastAdapter(private val forecastList: List<ForecastModel>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = forecastList[position]
-        holder.tvDay.text = item.day
-        holder.tvDate.text = item.date
-        holder.tvHigh.text = item.highTemp
-        holder.tvLow.text = item.lowTemp
-        holder.ivIcon.setImageResource(item.icon)
-
-        holder.tvDay.tag = null
-        holder.tvDate.tag = null
-        holder.tvHigh.tag = null
-        holder.tvLow.tag = null
 
         val prefs = holder.itemView.context.getSharedPreferences("AppSettings", android.content.Context.MODE_PRIVATE)
         val targetLang = prefs.getString("Language", com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH)
             ?: com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
 
-        // Only run translation if the target language is NOT English
-        if (targetLang != com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH) {
+        holder.ivIcon.setImageResource(item.icon)
 
-            TranslationHelper.translateViewHierarchy(holder.tvDay, targetLang) { }
-            TranslationHelper.translateViewHierarchy(holder.tvDate, targetLang) { }
-            TranslationHelper.translateViewHierarchy(holder.tvHigh, targetLang) { }
-            TranslationHelper.translateViewHierarchy(holder.tvLow, targetLang) { }
+        if (targetLang == com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH) {
+            holder.tvDay.text = item.day
+            holder.tvDate.text = item.date
+            holder.tvHigh.text = item.highTemp
+            holder.tvLow.text = item.lowTemp
+        } else {
+            holder.tvHigh.text = TranslationHelper.convertDigits(item.highTemp, targetLang)
+            holder.tvLow.text = TranslationHelper.convertDigits(item.lowTemp, targetLang)
+
+            val manualDay = TranslationHelper.getManualTranslation(item.day, targetLang)
+            if (manualDay != null) {
+                holder.tvDay.text = manualDay
+            } else {
+                holder.tvDay.text = item.day
+                TranslationHelper.translateViewHierarchy(holder.tvDay, targetLang) {}
+            }
+            holder.tvDate.text = TranslationHelper.convertDigits(item.date, targetLang)
+            TranslationHelper.translateViewHierarchy(holder.tvDate, targetLang) {}
         }
     }
 

@@ -3,17 +3,8 @@ package com.example.khetmitra
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.style.AbsoluteSizeSpan
-import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -32,14 +23,12 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.core.graphics.toColorInt
 
 class WeatherActivity : BaseActivity() {
 
     private val API_KEY = BuildConfig.WEATHER_API_KEY // Your WeatherAPI Key
     private var currentLocationQuery = "Mumbai" // Default city if GPS fails
 
-    private var isSummaryExpanded = false
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,25 +42,6 @@ class WeatherActivity : BaseActivity() {
         checkLocationPermissionAndFetch()
 
         setupSummaryExpandLogic()
-    }
-
-    private fun setupSummaryExpandLogic() {
-        val headerSummary = findViewById<android.widget.LinearLayout>(R.id.headerSummary)
-        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
-        val btnArrow = findViewById<ImageView>(R.id.btnToggleSummary)
-
-        headerSummary.setOnClickListener {
-            isSummaryExpanded = !isSummaryExpanded
-            if (isSummaryExpanded) {
-                tvSummaryBody.maxLines = Int.MAX_VALUE
-                tvSummaryBody.ellipsize = null
-                btnArrow.animate().rotation(180f).setDuration(200).start()
-            } else {
-                tvSummaryBody.maxLines = 2
-                tvSummaryBody.ellipsize = android.text.TextUtils.TruncateAt.END
-                btnArrow.animate().rotation(0f).setDuration(200).start()
-            }
-        }
     }
 
     private fun checkLocationPermissionAndFetch() {
@@ -116,7 +86,6 @@ class WeatherActivity : BaseActivity() {
             .build()
 
         val service = retrofit.create(WeatherService::class.java)
-
         service.getForecast(API_KEY, query, 7).enqueue(object : Callback<WeatherResponse> {
             override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
                 if (response.isSuccessful && response.body() != null) {
@@ -126,12 +95,229 @@ class WeatherActivity : BaseActivity() {
                     setupForecastRecycler(weatherData.forecast.forecastday)
                     setupHourlyRecycler(weatherData.forecast.forecastday)
                     setupInsightsRecycler(weatherData.forecast.forecastday)
+
+                    checkAndTranslateList(findViewById(R.id.recyclerHourly))
+                    checkAndTranslateList(findViewById(R.id.recyclerInsights))
                 }
             }
             override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                 Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun updateCurrentWeatherUI(current: Current, todayForecast: ForecastDay) {
+        val tvCondition = findViewById<TextView>(R.id.tvWeatherCondition)
+        val tvTemp = findViewById<TextView>(R.id.tvTempBig)
+        val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
+        val ivIcon = findViewById<ImageView>(R.id.iconCurrentWeather)
+        val tvHighLow = findViewById<TextView>(R.id.tvHighLow)
+        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
+
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
+        fun t(text: String): String {
+            if (langCode == TranslateLanguage.ENGLISH) return text
+            return TranslationHelper.getManualTranslation(text, langCode) ?: text
+        }
+
+        fun d(num: Any): String {
+            return TranslationHelper.convertDigits(num.toString(), langCode)
+        }
+
+        val rawCondition = current.condition.text
+        ivIcon.setImageResource(getIconForCondition(rawCondition))
+        tvCondition.text = t(rawCondition)
+
+        val tempNum = d(current.temp_c.toInt())
+        val unit = t("°C")
+        tvTemp.text = "$tempNum$unit"
+
+        val feelsPrefix = t("Feels like")
+        val feelsNum = d(current.feelslike_c.toInt())
+        tvFeelsLike.text = "$feelsPrefix $feelsNum$unit"
+
+        val rawHigh = todayForecast.day.maxtemp_c.toInt()
+        val rawLow = todayForecast.day.mintemp_c.toInt()
+        tvHighLow.text = "↑${d(rawHigh)}° ↓${d(rawLow)}°"
+
+        val initialSummary = generateQuickSummary(current, todayForecast, langCode)
+        tvSummaryBody.text = initialSummary
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            if (containsEnglish(initialSummary)) {
+                processMixedSummary(initialSummary, langCode) { finalMixedText ->
+                    tvSummaryBody.text = finalMixedText
+                }
+            }
+        }
+    }
+
+    private fun containsEnglish(text: String): Boolean {
+        return Regex("[a-zA-Z]{3,}").containsMatchIn(text)
+    }
+
+    private fun processMixedSummary(fullText: String, targetLang: String, callback: (String) -> Unit) {
+        val lines = fullText.split("\n")
+        val processedLines = arrayOfNulls<String>(lines.size)
+        var pendingTranslations = 0
+
+        for ((index, line) in lines.withIndex()) {
+            if (containsEnglish(line)) {
+                pendingTranslations++
+                translateTextWithMLKit(line, targetLang) { translatedLine ->
+                    processedLines[index] = translatedLine
+                    pendingTranslations--
+                    if (pendingTranslations == 0) {
+                        callback(processedLines.filterNotNull().joinToString("\n"))
+                    }
+                }
+            } else {
+                processedLines[index] = line
+            }
+        }
+
+        if (pendingTranslations == 0) {
+            callback(fullText)
+        }
+    }
+
+    private fun translateTextWithMLKit(text: String, targetLang: String, callback: (String) -> Unit) {
+        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(targetLang)
+            .build()
+        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+
+        client.downloadModelIfNeeded().addOnSuccessListener {
+            client.translate(text).addOnSuccessListener { result ->
+                callback(result)
+            }.addOnFailureListener { callback(text) }
+        }.addOnFailureListener { callback(text) }
+    }
+
+    private fun generateQuickSummary(current: Current, today: ForecastDay, langCode: String?): String {
+        fun t(text: String): String {
+            if (langCode == null || langCode == TranslateLanguage.ENGLISH) return text
+            return TranslationHelper.getManualTranslation(text, langCode) ?: text
+        }
+
+        fun d(num: Any): String {
+            return TranslationHelper.convertDigits(num.toString(), langCode ?: TranslateLanguage.ENGLISH)
+        }
+
+        try {
+            val sb = StringBuilder()
+
+            val rainChance = today.day.daily_chance_of_rain
+            val humidity = current.humidity
+            val temp = current.temp_c
+            val aqi = current.air_quality?.us_epa_index ?: 1
+
+            var headerPart1 = ""
+            var headerPart2 = ""
+
+            if (humidity > 80 && temp > 24) {
+                headerPart1 = t("Expect a humid, clingy morning")
+                headerPart2 = t("sweaty conditions expected")
+            } else if (rainChance > 50) {
+                headerPart1 = t("Expect a rainy, wet start")
+                headerPart2 = t("Carrying an umbrella is advised")
+            } else {
+                headerPart1 = t("Expect a clear, bright start")
+                headerPart2 = t("Perfect for outdoor tasks")
+            }
+
+            // Aqi Status
+            val aqiStatus = if (aqi > 3) t("Air quality may be unhealthy") else t("Air quality is acceptable")
+            sb.append("$headerPart1 — $aqiStatus. $headerPart2.\n")
+
+            // AQI Warning
+            if (aqi > 3) {
+                sb.append("• ${t("Air quality is poor right now")} — ${t("Consider limiting time outside")}\n")
+            }
+
+            // UV Warning
+            if (current.uv > 5) {
+                sb.append("• ${t("High UV levels could pose a risk outdoors")}\n")
+            }
+
+            // Humidity
+            if (humidity > 70) {
+                val dewPoint = d(current.dewpoint_c.toInt())
+                sb.append("• ${t("Feels humid later")} — ${t("Dew point near")} $dewPoint°\n")
+            }
+
+            // Today's High
+            val highTemp = d(today.day.maxtemp_c.toInt())
+            sb.append("• ${t("Today's high will reach around")} $highTemp${t("°C")}\n")
+
+            // Sunrise/Sunset
+            val sunrise = today.astro.sunrise
+            val sunset = today.astro.sunset
+            if (!sunrise.isNullOrEmpty() && !sunset.isNullOrEmpty()) {
+                val am = t("AM")
+                val pm = t("PM")
+                val sRise = d(sunrise.replace("AM", "").trim()) + " " + am
+                val sSet = d(sunset.replace("PM", "").trim()) + " " + pm
+                sb.append("• ${t("Sunrise")}: $sRise, ${t("Sunset")}: $sSet\n")
+            }
+
+            // Day Length
+            val duration = calculateDayLength(today.astro.sunrise, today.astro.sunset)
+            if (duration != null) {
+                val (hours, minutes) = duration
+                val hrStr = t("hrs")
+                val minStr = t("mins")
+                sb.append("• ${t("Day length")}: ${d(hours)} $hrStr ${d(minutes)} $minStr")
+            }
+
+            return sb.toString().trim()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return t("Weather data is currently unavailable.")
+        }
+    }
+
+    private fun calculateDayLength(sunrise: String, sunset: String): Pair<Int, Int>? {
+        return try {
+            val format = SimpleDateFormat("hh:mm aa", Locale.ENGLISH)
+            val dateSunrise = format.parse(sunrise)
+            val dateSunset = format.parse(sunset)
+
+            if (dateSunrise != null && dateSunset != null) {
+                val diff = dateSunset.time - dateSunrise.time
+                val hours = (diff / (1000 * 60 * 60)).toInt()
+                val minutes = ((diff / (1000 * 60)) % 60).toInt()
+                Pair(hours, minutes)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun setupSummaryExpandLogic() {
+        val headerSummary = findViewById<android.widget.LinearLayout>(R.id.headerSummary)
+        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
+        val btnArrow = findViewById<ImageView>(R.id.btnToggleSummary)
+        var isExpanded = false
+
+        tvSummaryBody.maxLines = 2
+        tvSummaryBody.ellipsize = null
+
+        headerSummary.setOnClickListener {
+            isExpanded = !isExpanded
+            if (isExpanded) {
+                tvSummaryBody.maxLines = Int.MAX_VALUE
+                btnArrow.animate().rotation(180f).setDuration(300).start()
+            } else {
+                tvSummaryBody.maxLines = 2
+                tvSummaryBody.ellipsize = null
+                btnArrow.animate().rotation(0f).setDuration(300).start()
+            }
+        }
     }
 
     private fun setupHourlyRecycler(days: List<ForecastDay>) {
@@ -182,31 +368,11 @@ class WeatherActivity : BaseActivity() {
                             rawTime = rawTime.replace(" ", "\n")
                         }
 
-                        val spannable = SpannableString(rawTime)
-                        val newlineIndex = rawTime.indexOf('\n')
-
-                        if (newlineIndex != -1 && newlineIndex < rawTime.length - 1) {
-                            val startIndex = newlineIndex + 1
-                            val endIndex = rawTime.length
-
-                            spannable.setSpan(
-                                RelativeSizeSpan(0.85f),
-                                startIndex,
-                                endIndex,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-
-                            spannable.setSpan(
-                                ForegroundColorSpan("#9E9E9E".toColorInt()),
-                                startIndex,
-                                endIndex,
-                                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-                        }
-
                         val temp = "${num(hourObj.temp_c.toInt())}°"
                         val iconRes = getIconForCondition(hourObj.condition.text)
-                        hourlyModels.add(HourlyModel(spannable, temp, iconRes))
+
+                        hourlyModels.add(HourlyModel(rawTime, temp, iconRes))
+
                         if (hourlyModels.size >= 24) break
                     }
                 }
@@ -224,138 +390,6 @@ class WeatherActivity : BaseActivity() {
 
         recyclerHourly.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerHourly.adapter = HourlyAdapter(hourlyModels)
-    }
-
-    private fun updateCurrentWeatherUI(current: Current, todayForecast: ForecastDay) {
-        val tvCondition = findViewById<TextView>(R.id.tvWeatherCondition)
-        val tvTemp = findViewById<TextView>(R.id.tvTempBig)
-        val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
-        val ivIcon = findViewById<ImageView>(R.id.iconCurrentWeather)
-        val tvHighLow = findViewById<TextView>(R.id.tvHighLow)
-        val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
-
-        // Raw Data
-        val rawCondition = current.condition.text
-        val rawTemp = "${current.temp_c.toInt()}°C"
-        val rawFeelsLike = "${current.feelslike_c.toInt()}°C"
-        val rawHigh = "${todayForecast.day.maxtemp_c.toInt()}°"
-        val rawLow = "${todayForecast.day.mintemp_c.toInt()}°"
-
-        ivIcon.setImageResource(getIconForCondition(rawCondition))
-
-        // Get Language
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-        val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
-
-        if (langCode == TranslateLanguage.ENGLISH) {
-            tvCondition.text = rawCondition
-            tvTemp.text = rawTemp
-            tvFeelsLike.text = "Feels like $rawFeelsLike"
-            tvHighLow.text = "↑$rawHigh ↓$rawLow"
-            tvSummaryBody.text = generateQuickSummary(current, todayForecast, langCode)
-        } else {
-            // 1. Condition
-            val translatedCond = TranslationHelper.getManualTranslation(rawCondition, langCode!!) ?: rawCondition
-            tvCondition.text = translatedCond
-
-            // 2. Temp
-            tvTemp.text = TranslationHelper.convertDigits(rawTemp, langCode)
-
-            // 3. Feels Like
-            val prefix = TranslationHelper.getManualTranslation("Feels like", langCode) ?: "Feels like"
-            val feelsNum = TranslationHelper.convertDigits(rawFeelsLike, langCode)
-            tvFeelsLike.text = "$prefix $feelsNum"
-
-            // 4. High / Low
-            val highNum = TranslationHelper.convertDigits(rawHigh, langCode)
-            val lowNum = TranslationHelper.convertDigits(rawLow, langCode)
-            tvHighLow.text = "↑$highNum ↓$lowNum"
-
-            // 5. Summary
-            tvSummaryBody.text = generateQuickSummary(current, todayForecast, langCode)
-
-            if (TranslationHelper.getManualTranslation(rawCondition, langCode) == null) {
-                tvCondition.tag = rawCondition
-                TranslationHelper.translateViewHierarchy(tvCondition, langCode) {}
-            }
-        }
-    }
-
-    private fun generateQuickSummary(current: Current, today: ForecastDay, langCode: String?): String {
-        fun t(text: String): String {
-            if (langCode == null || langCode == TranslateLanguage.ENGLISH) return text
-            return TranslationHelper.getManualTranslation(text, langCode) ?: text
-        }
-
-        fun d(num: Any): String {
-            return TranslationHelper.convertDigits(num.toString(), langCode ?: TranslateLanguage.ENGLISH)
-        }
-
-        val sb = StringBuilder()
-
-        val rainChance = today.day.daily_chance_of_rain
-        val humidity = current.humidity
-        val temp = current.temp_c
-        val conditionText = current.condition.text.lowercase().trim()
-
-        val headerKey = when {
-            rainChance > 60 -> "Rainy and wet start"
-            humidity > 80 && temp > 25 -> "A muggy and warm start"
-            conditionText.contains("sunny") -> "A bright and sunny start"
-            conditionText.contains("cloud") || conditionText.contains("overcast") -> "A cloudy start"
-            conditionText.contains("clear") -> "A clear start"
-            else -> "A clear start"
-        }
-
-        val translatedHeader = t(headerKey)
-
-        val aqi = current.air_quality?.us_epa_index ?: 1
-        val aqiDescKey = if (aqi > 3) "Air quality is unhealthy" else "Air quality is acceptable"
-        val translatedAqiDesc = t(aqiDescKey)
-
-        sb.append("$translatedHeader — $translatedAqiDesc.\n\n")
-
-        // AIR QUALITY DETAILS
-        if (aqi > 2) {
-            sb.append("• ${t("Air quality is poor right now")} — ${t("Consider limiting time outside")}.\n\n")
-        } else {
-            sb.append("• ${t("Air quality is good")} — ${t("Perfect for outdoor activities")}.\n\n")
-        }
-
-        // UV INDEX
-        if (current.uv > 6) {
-            sb.append("• ${t("High UV levels could pose a risk outdoors")}.\n\n")
-        }
-
-        // HUMIDITY
-        if (humidity > 70) {
-            val dewPoint = d(current.dewpoint_c.toInt())
-            sb.append("• ${t("Feels humid")} — ${t("Dew point near")} $dewPoint°.\n\n")
-        }
-
-        // TODAY'S HIGH
-        val highTemp = d(today.day.maxtemp_c.toInt())
-        sb.append("• ${t("Today's high will reach around")} $highTemp°.\n\n")
-
-        // SUNRISE / SUNSET
-        fun formatTime(timeStr: String): String {
-            var fixedTime = d(timeStr)
-            if (timeStr.contains("AM", ignoreCase = true)) {
-                val amTranslation = t("AM")
-                fixedTime = fixedTime.replace("AM", "", ignoreCase = true).trim() + " " + amTranslation
-            } else if (timeStr.contains("PM", ignoreCase = true)) {
-                val pmTranslation = t("PM")
-                fixedTime = fixedTime.replace("PM", "", ignoreCase = true).trim() + " " + pmTranslation
-            }
-            return fixedTime
-        }
-
-        val sunrise = formatTime(today.astro.sunrise)
-        val sunset = formatTime(today.astro.sunset)
-
-        sb.append("• ${t("Sunrise")}: $sunrise, ${t("Sunset")}: $sunset")
-
-        return sb.toString()
     }
 
     private fun setupForecastRecycler(days: List<ForecastDay>) {
@@ -396,7 +430,6 @@ class WeatherActivity : BaseActivity() {
     private fun setupInsightsRecycler(days: List<ForecastDay>) {
         val insightList = mutableListOf<InsightModel>()
 
-        // 1. Get Current Language
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
@@ -488,7 +521,6 @@ class WeatherActivity : BaseActivity() {
             ))
         }
 
-        // --- SETUP RECYCLER ---
         val recycler = findViewById<RecyclerView>(R.id.recyclerInsights)
 
         if (recycler.itemDecorationCount == 0) {
@@ -500,7 +532,6 @@ class WeatherActivity : BaseActivity() {
 
     }
 
-    // --- Helpers ---
     private fun getDayName(dateString: String): String {
         val inFmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
         val outFmt = SimpleDateFormat("EEE", Locale.ENGLISH)
@@ -528,29 +559,4 @@ class WeatherActivity : BaseActivity() {
             }
         }
     }
-}
-
-class HourlyAdapter(private val hourlyList: List<HourlyModel>) :
-    RecyclerView.Adapter<HourlyAdapter.HourlyViewHolder>() {
-
-    class HourlyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvTime: TextView = itemView.findViewById(R.id.tvHourTime)
-        val tvTemp: TextView = itemView.findViewById(R.id.tvHourTemp)
-        val ivIcon: ImageView = itemView.findViewById(R.id.ivHourIcon)
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HourlyViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_hourly, parent, false)
-        return HourlyViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: HourlyViewHolder, position: Int) {
-        val item = hourlyList[position]
-        holder.tvTime.text = item.time
-        holder.tvTemp.text = item.temp
-        holder.ivIcon.setImageResource(item.icon)
-    }
-
-    override fun getItemCount() = hourlyList.size
 }

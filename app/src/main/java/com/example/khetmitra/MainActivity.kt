@@ -1,66 +1,193 @@
 package com.example.khetmitra
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.mlkit.nl.translate.TranslateLanguage
-import androidx.core.content.edit
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : BaseActivity() {
+
+    private lateinit var adapter: DashboardAdapter
+    private val dashboardItems = ArrayList<DataModels>()
+    private var currentLangCode = TranslateLanguage.ENGLISH
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val DEFAULT_CITY = "Mumbai"
+    private val API_KEY = BuildConfig.WEATHER_API_KEY
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         TranslationHelper.initTranslations(this)
-
-        val dashboardItems = listOf(
-            DataModels("Weather", "Sunny, 24°C", R.drawable.ic_weather),
-            DataModels("Plans", "3 tasks for today", R.drawable.ic_plans),
-            DataModels("Chat", "2 new messages", R.drawable.ic_chat),
-            DataModels("Market", "Up by 10%", R.drawable.ic_market)
-        )
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+        setupInitialData()
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-
         val spacingInPixels = (5 * resources.displayMetrics.density).toInt()
         recyclerView.addItemDecoration(VerticalSpacingItemDecoration(spacingInPixels))
 
-        val adapter = DashboardAdapter(dashboardItems) {selectedItem ->
-            if (selectedItem.title == "Weather") {
+        adapter = DashboardAdapter(dashboardItems) { selectedItem ->
+            val title = selectedItem.title
+            if (title == t("Weather") || title == "Weather") {
                 startActivity(Intent(this, WeatherActivity::class.java))
-            }
-            else if (selectedItem.title == "Market") {
+            } else if (title == t("Market") || title == "Market") {
                 startActivity(Intent(this, MarketActivity::class.java))
-            }
-            else if (selectedItem.title == "Chat") {
+            } else if (title == t("Chat") || title == "Chat") {
                 startActivity(Intent(this, ChatbotActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
-
-
+        checkLocationPermissionAndFetch()
         setupLanguageSpinner()
-        recyclerView.post {
-            val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
+    }
 
-            if (langCode != TranslateLanguage.ENGLISH) {
-                TranslationHelper.translateViewHierarchy(recyclerView, langCode!!) {}
+    private fun checkLocationPermissionAndFetch() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            getUserLocation()
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            getUserLocation()
+        } else {
+            fetchWeather(DEFAULT_CITY)
+        }
+    }
+
+    private fun getUserLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                val latLon = "${location.latitude},${location.longitude}"
+                fetchWeather(latLon)
+            } else {
+                fetchWeather(DEFAULT_CITY)
             }
+        }.addOnFailureListener {
+            fetchWeather(DEFAULT_CITY)
+        }
+    }
+
+    private fun t(text: String): String {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
+    }
+
+    private fun d(num: String): String {
+        return TranslationHelper.convertDigits(num, currentLangCode)
+    }
+
+    private fun setupInitialData() {
+        dashboardItems.clear()
+
+        val weatherSubtitle = "${t("Loading")}..."
+        val plansSubtitle = "${d("3")} ${t("tasks for today")}"
+        val chatSubtitle = "${d("2")} ${t("new messages")}"
+        val marketSubtitle = "${t("Up by")} ${d("10")}%"
+
+        dashboardItems.add(DataModels(t("Weather"), weatherSubtitle, R.drawable.ic_weather))
+        dashboardItems.add(DataModels(t("Plans"), plansSubtitle, R.drawable.ic_plans))
+        dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
+        dashboardItems.add(DataModels(t("Market"), marketSubtitle, R.drawable.ic_market))
+    }
+
+    private fun fetchWeather(query: String) {
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://api.weatherapi.com/v1/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val service = retrofit.create(WeatherService::class.java)
+
+        service.getForecast(API_KEY, query, 1).enqueue(object : Callback<WeatherResponse> {
+            override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val current = response.body()!!.current
+
+                    val rawCondition = current.condition.text
+                    val tempText = current.temp_c.toInt().toString()
+                    val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
+
+                    if (manualTranslation != null) {
+                        updateWeatherCard(manualTranslation, tempText)
+                    } else {
+                        translateWithMLKit(rawCondition) { translatedText ->
+                            updateWeatherCard(translatedText, tempText)
+                        }
+                    }
+                }
+            }
+
+            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                Log.e("MainActivity", "Weather fetch failed", t)
+            }
+        })
+    }
+
+    private fun updateWeatherCard(condition: String, temp: String) {
+        val newSubtitle = "$condition, ${d(temp)}${t("°C")}"
+
+        if (dashboardItems.isNotEmpty()) {
+            dashboardItems[0] = DataModels(t("Weather"), newSubtitle, R.drawable.ic_weather)
+            adapter.notifyItemChanged(0)
+        }
+    }
+
+    private fun translateWithMLKit(text: String, callback: (String) -> Unit) {
+        if (currentLangCode == TranslateLanguage.ENGLISH) {
+            callback(text)
+            return
+        }
+
+        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(currentLangCode)
+            .build()
+        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+
+        client.downloadModelIfNeeded().addOnSuccessListener {
+            client.translate(text).addOnSuccessListener { result ->
+                callback(result)
+            }.addOnFailureListener {
+                callback(text)
+            }
+        }.addOnFailureListener {
+            callback(text)
         }
     }
 
     private fun setupLanguageSpinner() {
         val spinner = findViewById<Spinner>(R.id.languageSpinner)
-
         val languages = listOf("English", "हिंदी", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "தமிழ்", "తెలుగు", "বাংলা")
         val codes = listOf(
             TranslateLanguage.ENGLISH,
@@ -77,25 +204,18 @@ class MainActivity : BaseActivity() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner.adapter = adapter
 
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-        val currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
-
         val index = codes.indexOf(currentLangCode)
-        if (index >= 0) {
-            spinner.setSelection(index, false)
-        }
+        if (index >= 0) spinner.setSelection(index, false)
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedCode = codes[position]
-                val savedCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
-
-                if (selectedCode != savedCode) {
+                if (selectedCode != currentLangCode) {
+                    val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
                     prefs.edit { putString("Language", selectedCode) }
                     recreate()
                 }
             }
-
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
     }
