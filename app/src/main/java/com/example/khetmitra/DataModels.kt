@@ -31,7 +31,8 @@ data class Current(
     val feelslike_c: Double,
     val uv: Double,
     val air_quality: AirQuality?,
-    val dewpoint_c: Double
+    val dewpoint_c: Double,
+    val is_day: Int
 )
 
 data class Condition(

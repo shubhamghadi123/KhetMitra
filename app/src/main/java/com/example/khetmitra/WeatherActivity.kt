@@ -39,6 +39,14 @@ class WeatherActivity : BaseActivity() {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        val recyclerHourly = findViewById<RecyclerView>(R.id.recyclerHourly)
+        recyclerHourly.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerHourly.adapter = HourlyAdapter(emptyList())
+
+        val recyclerForecast = findViewById<RecyclerView>(R.id.recyclerForecast)
+        recyclerForecast.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerForecast.adapter = ForecastAdapter(emptyList())
+
         checkLocationPermissionAndFetch()
 
         setupSummaryExpandLogic()
@@ -110,7 +118,7 @@ class WeatherActivity : BaseActivity() {
         val tvCondition = findViewById<TextView>(R.id.tvWeatherCondition)
         val tvTemp = findViewById<TextView>(R.id.tvTempBig)
         val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
-        val ivIcon = findViewById<ImageView>(R.id.iconCurrentWeather)
+        val lottieIcon = findViewById<com.airbnb.lottie.LottieAnimationView>(R.id.iconCurrentWeather)
         val tvHighLow = findViewById<TextView>(R.id.tvHighLow)
         val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
 
@@ -127,7 +135,8 @@ class WeatherActivity : BaseActivity() {
         }
 
         val rawCondition = current.condition.text
-        ivIcon.setImageResource(getIconForCondition(rawCondition))
+        lottieIcon.setAnimation(getIconForCondition(rawCondition, current.is_day))
+        lottieIcon.playAnimation()
         tvCondition.text = t(rawCondition)
 
         val tempNum = d(current.temp_c.toInt())
@@ -325,7 +334,8 @@ class WeatherActivity : BaseActivity() {
 
         val currentMillis = System.currentTimeMillis()
         val sdfApi = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH)
-        val sdfDisplay = SimpleDateFormat("h a", Locale.ENGLISH)
+        val sdfDigitsOnly = SimpleDateFormat("h:mm", Locale.ENGLISH)
+        val sdfEnglishFull = SimpleDateFormat("h:mm a", Locale.ENGLISH)
 
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
@@ -334,7 +344,6 @@ class WeatherActivity : BaseActivity() {
         fun txt(s: String): String = if (langCode != TranslateLanguage.ENGLISH) TranslationHelper.getManualTranslation(s, langCode!!) ?: s else s
 
         val allHours = ArrayList<Hour>()
-
         if (days.isNotEmpty()) allHours.addAll(days[0].hour)
         if (days.size > 1) allHours.addAll(days[1].hour)
 
@@ -344,35 +353,29 @@ class WeatherActivity : BaseActivity() {
                 if (timeObj != null) {
                     if (timeObj.time >= currentMillis - 3000000) {
 
-                        var rawTime = sdfDisplay.format(timeObj)
+                        var finalTimeString = ""
 
-                        if (!rawTime.contains(":")) {
-                            rawTime = rawTime.replace(" AM", ":00 AM")
-                                .replace(" PM", ":00 PM")
-                        }
-
-                        if (langCode != TranslateLanguage.ENGLISH) {
-                            if (rawTime.contains("AM")) {
-                                rawTime = rawTime.replace("AM", "").trim() + "\n" + txt("AM")
-                            } else if (rawTime.contains("PM")) {
-                                rawTime = rawTime.replace("PM", "").trim() + "\n" + txt("PM")
-                            } else {
-                                rawTime = rawTime.replace(" ", "\n")
+                        if (langCode == TranslateLanguage.ENGLISH) {
+                            finalTimeString = sdfEnglishFull.format(timeObj).replace(" ", "\n")
+                        } else {
+                            val hourOfDay = timeObj.hours
+                            val periodKey = when (hourOfDay) {
+                                in 5..11 -> "Morning"
+                                in 12..16 -> "Afternoon"
+                                in 17..19 -> "Evening"
+                                else -> "Night"
                             }
-
+                            val rawDigits = sdfDigitsOnly.format(timeObj)
                             val numberRegex = Regex("\\d+")
-                            rawTime = numberRegex.replace(rawTime) { matchResult ->
+                            val translatedDigits = numberRegex.replace(rawDigits) { matchResult ->
                                 num(matchResult.value)
                             }
-                        } else {
-                            rawTime = rawTime.replace(" ", "\n")
+                            finalTimeString = "$translatedDigits\n${txt(periodKey)}"
                         }
 
                         val temp = "${num(hourObj.temp_c.toInt())}°"
-                        val iconRes = getIconForCondition(hourObj.condition.text)
-
-                        hourlyModels.add(HourlyModel(rawTime, temp, iconRes))
-
+                        val iconRes = getIconForCondition(hourObj.condition.text, hourObj.is_day)
+                        hourlyModels.add(HourlyModel(finalTimeString, temp, iconRes))
                         if (hourlyModels.size >= 24) break
                     }
                 }
@@ -409,7 +412,7 @@ class WeatherActivity : BaseActivity() {
             val high = "${day.day.maxtemp_c.toInt()}°"
             val low = "${day.day.mintemp_c.toInt()}°"
 
-            val iconRes = getIconForCondition(day.day.condition.text)
+            val iconRes = getIconForCondition(day.day.condition.text, 1)
 
             forecastList.add(ForecastModel(dayName, dateStr, iconRes, high, low))
         }
@@ -464,7 +467,7 @@ class WeatherActivity : BaseActivity() {
             insightList.add(InsightModel(
                 getText("Today's Activity"),
                 finalMsg,
-                R.drawable.soilirrigation_image
+                R.drawable.irrigation_image
             ))
         }
 
@@ -498,7 +501,7 @@ class WeatherActivity : BaseActivity() {
                 insightList.add(InsightModel(
                     getText("Irrigation Advice"),
                     "$part1. $part2",
-                    R.drawable.irrigation_image
+                    R.drawable.soilirrigation_image
                 ))
             }
         }
@@ -538,15 +541,49 @@ class WeatherActivity : BaseActivity() {
         return try { outFmt.format(inFmt.parse(dateString)!!) } catch (e: Exception) { dateString }
     }
 
-    private fun getIconForCondition(condition: String): Int {
-        val text = condition.lowercase()
+    private fun getIconForCondition(condition: String, isDay: Int = 1): Int {
+        val text = condition.lowercase().trim()
+
         return when {
-            text.contains("sunny") -> R.drawable.ic_sunnyweather
-            text.contains("rain") -> R.drawable.ic_rainyweather
-            text.contains("cloud") -> R.drawable.ic_cloudyweather
-            text.contains("clear") -> R.drawable.ic_clearweather
-            text.contains("overcast") -> R.drawable.ic_overcastweather
-            else -> R.drawable.ic_weather
+            // --- SUNNY / CLEAR ---
+            text == "sunny" || text == "clear" -> {
+                if (isDay == 1) R.raw.clear_day else R.raw.clear_night
+            }
+
+            // --- CLOUDY ---
+            text == "partly cloudy" -> {
+                if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
+            }
+            text == "cloudy" -> R.raw.cloudy
+            text == "overcast" -> R.raw.overcast
+
+            // --- RAIN ---
+            text.contains("moderate rain") || text.contains("heavy rain") || text.contains("shower") -> R.raw.rain
+            text.contains("rain") || text.contains("drizzle") -> R.raw.drizzle
+
+            // --- THUNDER ---
+            text.contains("thunder") -> {
+                if (text.contains("rain")) R.raw.thunderstorms_rain
+                else R.raw.thunderstorms
+            }
+
+            // --- SNOW / ICE ---
+            text.contains("snow") || text.contains("blizzard") -> R.raw.snow
+            text.contains("sleet") || text.contains("ice") || text.contains("hail") -> R.raw.hail
+
+            // --- ATMOSPHERE ---
+            text.contains("mist") -> R.raw.mist
+            text.contains("fog") || text.contains("freezing fog") -> R.raw.fog
+            text.contains("haze") || text.contains("smoke") -> R.raw.haze
+            text.contains("dust") || text.contains("sand") -> R.raw.dust
+
+            // --- EXTREME ---
+            text.contains("wind") -> R.raw.wind
+            text.contains("tornado") -> R.raw.tornado
+            text.contains("hurricane") -> R.raw.hurricane
+
+            // --- DEFAULT ---
+            else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
         }
     }
 

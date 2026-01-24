@@ -43,13 +43,15 @@
                 android:textAllCaps="true" />
         </LinearLayout>
 
-        <ImageView
+        <com.airbnb.lottie.LottieAnimationView
             android:id="@+id/ivHourIcon"
             android:layout_width="35dp"
             android:layout_height="35dp"
             android:layout_marginTop="6dp"
             android:layout_marginBottom="6dp"
-            android:src="@drawable/ic_weather" />
+            app:lottie_autoPlay="false"
+            app:lottie_loop="false"
+            app:lottie_rawRes="@raw/clear_day" />
 
         <TextView
             android:id="@+id/tvHourTemp"

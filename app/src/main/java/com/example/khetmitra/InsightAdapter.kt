@@ -27,7 +27,11 @@ class InsightAdapter(private val insightList: List<InsightModel>) :
 
         holder.tvTitle.text = item.title
         holder.tvDesc.text = item.description
-        holder.ivImage.setImageResource(item.imageRes)
+        com.bumptech.glide.Glide.with(holder.itemView.context)
+            .load(item.imageRes) // R.drawable.rain_image
+            .override(300, 300) // Resize in memory to save RAM
+            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+            .into(holder.ivImage)
 
         // Clear tags for translation
         holder.tvTitle.tag = null
