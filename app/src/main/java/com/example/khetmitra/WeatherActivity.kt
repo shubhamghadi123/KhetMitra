@@ -387,7 +387,7 @@ class WeatherActivity : BaseActivity() {
         val recyclerHourly = findViewById<RecyclerView>(R.id.recyclerHourly)
 
         if (recyclerHourly.itemDecorationCount == 0) {
-            val spacingInPixels = (-6 * resources.displayMetrics.density).toInt()
+            val spacingInPixels = (0 * resources.displayMetrics.density).toInt()
             recyclerHourly.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
         }
 
@@ -420,7 +420,7 @@ class WeatherActivity : BaseActivity() {
         val recyclerForecast = findViewById<RecyclerView>(R.id.recyclerForecast)
 
         if (recyclerForecast.itemDecorationCount == 0) {
-            val spacingInPixels = (-6 * resources.displayMetrics.density).toInt()
+            val spacingInPixels = (0.6 * resources.displayMetrics.density).toInt()
             recyclerForecast.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
         }
 
@@ -543,6 +543,8 @@ class WeatherActivity : BaseActivity() {
 
     private fun getIconForCondition(condition: String, isDay: Int = 1): Int {
         val text = condition.lowercase().trim()
+
+        android.util.Log.d("WeatherDebug", "API Condition: '$text'")
 
         return when {
             // --- SUNNY / CLEAR ---

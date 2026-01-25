@@ -10,21 +10,23 @@
     <View
         android:id="@+id/headerBg"
         android:layout_width="match_parent"
-        android:layout_height="85dp"
+        android:layout_height="100dp"
         android:background="#E0E0E0"
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/btnBack"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginStart="16dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="45dp"
+        android:background="@drawable/bg_circle_border"
+        android:elevation="4dp"
+        android:padding="8dp"
         android:src="@drawable/round_arrow_back_24"
-        app:layout_constraintBottom_toBottomOf="@id/headerBg"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/headerBg"
-        app:layout_constraintVertical_bias="0.833"
-        app:tint="#000000"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#333333"
         tools:ignore="ContentDescription" />
 
     <TextView
@@ -33,8 +35,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:text="@string/chatbot_title"
-        android:textColor="#000000"
-        android:textSize="20sp"
+        android:textColor="#333333"
+        android:textSize="22sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@id/btnBack"
         app:layout_constraintStart_toEndOf="@id/btnBack"

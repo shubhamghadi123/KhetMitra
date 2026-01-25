@@ -115,6 +115,7 @@ class MainActivity : BaseActivity() {
         val chatSubtitle = "${d("2")} ${t("new messages")}"
         val marketSubtitle = "${t("Up by")} ${d("10")}%"
 
+        // Default icon before loading
         dashboardItems.add(DataModels(t("Weather"), weatherSubtitle, R.drawable.ic_weather))
         dashboardItems.add(DataModels(t("Plans"), plansSubtitle, R.drawable.ic_plans))
         dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
@@ -136,13 +137,18 @@ class MainActivity : BaseActivity() {
 
                     val rawCondition = current.condition.text
                     val tempText = current.temp_c.toInt().toString()
+                    val isDay = current.is_day
+
+                    // Determine the correct icon based on condition and day/night
+                    val iconRes = getIconForCondition(rawCondition, isDay)
+
                     val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
 
                     if (manualTranslation != null) {
-                        updateWeatherCard(manualTranslation, tempText)
+                        updateWeatherCard(manualTranslation, tempText, iconRes)
                     } else {
                         translateWithMLKit(rawCondition) { translatedText ->
-                            updateWeatherCard(translatedText, tempText)
+                            updateWeatherCard(translatedText, tempText, iconRes)
                         }
                     }
                 }
@@ -154,11 +160,11 @@ class MainActivity : BaseActivity() {
         })
     }
 
-    private fun updateWeatherCard(condition: String, temp: String) {
+    private fun updateWeatherCard(condition: String, temp: String, iconRes: Int) {
         val newSubtitle = "$condition, ${d(temp)}${t("°C")}"
 
         if (dashboardItems.isNotEmpty()) {
-            dashboardItems[0] = DataModels(t("Weather"), newSubtitle, R.drawable.ic_weather)
+            dashboardItems[0] = DataModels(t("Weather"), newSubtitle, iconRes)
             adapter.notifyItemChanged(0)
         }
     }
@@ -183,6 +189,52 @@ class MainActivity : BaseActivity() {
             }
         }.addOnFailureListener {
             callback(text)
+        }
+    }
+
+    private fun getIconForCondition(condition: String, isDay: Int = 1): Int {
+        val text = condition.lowercase().trim()
+
+        return when {
+            // --- SUNNY / CLEAR ---
+            text == "sunny" || text == "clear" -> {
+                if (isDay == 1) R.raw.clear_day else R.raw.clear_night
+            }
+
+            // --- CLOUDY ---
+            text == "partly cloudy" -> {
+                if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
+            }
+            text == "cloudy" -> R.raw.cloudy
+            text == "overcast" -> R.raw.overcast
+
+            // --- RAIN ---
+            text.contains("moderate rain") || text.contains("heavy rain") || text.contains("shower") -> R.raw.rain
+            text.contains("rain") || text.contains("drizzle") -> R.raw.drizzle
+
+            // --- THUNDER ---
+            text.contains("thunder") -> {
+                if (text.contains("rain")) R.raw.thunderstorms_rain
+                else R.raw.thunderstorms
+            }
+
+            // --- SNOW / ICE ---
+            text.contains("snow") || text.contains("blizzard") -> R.raw.snow
+            text.contains("sleet") || text.contains("ice") || text.contains("hail") -> R.raw.hail
+
+            // --- ATMOSPHERE ---
+            text.contains("mist") -> R.raw.mist
+            text.contains("fog") || text.contains("freezing fog") -> R.raw.fog
+            text.contains("haze") || text.contains("smoke") -> R.raw.haze
+            text.contains("dust") || text.contains("sand") -> R.raw.dust
+
+            // --- EXTREME ---
+            text.contains("wind") -> R.raw.wind
+            text.contains("tornado") -> R.raw.tornado
+            text.contains("hurricane") -> R.raw.hurricane
+
+            // --- DEFAULT ---
+            else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
         }
     }
 

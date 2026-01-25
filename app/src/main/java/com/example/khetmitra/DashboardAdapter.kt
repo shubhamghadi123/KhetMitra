@@ -15,7 +15,7 @@ class DashboardAdapter(
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvTitle: TextView = itemView.findViewById(R.id.tvCardTitle)
         val tvSubtitle: TextView = itemView.findViewById(R.id.tvCardSubtitle)
-        val tvIcon: ImageView = itemView.findViewById(R.id.tvIcon)
+        val tvIcon: com.airbnb.lottie.LottieAnimationView = itemView.findViewById(R.id.tvIcon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -29,7 +29,16 @@ class DashboardAdapter(
 
         holder.tvTitle.text = item.title
         holder.tvSubtitle.text = item.subtitle
-        holder.tvIcon.setImageResource(item.iconDrawable)
+
+        holder.tvIcon.cancelAnimation()
+        holder.tvIcon.progress = 0f
+
+        val cacheKey = "weather_${item.iconDrawable}"
+
+        com.airbnb.lottie.LottieCompositionFactory.fromRawRes(holder.itemView.context, item.iconDrawable, cacheKey)
+            .addListener { composition ->
+                holder.tvIcon.setComposition(composition)
+            }
 
         // We must clear the 'tag' so the Translator doesn't get confused by old tags from recycled views.
         holder.tvTitle.tag = null

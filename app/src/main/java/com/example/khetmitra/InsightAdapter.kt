@@ -13,7 +13,7 @@ class InsightAdapter(private val insightList: List<InsightModel>) :
     class InsightViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvTitle: TextView = itemView.findViewById(R.id.tvInsightTitle)
         val tvDesc: TextView = itemView.findViewById(R.id.tvInsightDesc)
-        val ivImage: ImageView = itemView.findViewById(R.id.ivInsightImage)
+        val ivImage: ImageView = itemView.findViewById(R.id.ivInsightIcon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): InsightViewHolder {
@@ -27,13 +27,13 @@ class InsightAdapter(private val insightList: List<InsightModel>) :
 
         holder.tvTitle.text = item.title
         holder.tvDesc.text = item.description
+
         com.bumptech.glide.Glide.with(holder.itemView.context)
-            .load(item.imageRes) // R.drawable.rain_image
-            .override(300, 300) // Resize in memory to save RAM
+            .load(item.imageRes)
+            .override(100, 100)
             .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
             .into(holder.ivImage)
 
-        // Clear tags for translation
         holder.tvTitle.tag = null
         holder.tvDesc.tag = null
     }

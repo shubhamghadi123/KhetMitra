@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="#F5F5F5"
     android:fillViewport="true">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -15,82 +15,64 @@
         <View
             android:id="@+id/headerBg"
             android:layout_width="match_parent"
-            android:layout_height="85dp"
+            android:layout_height="100dp"
             android:background="#E0E0E0"
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
             android:id="@+id/btnBack"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="16dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="45dp"
+            android:background="@drawable/bg_circle_border"
+            android:elevation="4dp"
+            android:padding="8dp"
             android:src="@drawable/round_arrow_back_24"
-            app:layout_constraintBottom_toBottomOf="@id/headerBg"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/headerBg"
-            app:layout_constraintVertical_bias="0.833"
-            app:tint="#000000"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="#333333"
             tools:ignore="ContentDescription" />
 
         <TextView
             android:id="@+id/tvHeaderTitle"
-            android:layout_width="80dp"
-            android:layout_height="31dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:text="@string/weather_title"
-            android:textColor="#000000"
-            android:textSize="20sp"
+            android:textColor="#333333"
+            android:textSize="22sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="@id/btnBack"
             app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintTop_toTopOf="@id/btnBack"
-            app:layout_constraintVertical_bias="0.0" />
+            app:layout_constraintTop_toTopOf="@id/btnBack" />
 
-        <TextView
-            android:id="@+id/tvCurrentTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginTop="24dp"
-            android:text="Current Weather"
-            android:textColor="#000000"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/headerBg" />
-
-        <com.google.android.material.card.MaterialCardView
+        <androidx.cardview.widget.CardView
             android:id="@+id/cardCurrentWeather"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            app:cardBackgroundColor="#E0E0E0"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp"
-            app:layout_constraintTop_toBottomOf="@id/tvCurrentTitle">
+            android:layout_marginTop="24dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="30dp"
+            app:cardElevation="4dp"
+            app:layout_constraintTop_toBottomOf="@id/headerBg">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="170dp"
-                android:paddingBottom="10dp">
+                android:padding="24dp">
 
                 <TextView
                     android:id="@+id/tvWeatherCondition"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
-                    android:layout_marginTop="20dp"
                     android:text="Sunny"
-                    android:textColor="#000000"
-                    android:textSize="18sp"
+                    android:textColor="#333333"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toTopOf="@+id/tvFeelsLike"
-                    app:layout_constraintVertical_chainStyle="packed" />
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <TextView
                     android:id="@+id/tvFeelsLike"
@@ -98,197 +80,173 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Feels like 26°C"
-                    android:textColor="#424242"
+                    android:textColor="#888888"
                     android:textSize="14sp"
-                    app:layout_constraintStart_toStartOf="@id/tvWeatherCondition"
-                    app:layout_constraintTop_toBottomOf="@id/tvWeatherCondition"
-                    app:layout_constraintBottom_toTopOf="@+id/tvTempBig" />
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvWeatherCondition" />
 
                 <TextView
                     android:id="@+id/tvTempBig"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="26°C"
-                    android:textColor="#000000"
-                    android:textSize="42sp"
+                    android:layout_marginTop="16dp"
+                    android:text="26°"
+                    android:textColor="#333333"
+                    android:textSize="64sp"
                     android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="@id/tvFeelsLike"
-                    app:layout_constraintTop_toBottomOf="@id/tvFeelsLike"
-                    app:layout_constraintBottom_toTopOf="@+id/tvHighLow" />
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvFeelsLike" />
 
                 <TextView
                     android:id="@+id/tvHighLow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="0dp"
-                    android:layout_marginBottom="8dp"
-                    android:text="↑28° ↓21°"
-                    android:textColor="#424242"
-                    android:textSize="16sp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_pill_gray"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="6dp"
+                    android:text="H:28°  L:21°"
+                    android:textColor="#555555"
+                    android:textSize="14sp"
                     android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="@id/tvTempBig"
-                    app:layout_constraintTop_toBottomOf="@id/tvTempBig"
-                    app:layout_constraintBottom_toBottomOf="parent" />
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tvTempBig" />
 
                 <com.airbnb.lottie.LottieAnimationView
                     android:id="@+id/iconCurrentWeather"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:layout_marginEnd="32dp"
-                    app:lottie_autoPlay="true"
-                    app:lottie_loop="true"
-                    app:lottie_rawRes="@raw/clear_day"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:lottie_autoPlay="true"
+                    app:lottie_loop="true"
+                    app:lottie_rawRes="@raw/clear_day" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </androidx.cardview.widget.CardView>
 
-        <com.google.android.material.card.MaterialCardView
+        <androidx.cardview.widget.CardView
             android:id="@+id/cardQuickSummary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#E0E0E0"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="4dp"
             app:layout_constraintTop_toBottomOf="@id/cardCurrentWeather">
 
             <LinearLayout
                 android:id="@+id/layoutSummaryContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
                 android:orientation="vertical"
-                android:padding="16dp"
-                android:animateLayoutChanges="true">
+                android:padding="20dp">
 
                 <LinearLayout
                     android:id="@+id/headerSummary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground">
+                    android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:src="@android:drawable/ic_menu_sort_by_size"
-                        app:tint="#000000"/>
+                        app:tint="#333333" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:text="Quick summary"
-                        android:textColor="#000000"
-                        android:textStyle="bold"
-                        android:textSize="14sp"/>
+                        android:text="Quick Summary"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
                     <ImageView
                         android:id="@+id/btnToggleSummary"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:src="@drawable/arrow_down"
-                        app:tint="#000000" />
+                        app:tint="#888888" />
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvSummaryBody"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Loading summary..."
-                    android:textColor="#000000"
-                    android:textSize="14sp"
+                    android:layout_marginTop="12dp"
                     android:lineSpacingExtra="4dp"
-                    android:maxLines="3" />
+                    android:text="Loading summary..."
+                    android:textColor="#555555"
+                    android:textSize="14sp" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </androidx.cardview.widget.CardView>
 
         <TextView
             android:id="@+id/tvHourlyTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="20dp"
             android:text="Hourly Forecast"
-            android:textColor="#000000"
+            android:textColor="#333333"
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/cardQuickSummary" />
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardHourlyContainer"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerHourly"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
             android:layout_marginTop="12dp"
-            android:background="@drawable/bg_weather_gradient"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp"
-            app:layout_constraintTop_toBottomOf="@id/tvHourlyTitle">
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerHourly"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:padding="0dp" />
-        </com.google.android.material.card.MaterialCardView>
+            android:clipToPadding="false"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            app:layout_constraintTop_toBottomOf="@id/tvHourlyTitle" />
 
         <TextView
             android:id="@+id/tvForecastTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="14dp"
             android:text="Weekly Forecast"
-            android:textColor="#000000"
+            android:textColor="#333333"
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/cardHourlyContainer" />
+            app:layout_constraintTop_toBottomOf="@id/recyclerHourly" />
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardForecastContainer"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerForecast"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
             android:layout_marginTop="12dp"
-            android:background="@drawable/bg_weather_gradient"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp"
-            app:layout_constraintTop_toBottomOf="@id/tvForecastTitle">
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerForecast"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:padding="0dp" />
-        </com.google.android.material.card.MaterialCardView>
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            app:layout_constraintTop_toBottomOf="@id/tvForecastTitle" />
 
         <TextView
             android:id="@+id/tvInsightsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="14dp"
             android:text="Agriculture Insights"
-            android:textColor="#000000"
+            android:textColor="#333333"
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/cardForecastContainer" />
+            app:layout_constraintTop_toBottomOf="@id/recyclerForecast" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerInsights"
@@ -297,6 +255,8 @@
             android:layout_marginTop="12dp"
             android:clipToPadding="false"
             android:nestedScrollingEnabled="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             app:layout_constraintTop_toBottomOf="@id/tvInsightsTitle" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
