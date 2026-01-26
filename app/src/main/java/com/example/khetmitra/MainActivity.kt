@@ -32,8 +32,9 @@ class MainActivity : BaseActivity() {
     private val dashboardItems = ArrayList<DataModels>()
     private var currentLangCode = TranslateLanguage.ENGLISH
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val DEFAULT_CITY = "Mumbai"
-    private val API_KEY = BuildConfig.WEATHER_API_KEY
+
+    // Default to Mumbai coordinates if GPS fails
+    private val DEFAULT_CITY = "19.07,72.87"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -121,27 +122,38 @@ class MainActivity : BaseActivity() {
         dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
         dashboardItems.add(DataModels(t("Market"), marketSubtitle, R.drawable.ic_market))
     }
-
     private fun fetchWeather(query: String) {
+        var lat: Double
+        var lon: Double
+
+        try {
+            val parts = query.split(",")
+            lat = parts[0].trim().toDouble()
+            lon = parts[1].trim().toDouble()
+        } catch (e: Exception) {
+            lat = 19.07
+            lon = 72.87
+        }
+
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.weatherapi.com/v1/")
+            .baseUrl("https://api.open-meteo.com/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
         val service = retrofit.create(WeatherService::class.java)
-
-        service.getForecast(API_KEY, query, 1).enqueue(object : Callback<WeatherResponse> {
-            override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+        service.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
+            override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
                 if (response.isSuccessful && response.body() != null) {
-                    val current = response.body()!!.current
+                    val data = response.body()!!
 
-                    val rawCondition = current.condition.text
-                    val tempText = current.temp_c.toInt().toString()
-                    val isDay = current.is_day
+                    val currentTemp = data.current.temperature_2m
+                    val weatherCode = data.current.weathercode
+                    val isDay = data.current.is_day
 
-                    // Determine the correct icon based on condition and day/night
+                    val rawCondition = getConditionText(weatherCode)
+                    val tempText = currentTemp.toInt().toString()
+
                     val iconRes = getIconForCondition(rawCondition, isDay)
-
                     val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
 
                     if (manualTranslation != null) {
@@ -154,10 +166,24 @@ class MainActivity : BaseActivity() {
                 }
             }
 
-            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                Log.e("MainActivity", "Weather fetch failed", t)
+            override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
+                Log.e("MainActivity", "Weather fetch failed: ${t.message}", t)
             }
         })
+    }
+
+    private fun getConditionText(code: Int): String {
+        return when (code) {
+            0 -> "Clear"
+            1, 2, 3 -> "Partly Cloudy"
+            45, 48 -> "Fog"
+            51, 53, 55 -> "Light drizzle"
+            61, 63, 65 -> "Rain"
+            80, 81, 82 -> "Heavy rain"
+            95, 96, 99 -> "Thunderstorm"
+            71, 73, 75, 77, 85, 86 -> "Snow"
+            else -> "Overcast"
+        }
     }
 
     private fun updateWeatherCard(condition: String, temp: String, iconRes: Int) {
@@ -197,7 +223,7 @@ class MainActivity : BaseActivity() {
 
         return when {
             // --- SUNNY / CLEAR ---
-            text == "sunny" || text == "clear" -> {
+            text == "clear sky" || text == "sunny" || text == "clear" -> {
                 if (isDay == 1) R.raw.clear_day else R.raw.clear_night
             }
 
@@ -209,7 +235,7 @@ class MainActivity : BaseActivity() {
             text == "overcast" -> R.raw.overcast
 
             // --- RAIN ---
-            text.contains("moderate rain") || text.contains("heavy rain") || text.contains("shower") -> R.raw.rain
+            text.contains("heavy rain") || text.contains("shower") -> R.raw.rain
             text.contains("rain") || text.contains("drizzle") -> R.raw.drizzle
 
             // --- THUNDER ---

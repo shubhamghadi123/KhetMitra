@@ -42,7 +42,7 @@
                 android:id="@+id/tvInsightDesc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:lineSpacingExtra="4dp"
                 android:text="Heavy rain is expected tomorrow. Delay spraying pesticides."
                 android:textColor="#555555"
@@ -51,8 +51,9 @@
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cardIconContainer"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            app:cardCornerRadius="12dp"
             app:cardElevation="0dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -62,7 +63,7 @@
                 android:id="@+id/ivInsightIcon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="centerInside"
+                android:scaleType="centerCrop"
                 android:src="@drawable/rain_image"
                 tools:ignore="ContentDescription" />
         </androidx.cardview.widget.CardView>

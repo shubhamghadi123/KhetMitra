@@ -10,10 +10,11 @@ import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
-import okio.IOException
+import java.io.IOException
 import java.util.Locale
 
 object TranslationHelper {
+    private var translationMap: Map<String, Map<String, String>> = emptyMap()
 
     private var loadedCorrections: Map<String, Map<String, String>> = emptyMap()
     fun initTranslations(context: Context) {
@@ -59,6 +60,20 @@ object TranslationHelper {
             for (i in 0 until view.childCount) {
                 getAllTextViews(view.getChildAt(i), list)
             }
+        }
+    }
+
+    // 4. Added Missing Function to map ML Kit codes to JSON keys
+    private fun getShortCode(mlKitCode: String): String {
+        return when (mlKitCode) {
+            TranslateLanguage.HINDI -> "hi"
+            TranslateLanguage.MARATHI -> "mr"
+            TranslateLanguage.GUJARATI -> "gu"
+            TranslateLanguage.KANNADA -> "kn"
+            TranslateLanguage.TAMIL -> "ta"
+            TranslateLanguage.TELUGU -> "te"
+            TranslateLanguage.BENGALI -> "bn"
+            else -> "en"
         }
     }
 

@@ -10,71 +10,52 @@ data class DataModels(
     val iconDrawable: Int
 )
 
-// WEATHER API RESPONSE MODELS
-data class WeatherResponse(
-    val location: Location,
-    val current: Current,
-    val forecast: Forecast
+// --- OPEN-METEO API MODELS ---
+data class OpenMeteoResponse(
+    val hourly: HourlyUnits,
+    val daily: DailyUnits,
+    val current: CurrentUnits
 )
 
-data class Location(
-    val name: String,
-    val region: String,
-    val country: String
-)
-
-data class Current(
-    val temp_c: Double,
-    val condition: Condition,
-    val wind_kph: Double,
-    val humidity: Int,
-    val feelslike_c: Double,
-    val uv: Double,
-    val air_quality: AirQuality?,
-    val dewpoint_c: Double,
-    val is_day: Int
-)
-
-data class Condition(
-    val text: String,
-    val icon: String,
-    val code: Int
-)
-
-data class AirQuality(
-    val us_epa_index: Int
-)
-
-data class Forecast(
-    val forecastday: List<ForecastDay>
-)
-
-data class ForecastDay(
-    val date: String,
-    val day: Day,
-    val astro: Astro,
-    val hour: List<Hour>
-)
-
-data class Day(
-    val maxtemp_c: Double,
-    val mintemp_c: Double,
-    val avgtemp_c: Double,
-    val condition: Condition,
-    val daily_chance_of_rain: Int,
-    val uv: Double
-)
-
-data class Astro(
-    val sunrise: String,
-    val sunset: String
-)
-
-data class Hour(
+data class CurrentUnits(
     val time: String,
-    val temp_c: Double,
-    val condition: Condition,
-    val is_day: Int
+    val temperature_2m: Double,
+    val relative_humidity_2m: Int,
+    val apparent_temperature: Double,
+    val is_day: Int,
+    val weathercode: Int,
+    val surface_pressure: Double,
+    val dew_point_2m: Double,
+    val wind_speed_10m: Double
+)
+
+data class HourlyUnits(
+    val time: List<String>,
+    val temperature_2m: List<Double>,
+    val relative_humidity_2m: List<Int>,
+    val weathercode: List<Int>,
+    val soil_moisture_3_9cm: List<Double>,
+    val soil_temperature_6cm: List<Double>
+)
+
+data class DailyUnits(
+    val time: List<String>,
+    val weathercode: List<Int>,
+    val temperature_2m_max: List<Double>,
+    val temperature_2m_min: List<Double>,
+    val precipitation_probability_max: List<Int>,
+    val sunrise: List<String>,
+    val sunset: List<String>,
+    val uv_index_max: List<Double>,
+    val et0_fao_evapotranspiration: List<Double>
+)
+
+data class AirQualityResponse(
+    val current: CurrentAQI
+)
+
+data class CurrentAQI(
+    val us_aqi: Int // This gives values like 45, 120, 300 (Raw AQI)
 )
 
 // UI MODELS (For RecyclerViews)

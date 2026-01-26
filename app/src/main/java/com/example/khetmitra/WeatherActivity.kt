@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -26,8 +27,7 @@ import java.util.Locale
 
 class WeatherActivity : BaseActivity() {
 
-    private val API_KEY = BuildConfig.WEATHER_API_KEY // Your WeatherAPI Key
-    private var currentLocationQuery = "Mumbai" // Default city if GPS fails
+    private var currentLocationQuery = "19.0760,72.8777" // Default city if GPS fails
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
@@ -87,34 +87,107 @@ class WeatherActivity : BaseActivity() {
         }
     }
 
+    private fun getConditionText(code: Int): String {
+        return when (code) {
+            0 -> "Clear"
+            1, 2, 3 -> "Partly cloudy"
+            45, 48 -> "Fog"
+            51, 53, 55 -> "Light drizzle"
+            61, 63, 65 -> "Rain"
+            80, 81, 82 -> "Heavy rain"
+            95, 96, 99 -> "Thunderstorm"
+            71, 73, 75, 77, 85, 86 -> "Snow"
+            else -> "Overcast"
+        }
+    }
+
+    private fun getIconForCondition(conditionRaw: String, isDay: Int = 1): Int {
+        val text = conditionRaw.lowercase()
+        return when {
+            text.contains("clear") || text.contains("sunny") -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
+            text.contains("partly") -> if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
+            text.contains("cloudy") || text.contains("overcast") -> R.raw.overcast
+            text.contains("drizzle") -> R.raw.drizzle
+            text.contains("heavy rain") -> R.raw.rain
+            text.contains("rain") -> R.raw.rain
+            text.contains("thunder") -> R.raw.thunderstorms
+            text.contains("fog") -> R.raw.fog
+            else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
+        }
+    }
+
     private fun fetchWeatherData(query: String) {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.weatherapi.com/v1/")
+        // Coordinates for Mumbai
+        var lat = 19.07
+        var lon = 72.87
+        try {
+            val parts = query.split(",")
+            lat = parts[0].trim().toDouble()
+            lon = parts[1].trim().toDouble()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Weather
+        val weatherRetrofit = Retrofit.Builder()
+            .baseUrl("https://api.open-meteo.com/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+        val weatherService = weatherRetrofit.create(WeatherService::class.java)
 
-        val service = retrofit.create(WeatherService::class.java)
-        service.getForecast(API_KEY, query, 7).enqueue(object : Callback<WeatherResponse> {
-            override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+        // AQI
+        val aqiRetrofit = Retrofit.Builder()
+            .baseUrl("https://air-quality-api.open-meteo.com/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        val aqiService = aqiRetrofit.create(AirQualityService::class.java)
+
+        weatherService.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
+            override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     val weatherData = response.body()!!
 
-                    updateCurrentWeatherUI(weatherData.current, weatherData.forecast.forecastday[0])
-                    setupForecastRecycler(weatherData.forecast.forecastday)
-                    setupHourlyRecycler(weatherData.forecast.forecastday)
-                    setupInsightsRecycler(weatherData.forecast.forecastday)
+                    aqiService.getAirQuality(lat, lon).enqueue(object : Callback<AirQualityResponse> {
+                        override fun onResponse(call2: Call<AirQualityResponse>, response2: Response<AirQualityResponse>) {
+                            val rawAqi = response2.body()?.current?.us_aqi ?: 50
+                            val epaIndex = convertAqiToEpa(rawAqi)
+                            currentWeatherUI(weatherData, epaIndex)
+                        }
 
-                    checkAndTranslateList(findViewById(R.id.recyclerHourly))
-                    checkAndTranslateList(findViewById(R.id.recyclerInsights))
+                        override fun onFailure(call2: Call<AirQualityResponse>, t: Throwable) {
+                            currentWeatherUI(weatherData, 2)
+                        }
+                    })
                 }
             }
-            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+            override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
                 Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
-    private fun updateCurrentWeatherUI(current: Current, todayForecast: ForecastDay) {
+    private fun convertAqiToEpa(rawAqi: Int): Int {
+        return when {
+            rawAqi <= 50 -> 1  // Good
+            rawAqi <= 100 -> 2 // Moderate
+            rawAqi <= 150 -> 3 // Unhealthy for Sensitive
+            rawAqi <= 200 -> 4 // Unhealthy
+            rawAqi <= 300 -> 5 // Very Unhealthy
+            else -> 6          // Hazardous
+        }
+    }
+
+    private fun currentWeatherUI(data: OpenMeteoResponse, aqiIndex: Int) {
+
+        weeklyForecastUI(data.daily)
+        hourlyForecastUI(data.hourly)
+        agriculturalInsightsUI(data)
+
+        val current = data.current
+        val todayHigh = data.daily.temperature_2m_max.firstOrNull() ?: 0.0
+        val todayLow = data.daily.temperature_2m_min.firstOrNull() ?: 0.0
+        val conditionText = getConditionText(current.weathercode)
+
         val tvCondition = findViewById<TextView>(R.id.tvWeatherCondition)
         val tvTemp = findViewById<TextView>(R.id.tvTempBig)
         val tvFeelsLike = findViewById<TextView>(R.id.tvFeelsLike)
@@ -134,24 +207,24 @@ class WeatherActivity : BaseActivity() {
             return TranslationHelper.convertDigits(num.toString(), langCode)
         }
 
-        val rawCondition = current.condition.text
-        lottieIcon.setAnimation(getIconForCondition(rawCondition, current.is_day))
+        lottieIcon.setAnimation(getIconForCondition(conditionText, current.is_day))
         lottieIcon.playAnimation()
-        tvCondition.text = t(rawCondition)
 
-        val tempNum = d(current.temp_c.toInt())
+        tvCondition.text = t(conditionText)
+
+        val tempNum = d(current.temperature_2m.toInt())
         val unit = t("°C")
-        tvTemp.text = "$tempNum$unit"
+        tvTemp.text = "${d(tempNum)}$unit"
 
         val feelsPrefix = t("Feels like")
-        val feelsNum = d(current.feelslike_c.toInt())
+        val feelsNum = d(current.apparent_temperature.toInt())
         tvFeelsLike.text = "$feelsPrefix $feelsNum$unit"
 
-        val rawHigh = todayForecast.day.maxtemp_c.toInt()
-        val rawLow = todayForecast.day.mintemp_c.toInt()
+        val rawHigh = todayHigh.toInt()
+        val rawLow = todayLow.toInt()
         tvHighLow.text = "↑${d(rawHigh)}° ↓${d(rawLow)}°"
 
-        val initialSummary = generateQuickSummary(current, todayForecast, langCode)
+        val initialSummary = generateQuickSummary(data, aqiIndex, langCode)
         tvSummaryBody.text = initialSummary
 
         if (langCode != TranslateLanguage.ENGLISH) {
@@ -163,50 +236,7 @@ class WeatherActivity : BaseActivity() {
         }
     }
 
-    private fun containsEnglish(text: String): Boolean {
-        return Regex("[a-zA-Z]{3,}").containsMatchIn(text)
-    }
-
-    private fun processMixedSummary(fullText: String, targetLang: String, callback: (String) -> Unit) {
-        val lines = fullText.split("\n")
-        val processedLines = arrayOfNulls<String>(lines.size)
-        var pendingTranslations = 0
-
-        for ((index, line) in lines.withIndex()) {
-            if (containsEnglish(line)) {
-                pendingTranslations++
-                translateTextWithMLKit(line, targetLang) { translatedLine ->
-                    processedLines[index] = translatedLine
-                    pendingTranslations--
-                    if (pendingTranslations == 0) {
-                        callback(processedLines.filterNotNull().joinToString("\n"))
-                    }
-                }
-            } else {
-                processedLines[index] = line
-            }
-        }
-
-        if (pendingTranslations == 0) {
-            callback(fullText)
-        }
-    }
-
-    private fun translateTextWithMLKit(text: String, targetLang: String, callback: (String) -> Unit) {
-        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.ENGLISH)
-            .setTargetLanguage(targetLang)
-            .build()
-        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
-
-        client.downloadModelIfNeeded().addOnSuccessListener {
-            client.translate(text).addOnSuccessListener { result ->
-                callback(result)
-            }.addOnFailureListener { callback(text) }
-        }.addOnFailureListener { callback(text) }
-    }
-
-    private fun generateQuickSummary(current: Current, today: ForecastDay, langCode: String?): String {
+    private fun generateQuickSummary(data: OpenMeteoResponse, aqiIndex: Int, langCode: String?): String {
         fun t(text: String): String {
             if (langCode == null || langCode == TranslateLanguage.ENGLISH) return text
             return TranslationHelper.getManualTranslation(text, langCode) ?: text
@@ -219,10 +249,12 @@ class WeatherActivity : BaseActivity() {
         try {
             val sb = StringBuilder()
 
-            val rainChance = today.day.daily_chance_of_rain
-            val humidity = current.humidity
-            val temp = current.temp_c
-            val aqi = current.air_quality?.us_epa_index ?: 1
+            val rainChance = data.daily.precipitation_probability_max.firstOrNull() ?: 0
+            val uvMax = data.daily.uv_index_max.firstOrNull() ?: 0.0
+            val humidity = data.current.relative_humidity_2m
+            val temp = data.current.temperature_2m
+            val dewPoint = data.current.dew_point_2m
+            val soilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
 
             var headerPart1 = ""
             var headerPart2 = ""
@@ -238,48 +270,82 @@ class WeatherActivity : BaseActivity() {
                 headerPart2 = t("Perfect for outdoor tasks")
             }
 
-            // Aqi Status
-            val aqiStatus = if (aqi > 3) t("Air quality may be unhealthy") else t("Air quality is acceptable")
-            sb.append("$headerPart1 — $aqiStatus. $headerPart2.\n")
+            // AQI Status
+            val aqiStatus = if (aqiIndex > 3) t("Air quality may be unhealthy") else t("Air quality is acceptable")
+
+            // Combine Header
+            sb.append("$headerPart1 — $headerPart2.\n$aqiStatus.\n")
 
             // AQI Warning
-            if (aqi > 3) {
-                sb.append("• ${t("Air quality is poor right now")} — ${t("Consider limiting time outside")}\n")
+            if (aqiIndex > 3) {
+                sb.append("• ${t("Air quality is poor")} — ${t("Consider limiting time outside")}\n")
             }
 
             // UV Warning
-            if (current.uv > 5) {
+            if (uvMax > 5) {
                 sb.append("• ${t("High UV levels could pose a risk outdoors")}\n")
             }
 
-            // Humidity
+            // Humidity & Dew Point
             if (humidity > 70) {
-                val dewPoint = d(current.dewpoint_c.toInt())
-                sb.append("• ${t("Feels humid later")} — ${t("Dew point near")} $dewPoint°\n")
+                sb.append("• ${t("Feels humid later")} — ${t("Dew point near")} ${d(dewPoint.toInt())}°\n")
             }
 
-            // Today's High
-            val highTemp = d(today.day.maxtemp_c.toInt())
-            sb.append("• ${t("Today's high will reach around")} $highTemp${t("°C")}\n")
+            // Today's High Temp
+            val todayHigh = data.daily.temperature_2m_max.firstOrNull()?.toInt() ?: 0
+            sb.append("• ${t("Today's high will reach around")} ${d(todayHigh)}${t("°C")}\n")
 
-            // Sunrise/Sunset
-            val sunrise = today.astro.sunrise
-            val sunset = today.astro.sunset
-            if (!sunrise.isNullOrEmpty() && !sunset.isNullOrEmpty()) {
-                val am = t("AM")
-                val pm = t("PM")
-                val sRise = d(sunrise.replace("AM", "").trim()) + " " + am
-                val sSet = d(sunset.replace("PM", "").trim()) + " " + pm
-                sb.append("• ${t("Sunrise")}: $sRise, ${t("Sunset")}: $sSet\n")
+            // SUNRISE, SUNSET & DAY LENGTH
+            val sunriseRaw = data.daily.sunrise.firstOrNull()
+            val sunsetRaw = data.daily.sunset.firstOrNull()
+
+            if (sunriseRaw != null && sunsetRaw != null) {
+                val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.getDefault())
+
+                val dateRise = isoFormat.parse(sunriseRaw)
+                val dateSet = isoFormat.parse(sunsetRaw)
+
+                fun getSmartTime(date: java.util.Date): String {
+                    if (langCode == TranslateLanguage.ENGLISH) {
+                        return java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(date)
+                    }
+                    val cal = java.util.Calendar.getInstance()
+                    cal.time = date
+                    val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+
+                    val periodKey = when (hour) {
+                        in 5..11 -> "Morning"    // e.g. "सकाळी"
+                        in 12..16 -> "Afternoon" // e.g. "दुपारी"
+                        in 17..19 -> "Evening"   // e.g. "संध्याकाळी"
+                        else -> "Night"          // e.g. "रात्री"
+                    }
+
+                    val rawTime = java.text.SimpleDateFormat("h:mm", java.util.Locale.ENGLISH).format(date)
+
+                    return "${d(rawTime)} ${t(periodKey)}"
+                }
+
+                if (dateRise != null && dateSet != null) {
+                    val sRise = getSmartTime(dateRise)
+                    val sSet = getSmartTime(dateSet)
+
+                    sb.append("• ${t("Sunrise")}: $sRise, ${t("Sunset")}: $sSet\n")
+
+                    val diff = dateSet.time - dateRise.time
+                    val hours = (diff / (1000 * 60 * 60)).toInt()
+                    val minutes = ((diff / (1000 * 60)) % 60).toInt()
+
+                    val hrStr = t("hrs")
+                    val minStr = t("mins")
+                    sb.append("• ${t("Day length")}: ${d(hours)} $hrStr ${d(minutes)} $minStr\n")
+                }
             }
 
-            // Day Length
-            val duration = calculateDayLength(today.astro.sunrise, today.astro.sunset)
-            if (duration != null) {
-                val (hours, minutes) = duration
-                val hrStr = t("hrs")
-                val minStr = t("mins")
-                sb.append("• ${t("Day length")}: ${d(hours)} $hrStr ${d(minutes)} $minStr")
+            // Soil Moisture
+            if (soilMoisture > 0.35) {
+                sb.append("• ${t("Soil is wet")} — ${t("Avoid heavy machinery")}")
+            } else if (soilMoisture < 0.15) {
+                sb.append("• ${t("Soil is dry")} — ${t("Consider irrigation")}")
             }
 
             return sb.toString().trim()
@@ -287,23 +353,6 @@ class WeatherActivity : BaseActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             return t("Weather data is currently unavailable.")
-        }
-    }
-
-    private fun calculateDayLength(sunrise: String, sunset: String): Pair<Int, Int>? {
-        return try {
-            val format = SimpleDateFormat("hh:mm aa", Locale.ENGLISH)
-            val dateSunrise = format.parse(sunrise)
-            val dateSunset = format.parse(sunset)
-
-            if (dateSunrise != null && dateSunset != null) {
-                val diff = dateSunset.time - dateSunrise.time
-                val hours = (diff / (1000 * 60 * 60)).toInt()
-                val minutes = ((diff / (1000 * 60)) % 60).toInt()
-                Pair(hours, minutes)
-            } else null
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -329,13 +378,51 @@ class WeatherActivity : BaseActivity() {
         }
     }
 
-    private fun setupHourlyRecycler(days: List<ForecastDay>) {
+    private fun processMixedSummary(fullText: String, targetLang: String, callback: (String) -> Unit) {
+        val lines = fullText.split("\n")
+        val processedLines = arrayOfNulls<String>(lines.size)
+        var pendingTranslations = 0
+
+        for ((index, line) in lines.withIndex()) {
+            if (line.isBlank()) {
+                processedLines[index] = line
+                continue
+            }
+
+            if (containsEnglish(line)) {
+                pendingTranslations++
+                val trimmedLine = line.trim()
+                val hasBullet = trimmedLine.startsWith("•")
+                val textToTranslate = if (hasBullet) {
+                    trimmedLine.substringAfter("•").trim()
+                } else {
+                    trimmedLine
+                }
+
+                translateTextWithMLKit(textToTranslate, targetLang) { translatedText ->
+                    processedLines[index] = if (hasBullet) "• $translatedText" else translatedText
+
+                    pendingTranslations--
+                    if (pendingTranslations == 0) {
+                        callback(processedLines.filterNotNull().joinToString("\n"))
+                    }
+                }
+            } else {
+                processedLines[index] = line
+            }
+        }
+
+        if (pendingTranslations == 0) {
+            callback(fullText)
+        }
+    }
+
+    private fun hourlyForecastUI(hourly: HourlyUnits) {
         val hourlyModels = ArrayList<HourlyModel>()
 
-        val currentMillis = System.currentTimeMillis()
-        val sdfApi = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH)
-        val sdfDigitsOnly = SimpleDateFormat("h:mm", Locale.ENGLISH)
-        val sdfEnglishFull = SimpleDateFormat("h:mm a", Locale.ENGLISH)
+        val sdfApi = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.getDefault())
+        val sdfDigitsOnly = java.text.SimpleDateFormat("h:mm", java.util.Locale.ENGLISH)
+        val sdfEnglishFull = java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH)
 
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
@@ -343,41 +430,47 @@ class WeatherActivity : BaseActivity() {
         fun num(n: Any): String = TranslationHelper.convertDigits(n.toString(), langCode ?: TranslateLanguage.ENGLISH)
         fun txt(s: String): String = if (langCode != TranslateLanguage.ENGLISH) TranslationHelper.getManualTranslation(s, langCode!!) ?: s else s
 
-        val allHours = ArrayList<Hour>()
-        if (days.isNotEmpty()) allHours.addAll(days[0].hour)
-        if (days.size > 1) allHours.addAll(days[1].hour)
+        val currentMillis = System.currentTimeMillis()
 
-        for (hourObj in allHours) {
+        for (i in hourly.time.indices) {
             try {
-                val timeObj = sdfApi.parse(hourObj.time)
-                if (timeObj != null) {
-                    if (timeObj.time >= currentMillis - 3000000) {
+                val timeStr = hourly.time[i]
+                val timeObj = sdfApi.parse(timeStr)
 
-                        var finalTimeString = ""
+                if (timeObj != null && timeObj.time >= currentMillis - 3000000) {
 
-                        if (langCode == TranslateLanguage.ENGLISH) {
-                            finalTimeString = sdfEnglishFull.format(timeObj).replace(" ", "\n")
-                        } else {
-                            val hourOfDay = timeObj.hours
-                            val periodKey = when (hourOfDay) {
-                                in 5..11 -> "Morning"
-                                in 12..16 -> "Afternoon"
-                                in 17..19 -> "Evening"
-                                else -> "Night"
-                            }
-                            val rawDigits = sdfDigitsOnly.format(timeObj)
-                            val numberRegex = Regex("\\d+")
-                            val translatedDigits = numberRegex.replace(rawDigits) { matchResult ->
-                                num(matchResult.value)
-                            }
-                            finalTimeString = "$translatedDigits\n${txt(periodKey)}"
+                    var finalTimeString = ""
+                    if (langCode == TranslateLanguage.ENGLISH) {
+                        finalTimeString = sdfEnglishFull.format(timeObj).replace(" ", "\n")
+                    } else {
+                        val hourOfDay = timeObj.hours
+                        val periodKey = when (hourOfDay) {
+                            in 5..11 -> "Morning"
+                            in 12..16 -> "Afternoon"
+                            in 17..19 -> "Evening"
+                            else -> "Night"
                         }
 
-                        val temp = "${num(hourObj.temp_c.toInt())}°"
-                        val iconRes = getIconForCondition(hourObj.condition.text, hourObj.is_day)
-                        hourlyModels.add(HourlyModel(finalTimeString, temp, iconRes))
-                        if (hourlyModels.size >= 24) break
+                        val rawDigits = sdfDigitsOnly.format(timeObj)
+                        val numberRegex = Regex("\\d+")
+                        val translatedDigits = numberRegex.replace(rawDigits) { matchResult ->
+                            num(matchResult.value)
+                        }
+                        finalTimeString = "$translatedDigits\n${txt(periodKey)}"
                     }
+
+                    val tempVal = hourly.temperature_2m[i].toInt()
+                    val temp = "${num(tempVal)}°"
+                    val code = hourly.weathercode[i]
+                    val condText = getConditionText(code)
+                    val isDay = if (timeObj.hours in 6..18) 1 else 0
+
+                    hourlyModels.add(HourlyModel(
+                        finalTimeString,
+                        temp,
+                        getIconForCondition(condText, isDay)
+                    ))
+                    if (hourlyModels.size >= 24) break
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -395,42 +488,31 @@ class WeatherActivity : BaseActivity() {
         recyclerHourly.adapter = HourlyAdapter(hourlyModels)
     }
 
-    private fun setupForecastRecycler(days: List<ForecastDay>) {
-        val forecastList = ArrayList<ForecastModel>()
+    private fun weeklyForecastUI(daily: DailyUnits) {
+        val list = ArrayList<ForecastModel>()
+        val inFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH)
+        val dayFmt = java.text.SimpleDateFormat("EEE", java.util.Locale.ENGLISH)
+        val dateFmt = java.text.SimpleDateFormat("dd/MM", java.util.Locale.ENGLISH)
 
-        val inFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-        val dayFormat = SimpleDateFormat("EEE", Locale.ENGLISH)
-        val dateFormat = SimpleDateFormat("dd/MM", Locale.ENGLISH)
+        for (i in daily.time.indices) {
+            val rawDate = daily.time[i]
+            val dateObj = try { inFmt.parse(rawDate) } catch (e: Exception) { null }
 
-        for (day in days) {
-            val dateObj = inFormat.parse(day.date)
+            val dayName = if (dateObj != null) dayFmt.format(dateObj) else rawDate
+            val dateDisplay = if (dateObj != null) dateFmt.format(dateObj) else rawDate
 
-            val dayName = if (dateObj != null) dayFormat.format(dateObj) else day.date
-            val dateStr = if (dateObj != null) dateFormat.format(dateObj) else ""
+            val high = "${daily.temperature_2m_max[i].toInt()}°"
+            val low = "${daily.temperature_2m_min[i].toInt()}°"
+            val condText = getConditionText(daily.weathercode[i])
 
-            // Get High/Low temps
-            val high = "${day.day.maxtemp_c.toInt()}°"
-            val low = "${day.day.mintemp_c.toInt()}°"
-
-            val iconRes = getIconForCondition(day.day.condition.text, 1)
-
-            forecastList.add(ForecastModel(dayName, dateStr, iconRes, high, low))
+            list.add(ForecastModel(dayName, dateDisplay, getIconForCondition(condText), high, low))
         }
 
-        val recyclerForecast = findViewById<RecyclerView>(R.id.recyclerForecast)
-
-        if (recyclerForecast.itemDecorationCount == 0) {
-            val spacingInPixels = (0.6 * resources.displayMetrics.density).toInt()
-            recyclerForecast.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
-        }
-
-        recyclerForecast.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recyclerForecast.adapter = ForecastAdapter(forecastList)
-
-        checkAndTranslateList(recyclerForecast)
+        val recycler = findViewById<RecyclerView>(R.id.recyclerForecast)
+        recycler.adapter = ForecastAdapter(list)
     }
 
-    private fun setupInsightsRecycler(days: List<ForecastDay>) {
+    private fun agriculturalInsightsUI(data: OpenMeteoResponse) {
         val insightList = mutableListOf<InsightModel>()
 
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
@@ -446,36 +528,31 @@ class WeatherActivity : BaseActivity() {
         }
 
         // --- INSIGHT 1: TODAY'S RAIN ---
-        val todayRain = days[0].day.daily_chance_of_rain
+        val todayRain = data.daily.precipitation_probability_max.firstOrNull() ?: 0
 
         if (todayRain > 50) {
             val part1 = getText("High chance of rain")
             val part2 = getText("Delay spraying pesticides")
-
             val finalMsg = "$part1 (${num(todayRain)}%). $part2"
 
-            insightList.add(InsightModel(
-                getText("Rainfall Alert"),
-                finalMsg,
-                R.drawable.rain_image
-            ))
+            insightList.add(InsightModel(getText("Rainfall Alert"), finalMsg, R.drawable.rain_image))
         } else {
             val part1 = getText("Low chance of rain")
             val part2 = getText("Good time for irrigation")
             val finalMsg = "$part1. $part2"
 
-            insightList.add(InsightModel(
-                getText("Today's Activity"),
-                finalMsg,
-                R.drawable.irrigation_image
-            ))
+            insightList.add(InsightModel(getText("Today's Activity"), finalMsg, R.drawable.irrigation_image))
         }
 
-        // --- INSIGHT 2: FUTURE LOOKAHEAD ---
+        // --- INSIGHT 2: FUTURE LOOKAHEAD (Next 3 Days) ---
+        val daysLookahead = 3
         var upcomingRainDay: String? = null
-        for (i in 1..3) {
-            if (i < days.size && days[i].day.daily_chance_of_rain > 60) {
-                upcomingRainDay = getDayName(days[i].date)
+        for (i in 1..daysLookahead) {
+            if (i < data.daily.precipitation_probability_max.size &&
+                data.daily.precipitation_probability_max[i] > 60) {
+
+                val dateStr = data.daily.time[i]
+                upcomingRainDay = getDayName(dateStr)
                 break
             }
         }
@@ -488,51 +565,70 @@ class WeatherActivity : BaseActivity() {
             val part1 = getText("Heavy rain expected on")
             val part2 = getText("Plan drainage")
 
-            insightList.add(InsightModel(
-                getText("Upcoming Weather"),
-                "$part1 $translatedDay. $part2",
-                R.drawable.rain_image
-            ))
+            insightList.add(InsightModel(getText("Upcoming Weather"), "$part1 $translatedDay. $part2", R.drawable.rain_image))
         } else {
             if (todayRain < 30) {
-                val part1 = getText("No rain in the next 3 days")
+                val templateMsg = getText("No rain in the next {n} days")
+                val part1 = templateMsg.replace("{n}", num(daysLookahead))
                 val part2 = getText("Perfect time to irrigate")
 
-                insightList.add(InsightModel(
-                    getText("Irrigation Advice"),
-                    "$part1. $part2",
-                    R.drawable.soilirrigation_image
-                ))
+                insightList.add(InsightModel(getText("Irrigation Advice"), "$part1. $part2", R.drawable.soilirrigation_image))
             }
         }
 
         // --- INSIGHT 3: SOIL MOISTURE ---
-        if (todayRain > 70) {
+        val currentSoilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
+
+        if (currentSoilMoisture > 0.35 || todayRain > 70) {
             val part1 = getText("Soil is likely wet")
             val part2 = getText("Avoid heavy machinery")
 
-            insightList.add(InsightModel(
-                getText("Soil Status"),
-                "$part1. $part2",
-                R.drawable.wetsoil_image
-            ))
+            insightList.add(InsightModel(getText("Soil Status"), "$part1. $part2", R.drawable.wetsoil_image))
         } else {
-            insightList.add(InsightModel(
-                getText("Soil Status"),
-                getText("Soil moisture is likely stable"),
-                R.drawable.soilmoisture_image
-            ))
+            insightList.add(InsightModel(getText("Soil Status"), getText("Soil moisture is likely stable"), R.drawable.soilmoisture_image))
         }
 
-        val recycler = findViewById<RecyclerView>(R.id.recyclerInsights)
+        // --- INSIGHT 4: SPRAYING ADVICE (Wind) ---
+        val windSpeed = data.current.wind_speed_10m
 
-        if (recycler.itemDecorationCount == 0) {
-            recycler.addItemDecoration(VerticalSpacingItemDecoration((12 * resources.displayMetrics.density).toInt()))
+        if (windSpeed > 15) {
+            val part1 = getText("Wind is too strong")
+            val part2 = getText("Avoid spraying pesticides")
+            val msg = "$part1 (${num(windSpeed)} km/h). $part2"
+
+            insightList.add(InsightModel(getText("Spraying Alert"), msg, R.drawable.wind_warning_image))
+        } else if (windSpeed < 3) {
+            insightList.add(InsightModel(getText("Spraying Advice"), getText("Wind is very calm. Ensure good coverage."), R.drawable.spraying_image))
+        } else {
+            insightList.add(InsightModel(getText("Spraying Advice"), getText("Wind conditions are ideal for spraying."), R.drawable.spraying_image))
         }
 
-        recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = InsightAdapter(insightList)
+        // --- INSIGHT 5: IRRIGATION (Evapotranspiration) ---
+        val waterLoss = data.daily.et0_fao_evapotranspiration.firstOrNull() ?: 0.0
 
+        if (waterLoss > 6.0) {
+            val part1 = getText("High water loss today")
+            val part2 = getText("Crops need extra water")
+            val msg = "$part1 (${num(waterLoss)}mm). $part2"
+
+            insightList.add(InsightModel(getText("Irrigation Alert"), msg, R.drawable.irrigation_image))
+        }
+
+        // --- INSIGHT 6: SOWING (Soil Temp) ---
+        val soilTemp = data.hourly.soil_temperature_6cm.firstOrNull() ?: 0.0
+        val part1 = getText("Soil Temperature")
+        val msg = "$part1: ${num(soilTemp.toInt())}°C"
+        insightList.add(InsightModel(getText("Soil Health"), msg, R.drawable.soil_temp_image))
+
+        val recyclerInsights = findViewById<RecyclerView>(R.id.recyclerInsights)
+
+        if (recyclerInsights.itemDecorationCount == 0) {
+            val spacingInPixels = (0 * resources.displayMetrics.density).toInt()
+            recyclerInsights.addItemDecoration(HorizontalSpacingItemDecoration(spacingInPixels))
+        }
+
+        recyclerInsights.layoutManager = LinearLayoutManager(this)
+        recyclerInsights.adapter = InsightAdapter(insightList)
     }
 
     private fun getDayName(dateString: String): String {
@@ -541,52 +637,22 @@ class WeatherActivity : BaseActivity() {
         return try { outFmt.format(inFmt.parse(dateString)!!) } catch (e: Exception) { dateString }
     }
 
-    private fun getIconForCondition(condition: String, isDay: Int = 1): Int {
-        val text = condition.lowercase().trim()
+    private fun containsEnglish(text: String): Boolean {
+        return Regex("[a-zA-Z]{3,}").containsMatchIn(text)
+    }
 
-        android.util.Log.d("WeatherDebug", "API Condition: '$text'")
+    private fun translateTextWithMLKit(text: String, targetLang: String, callback: (String) -> Unit) {
+        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(targetLang)
+            .build()
+        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
 
-        return when {
-            // --- SUNNY / CLEAR ---
-            text == "sunny" || text == "clear" -> {
-                if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-            }
-
-            // --- CLOUDY ---
-            text == "partly cloudy" -> {
-                if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
-            }
-            text == "cloudy" -> R.raw.cloudy
-            text == "overcast" -> R.raw.overcast
-
-            // --- RAIN ---
-            text.contains("moderate rain") || text.contains("heavy rain") || text.contains("shower") -> R.raw.rain
-            text.contains("rain") || text.contains("drizzle") -> R.raw.drizzle
-
-            // --- THUNDER ---
-            text.contains("thunder") -> {
-                if (text.contains("rain")) R.raw.thunderstorms_rain
-                else R.raw.thunderstorms
-            }
-
-            // --- SNOW / ICE ---
-            text.contains("snow") || text.contains("blizzard") -> R.raw.snow
-            text.contains("sleet") || text.contains("ice") || text.contains("hail") -> R.raw.hail
-
-            // --- ATMOSPHERE ---
-            text.contains("mist") -> R.raw.mist
-            text.contains("fog") || text.contains("freezing fog") -> R.raw.fog
-            text.contains("haze") || text.contains("smoke") -> R.raw.haze
-            text.contains("dust") || text.contains("sand") -> R.raw.dust
-
-            // --- EXTREME ---
-            text.contains("wind") -> R.raw.wind
-            text.contains("tornado") -> R.raw.tornado
-            text.contains("hurricane") -> R.raw.hurricane
-
-            // --- DEFAULT ---
-            else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-        }
+        client.downloadModelIfNeeded().addOnSuccessListener {
+            client.translate(text).addOnSuccessListener { result ->
+                callback(result)
+            }.addOnFailureListener { callback(text) }
+        }.addOnFailureListener { callback(text) }
     }
 
     private fun checkAndTranslateList(view: android.view.View) {
