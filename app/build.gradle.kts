@@ -66,6 +66,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     implementation("com.airbnb.android:lottie:6.4.0")
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     kapt("com.github.bumptech.glide:compiler:5.0.5")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

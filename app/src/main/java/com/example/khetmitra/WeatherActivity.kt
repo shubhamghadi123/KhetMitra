@@ -14,6 +14,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -28,7 +29,7 @@ import java.util.Locale
 class WeatherActivity : BaseActivity() {
 
     private var currentLocationQuery = "19.0760,72.8777" // Default city if GPS fails
-
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +37,12 @@ class WeatherActivity : BaseActivity() {
         setContentView(R.layout.activity_weather)
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
+
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
+
+        swipeRefreshLayout.setOnRefreshListener {
+            checkLocationPermissionAndFetch()
+        }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -72,11 +79,13 @@ class WeatherActivity : BaseActivity() {
     }
 
     private fun getUserLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            swipeRefreshLayout.isRefreshing = false
+            return
+        }
 
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
-                // WeatherAPI accepts "lat,lon" string directly
                 val latLon = "${location.latitude},${location.longitude}"
                 fetchWeatherData(latLon)
             } else {
@@ -152,16 +161,22 @@ class WeatherActivity : BaseActivity() {
                             val rawAqi = response2.body()?.current?.us_aqi ?: 50
                             val epaIndex = convertAqiToEpa(rawAqi)
                             currentWeatherUI(weatherData, epaIndex)
+                            swipeRefreshLayout.isRefreshing = false
                         }
 
                         override fun onFailure(call2: Call<AirQualityResponse>, t: Throwable) {
                             currentWeatherUI(weatherData, 2)
+                            swipeRefreshLayout.isRefreshing = false
                         }
                     })
+                }
+                else {
+                    swipeRefreshLayout.isRefreshing = false
                 }
             }
             override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
                 Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
+                swipeRefreshLayout.isRefreshing = false
             }
         })
     }
@@ -255,6 +270,7 @@ class WeatherActivity : BaseActivity() {
             val temp = data.current.temperature_2m
             val dewPoint = data.current.dew_point_2m
             val soilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
+            val soilTemp = data.hourly.soil_temperature_6cm.firstOrNull() ?: 0.0
 
             var headerPart1 = ""
             var headerPart2 = ""
@@ -290,10 +306,6 @@ class WeatherActivity : BaseActivity() {
             if (humidity > 70) {
                 sb.append("• ${t("Feels humid later")} — ${t("Dew point near")} ${d(dewPoint.toInt())}°\n")
             }
-
-            // Today's High Temp
-            val todayHigh = data.daily.temperature_2m_max.firstOrNull()?.toInt() ?: 0
-            sb.append("• ${t("Today's high will reach around")} ${d(todayHigh)}${t("°C")}\n")
 
             // SUNRISE, SUNSET & DAY LENGTH
             val sunriseRaw = data.daily.sunrise.firstOrNull()
@@ -343,10 +355,13 @@ class WeatherActivity : BaseActivity() {
 
             // Soil Moisture
             if (soilMoisture > 0.35) {
-                sb.append("• ${t("Soil is wet")} — ${t("Avoid heavy machinery")}")
+                sb.append("• ${t("Soil is wet")} — ${t("Avoid heavy machinery")}\n")
             } else if (soilMoisture < 0.15) {
-                sb.append("• ${t("Soil is dry")} — ${t("Consider irrigation")}")
+                sb.append("• ${t("Soil is dry")} — ${t("Consider irrigation")}\n")
             }
+
+            // Soil Health (Temperature)
+            sb.append("• ${t("Soil Temperature")}: ${d(soilTemp.toInt())}${t("°C")}")
 
             return sb.toString().trim()
 
@@ -527,99 +542,133 @@ class WeatherActivity : BaseActivity() {
             return TranslationHelper.convertDigits(number.toString(), langCode)
         }
 
-        // --- INSIGHT 1: TODAY'S RAIN ---
+        // ==================================================
+        // INSIGHT 1: TODAY'S ALERTS (Show ALL that apply)
+        // ==================================================
         val todayRain = data.daily.precipitation_probability_max.firstOrNull() ?: 0
-
-        if (todayRain > 50) {
-            val part1 = getText("High chance of rain")
-            val part2 = getText("Delay spraying pesticides")
-            val finalMsg = "$part1 (${num(todayRain)}%). $part2"
-
-            insightList.add(InsightModel(getText("Rainfall Alert"), finalMsg, R.drawable.rain_image))
-        } else {
-            val part1 = getText("Low chance of rain")
-            val part2 = getText("Good time for irrigation")
-            val finalMsg = "$part1. $part2"
-
-            insightList.add(InsightModel(getText("Today's Activity"), finalMsg, R.drawable.irrigation_image))
-        }
-
-        // --- INSIGHT 2: FUTURE LOOKAHEAD (Next 3 Days) ---
-        val daysLookahead = 3
-        var upcomingRainDay: String? = null
-        for (i in 1..daysLookahead) {
-            if (i < data.daily.precipitation_probability_max.size &&
-                data.daily.precipitation_probability_max[i] > 60) {
-
-                val dateStr = data.daily.time[i]
-                upcomingRainDay = getDayName(dateStr)
-                break
-            }
-        }
-
-        if (upcomingRainDay != null) {
-            val translatedDay = if (langCode != TranslateLanguage.ENGLISH) {
-                TranslationHelper.getManualTranslation(upcomingRainDay, langCode) ?: upcomingRainDay
-            } else upcomingRainDay
-
-            val part1 = getText("Heavy rain expected on")
-            val part2 = getText("Plan drainage")
-
-            insightList.add(InsightModel(getText("Upcoming Weather"), "$part1 $translatedDay. $part2", R.drawable.rain_image))
-        } else {
-            if (todayRain < 30) {
-                val templateMsg = getText("No rain in the next {n} days")
-                val part1 = templateMsg.replace("{n}", num(daysLookahead))
-                val part2 = getText("Perfect time to irrigate")
-
-                insightList.add(InsightModel(getText("Irrigation Advice"), "$part1. $part2", R.drawable.soilirrigation_image))
-            }
-        }
-
-        // --- INSIGHT 3: SOIL MOISTURE ---
+        val windSpeed = data.current.wind_speed_10m
         val currentSoilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
 
-        if (currentSoilMoisture > 0.35 || todayRain > 70) {
-            val part1 = getText("Soil is likely wet")
-            val part2 = getText("Avoid heavy machinery")
+        var hasAlert = false
 
-            insightList.add(InsightModel(getText("Soil Status"), "$part1. $part2", R.drawable.wetsoil_image))
-        } else {
-            insightList.add(InsightModel(getText("Soil Status"), getText("Soil moisture is likely stable"), R.drawable.soilmoisture_image))
+        // 1. Rain Alert
+        if (todayRain > 50) {
+            insightList.add(InsightModel(
+                getText("Rainfall Alert"),
+                "${getText("High chance of rain")} (${num(todayRain)}%). ${getText("Delay spraying pesticides")}${getText(".")}",
+                R.drawable.rain_image
+            ))
+            hasAlert = true
         }
 
-        // --- INSIGHT 4: SPRAYING ADVICE (Wind) ---
-        val windSpeed = data.current.wind_speed_10m
-
+        // 2. Wind Alert
         if (windSpeed > 15) {
-            val part1 = getText("Wind is too strong")
-            val part2 = getText("Avoid spraying pesticides")
-            val msg = "$part1 (${num(windSpeed)} km/h). $part2"
+            insightList.add(InsightModel(
+                getText("Spraying Alert"),
+                "${getText("Wind is too strong")} (${num(windSpeed)} km/h). ${getText("Avoid spraying pesticides")}${getText(".")}",
+                R.drawable.wind_warning_image
+            ))
+            hasAlert = true
+        }
 
-            insightList.add(InsightModel(getText("Spraying Alert"), msg, R.drawable.wind_warning_image))
-        } else if (windSpeed < 3) {
-            insightList.add(InsightModel(getText("Spraying Advice"), getText("Wind is very calm. Ensure good coverage."), R.drawable.spraying_image))
+        // 3. Wet Soil Alert
+        if (currentSoilMoisture > 0.35) {
+            insightList.add(InsightModel(
+                getText("Soil Status"),
+                "${getText("Soil is likely wet")}. ${getText("Avoid heavy machinery")}${getText(".")}",
+                R.drawable.wetsoil_image
+            ))
+            hasAlert = true
+        }
+
+        // 4. All Clear (Only if NO alerts exist)
+        if (!hasAlert) {
+            insightList.add(InsightModel(
+                getText("Today's Activity"),
+                "${getText("Conditions are clear")}. ${getText("Good time for irrigation")}${getText(".")}",
+                R.drawable.spraying_image
+            ))
+        }
+
+        // ==================================================
+        // INSIGHT 2: FUTURE FORECAST (14 Days)
+        // ==================================================
+        var heavyRainDay: String? = null
+        val lookaheadDays = 14
+
+        // Scan up to 14 days
+        for (i in 1 until minOf(data.daily.precipitation_probability_max.size, lookaheadDays + 1)) {
+            if (data.daily.precipitation_probability_max[i] > 60) {
+                if (heavyRainDay == null) heavyRainDay = getDayName(data.daily.time[i])
+            }
+        }
+
+        if (heavyRainDay != null) {
+            val translatedDay = if (langCode != TranslateLanguage.ENGLISH) {
+                TranslationHelper.getManualTranslation(heavyRainDay, langCode) ?: heavyRainDay
+            } else heavyRainDay
+
+            insightList.add(InsightModel(
+                getText("Upcoming Weather"),
+                "${getText("Heavy rain expected on")} $translatedDay. ${getText("Plan drainage")}${getText(".")}",
+                R.drawable.rain_image
+            ))
         } else {
-            insightList.add(InsightModel(getText("Spraying Advice"), getText("Wind conditions are ideal for spraying."), R.drawable.spraying_image))
+            // Dynamic text based on actual scan range
+            val template = getText("No rain in the next {n} days")
+            val msg = if (template.contains("{n}")) {
+                template.replace("{n}", num(lookaheadDays))
+            } else {
+                "${getText("No rain in the next")} ${num(lookaheadDays)} ${getText("days")}${getText(".")}"
+            }
+
+            insightList.add(InsightModel(
+                getText("Upcoming Weather"),
+                "$msg. ${getText("Perfect time to irrigate")}${getText(".")}",
+                R.drawable.irrigation_image
+            ))
         }
 
-        // --- INSIGHT 5: IRRIGATION (Evapotranspiration) ---
-        val waterLoss = data.daily.et0_fao_evapotranspiration.firstOrNull() ?: 0.0
+        // ==================================================
+        // HELPER FOR MONTHLY ADVICE
+        // ==================================================
+        val calendar = java.util.Calendar.getInstance()
+        val currentMonthIndex = calendar.get(java.util.Calendar.MONTH)
 
-        if (waterLoss > 6.0) {
-            val part1 = getText("High water loss today")
-            val part2 = getText("Crops need extra water")
-            val msg = "$part1 (${num(waterLoss)}mm). $part2"
-
-            insightList.add(InsightModel(getText("Irrigation Alert"), msg, R.drawable.irrigation_image))
+        fun getSeasonalTip(monthIndex: Int): String {
+            return when (monthIndex % 12) {
+                0 -> "Monitor wheat for frost. Apply irrigation if needed."
+                1 -> "Temperature rising. Watch for aphids on mustard crops."
+                2 -> "Harvest rabi crops. Prepare land for summer vegetables."
+                3 -> "Sowing of summer crops (Zaid). Maintain soil moisture."
+                4 -> "Deep ploughing to kill pests. Prepare for Kharif season."
+                5 -> "Monsoon arrival. Start sowing paddy and cotton."
+                6 -> "Active monsoon. Ensure drainage in waterlogged fields."
+                7 -> "Weeding is crucial now. Monitor for pest attacks."
+                8 -> "Late monsoon rains. Plan harvesting of early varieties."
+                9 -> "Post-harvest soil prep. Sowing of early rabi crops."
+                10 -> "Main sowing month for Wheat and Gram. Irrigate pre-sowing."
+                11 -> "Protect crops from cold waves. Mulching recommended."
+                else -> "Maintain general field hygiene."
+            }
         }
 
-        // --- INSIGHT 6: SOWING (Soil Temp) ---
-        val soilTemp = data.hourly.soil_temperature_6cm.firstOrNull() ?: 0.0
-        val part1 = getText("Soil Temperature")
-        val msg = "$part1: ${num(soilTemp.toInt())}°C"
-        insightList.add(InsightModel(getText("Soil Health"), msg, R.drawable.soil_temp_image))
+        // ==================================================
+        // INSIGHT 3 & 4: MONTHLY ADVICE
+        // ==================================================
+        insightList.add(InsightModel(
+            getText("This Month's Advice"),
+            getText(getSeasonalTip(currentMonthIndex)),
+            R.drawable.soilirrigation_image
+        ))
 
+        insightList.add(InsightModel(
+            getText("Next Month's Plan"),
+            getText(getSeasonalTip(currentMonthIndex + 1)),
+            R.drawable.soilmoisture_image
+        ))
+
+        // Attach to Recycler
         val recyclerInsights = findViewById<RecyclerView>(R.id.recyclerInsights)
 
         if (recyclerInsights.itemDecorationCount == 0) {
