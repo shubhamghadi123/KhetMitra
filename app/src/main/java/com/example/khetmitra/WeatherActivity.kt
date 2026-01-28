@@ -54,9 +54,12 @@ class WeatherActivity : BaseActivity() {
         recyclerForecast.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerForecast.adapter = ForecastAdapter(emptyList())
 
-        checkLocationPermissionAndFetch()
-
         setupSummaryExpandLogic()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkLocationPermissionAndFetch()
     }
 
     private fun checkLocationPermissionAndFetch() {
@@ -83,17 +86,48 @@ class WeatherActivity : BaseActivity() {
             swipeRefreshLayout.isRefreshing = false
             return
         }
-
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            null
+        ).addOnSuccessListener { location: Location? ->
             if (location != null) {
                 val latLon = "${location.latitude},${location.longitude}"
                 fetchWeatherData(latLon)
             } else {
-                fetchWeatherData(currentLocationQuery)
+                getLastKnownLocation()
             }
         }.addOnFailureListener {
-            fetchWeatherData(currentLocationQuery)
+            getLastKnownLocation()
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastKnownLocation() {
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                val latLon = "${location.latitude},${location.longitude}"
+                Toast.makeText(this, "Using saved location", Toast.LENGTH_SHORT).show()
+                fetchWeatherData(latLon)
+            } else {
+                Toast.makeText(this, "GPS Signal Lost. Showing Mumbai.", Toast.LENGTH_LONG).show()
+                fetchWeatherData(currentLocationQuery)
+            }
+        }
+    }
+
+    private fun getAddressName(lat: Double, lon: Double): String {
+        var cityName = "Unknown Location"
+        try {
+            val geocoder = android.location.Geocoder(this, java.util.Locale.getDefault())
+            val addresses = geocoder.getFromLocation(lat, lon, 1)
+            if (!addresses.isNullOrEmpty()) {
+                val address = addresses[0]
+                cityName = address.locality ?: address.subAdminArea ?: address.adminArea ?: "Unknown"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return cityName
     }
 
     private fun getConditionText(code: Int): String {
@@ -160,12 +194,12 @@ class WeatherActivity : BaseActivity() {
                         override fun onResponse(call2: Call<AirQualityResponse>, response2: Response<AirQualityResponse>) {
                             val rawAqi = response2.body()?.current?.us_aqi ?: 50
                             val epaIndex = convertAqiToEpa(rawAqi)
-                            currentWeatherUI(weatherData, epaIndex)
+                            currentWeatherUI(weatherData, epaIndex, lat, lon)
                             swipeRefreshLayout.isRefreshing = false
                         }
 
                         override fun onFailure(call2: Call<AirQualityResponse>, t: Throwable) {
-                            currentWeatherUI(weatherData, 2)
+                            currentWeatherUI(weatherData, 2, lat, lon)
                             swipeRefreshLayout.isRefreshing = false
                         }
                     })
@@ -192,7 +226,7 @@ class WeatherActivity : BaseActivity() {
         }
     }
 
-    private fun currentWeatherUI(data: OpenMeteoResponse, aqiIndex: Int) {
+    private fun currentWeatherUI(data: OpenMeteoResponse, aqiIndex: Int, lat: Double, lon: Double) {
 
         weeklyForecastUI(data.daily)
         hourlyForecastUI(data.hourly)
@@ -209,6 +243,7 @@ class WeatherActivity : BaseActivity() {
         val lottieIcon = findViewById<com.airbnb.lottie.LottieAnimationView>(R.id.iconCurrentWeather)
         val tvHighLow = findViewById<TextView>(R.id.tvHighLow)
         val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
+        val tvLocation = findViewById<TextView>(R.id.tvLocation)
 
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
@@ -238,6 +273,11 @@ class WeatherActivity : BaseActivity() {
         val rawHigh = todayHigh.toInt()
         val rawLow = todayLow.toInt()
         tvHighLow.text = "↑${d(rawHigh)}° ↓${d(rawLow)}°"
+
+        val cityName = getAddressName(lat, lon)
+        translateTextWithMLKit(cityName, langCode) { translatedCity ->
+            tvLocation.text = translatedCity
+        }
 
         val initialSummary = generateQuickSummary(data, aqiIndex, langCode)
         tvSummaryBody.text = initialSummary
@@ -565,7 +605,7 @@ class WeatherActivity : BaseActivity() {
         if (windSpeed > 15) {
             insightList.add(InsightModel(
                 getText("Spraying Alert"),
-                "${getText("Wind is too strong")} (${num(windSpeed)} km/h). ${getText("Avoid spraying pesticides")}${getText(".")}",
+                "${getText("Wind is too strong")} (${num(windSpeed)} ${getText("km/h")}). ${getText("Avoid spraying pesticides")}${getText(".")}",
                 R.drawable.wind_warning_image
             ))
             hasAlert = true
@@ -702,15 +742,5 @@ class WeatherActivity : BaseActivity() {
                 callback(result)
             }.addOnFailureListener { callback(text) }
         }.addOnFailureListener { callback(text) }
-    }
-
-    private fun checkAndTranslateList(view: android.view.View) {
-        view.post {
-            val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val lang = prefs.getString("Language", TranslateLanguage.ENGLISH)
-            if (lang != TranslateLanguage.ENGLISH) {
-                TranslationHelper.translateViewHierarchy(view, lang!!) {}
-            }
-        }
     }
 }
