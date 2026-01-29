@@ -14,15 +14,13 @@ import java.io.IOException
 import java.util.Locale
 
 object TranslationHelper {
-    private var translationMap: Map<String, Map<String, String>> = emptyMap()
 
     private var loadedCorrections: Map<String, Map<String, String>> = emptyMap()
+
     fun initTranslations(context: Context) {
         try {
             val jsonString = context.assets.open("manual_corrections.json").bufferedReader().use { it.readText() }
-
             val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
-
             loadedCorrections = Gson().fromJson(jsonString, type)
         } catch (e: IOException) {
             e.printStackTrace()
@@ -31,11 +29,44 @@ object TranslationHelper {
 
     fun getManualTranslation(text: String, langCode: String): String? {
         val cleanText = text.trim()
-        return loadedCorrections[cleanText]?.get(langCode)
-            ?: loadedCorrections[cleanText.lowercase(Locale.getDefault())]?.get(langCode)
+        var translation = loadedCorrections[cleanText]?.get(langCode)
+
+        if (translation == null) {
+            translation = loadedCorrections[cleanText.lowercase(Locale.getDefault())]?.get(langCode)
+        }
+        return translation
     }
 
-    // DIGIT CONVERTER
+    fun smartTranslate(text: String, targetLang: String, callback: (String) -> Unit) {
+        val cleanText = text.trim()
+
+        val manualFix = getManualTranslation(cleanText, targetLang)
+        if (manualFix != null) {
+            callback(convertDigits(manualFix, targetLang))
+            return
+        }
+
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(targetLang)
+            .build()
+        val translator = Translation.getClient(options)
+
+        translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
+            .addOnSuccessListener {
+                translator.translate(text)
+                    .addOnSuccessListener { translatedText ->
+                        callback(convertDigits(translatedText, targetLang))
+                    }
+                    .addOnFailureListener {
+                        callback(text)
+                    }
+            }
+            .addOnFailureListener {
+                callback(text)
+            }
+    }
+
     fun convertDigits(text: String, langCode: String): String {
         return when (langCode) {
             TranslateLanguage.HINDI, TranslateLanguage.MARATHI ->
@@ -63,20 +94,6 @@ object TranslationHelper {
         }
     }
 
-    // 4. Added Missing Function to map ML Kit codes to JSON keys
-    private fun getShortCode(mlKitCode: String): String {
-        return when (mlKitCode) {
-            TranslateLanguage.HINDI -> "hi"
-            TranslateLanguage.MARATHI -> "mr"
-            TranslateLanguage.GUJARATI -> "gu"
-            TranslateLanguage.KANNADA -> "kn"
-            TranslateLanguage.TAMIL -> "ta"
-            TranslateLanguage.TELUGU -> "te"
-            TranslateLanguage.BENGALI -> "bn"
-            else -> "en"
-        }
-    }
-
     fun translateViewHierarchy(rootView: View, targetLang: String, onFinished: () -> Unit) {
         val allTextViews = ArrayList<TextView>()
         getAllTextViews(rootView, allTextViews)
@@ -100,7 +117,7 @@ object TranslationHelper {
                 for (tv in allTextViews) {
                     if (tv.tag == null) tv.tag = tv.text.toString()
                     val rawText = tv.tag.toString()
-                    val cleanText = rawText.trim().lowercase(Locale.getDefault())
+                    val cleanText = rawText.trim()
 
                     if (cleanText.isEmpty()) {
                         completedCount++
@@ -108,19 +125,15 @@ object TranslationHelper {
                         continue
                     }
 
-                    // Check Dictionary First
                     val manualFix = getManualTranslation(cleanText, targetLang)
 
                     if (manualFix != null) {
-                        // Apply Manual Fix + Convert Digits
                         tv.text = convertDigits(manualFix, targetLang)
                         completedCount++
                         if (completedCount == allTextViews.size) onFinished()
                     } else {
-                        // Use ML Kit Fallback
                         translator.translate(rawText)
                             .addOnSuccessListener { translated ->
-                                // Apply Digit Conversion to the translated text
                                 tv.text = convertDigits(translated, targetLang)
                                 completedCount++
                                 if (completedCount == allTextViews.size) onFinished()
