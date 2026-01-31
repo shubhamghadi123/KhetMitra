@@ -26,6 +26,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 class WeatherActivity : BaseActivity() {
 
@@ -199,19 +200,16 @@ class WeatherActivity : BaseActivity() {
                             val rawAqi = response2.body()?.current?.us_aqi ?: 50
                             val epaIndex = convertAqiToEpa(rawAqi)
                             currentWeatherUI(weatherData, epaIndex, lat, lon)
-                            loadingOverlay.visibility = android.view.View.GONE
                             swipeRefreshLayout.isRefreshing = false
                         }
-
                         override fun onFailure(call2: Call<AirQualityResponse>, t: Throwable) {
                             currentWeatherUI(weatherData, 2, lat, lon)
-                            loadingOverlay.visibility = android.view.View.GONE
-                            Toast.makeText(this@WeatherActivity, "Failed to load", Toast.LENGTH_SHORT).show()
                             swipeRefreshLayout.isRefreshing = false
                         }
                     })
                 }
                 else {
+                    loadingOverlay.visibility = android.view.View.GONE
                     swipeRefreshLayout.isRefreshing = false
                 }
             }
@@ -231,6 +229,25 @@ class WeatherActivity : BaseActivity() {
             rawAqi <= 200 -> 4 // Unhealthy
             rawAqi <= 300 -> 5 // Very Unhealthy
             else -> 6          // Hazardous
+        }
+    }
+
+    private fun updateAqiPill(tvAqi: TextView, aqiIndex: Int, t: (String) -> String) {
+        val (status, colorHex) = when (aqiIndex) {
+            1 -> Pair("Good", "#4CAF50")      // Green
+            2 -> Pair("Moderate", "#FFC107")  // Yellow/Amber
+            3 -> Pair("Sensitive", "#FF9800") // Orange
+            4 -> Pair("Unhealthy", "#FF5252") // Red
+            5 -> Pair("Very Bad", "#9C27B0")  // Purple
+            else -> Pair("Hazardous", "#B71C1C") // Maroon
+        }
+
+        tvAqi.text = "AQI: ${t(status)}"
+
+        try {
+            tvAqi.background.setTint(colorHex.toColorInt())
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -265,6 +282,11 @@ class WeatherActivity : BaseActivity() {
         val tvSummaryBody = findViewById<TextView>(R.id.tvSummaryBody)
         val tvLocation = findViewById<TextView>(R.id.tvLocation)
 
+        val tvAqi = findViewById<TextView>(R.id.tvAqi)
+        val tvHumidity = findViewById<TextView>(R.id.tvHumidity)
+        val tvWind = findViewById<TextView>(R.id.tvWind)
+        val tvDewPoint = findViewById<TextView>(R.id.tvDewPoint)
+
         lottieIcon.setAnimation(getIconForCondition(conditionText, current.is_day))
         lottieIcon.playAnimation()
 
@@ -274,7 +296,7 @@ class WeatherActivity : BaseActivity() {
         val unit = t("°C")
         tvTemp.text = "${d(tempNum)}$unit"
 
-        val feelsPrefix = t("Feels like")
+        val feelsPrefix = t("feels like")
         val feelsNum = d(current.apparent_temperature.toInt())
         tvFeelsLike.text = "$feelsPrefix $feelsNum$unit"
 
@@ -285,7 +307,18 @@ class WeatherActivity : BaseActivity() {
         val cityName = getAddressName(lat, lon)
         TranslationHelper.smartTranslate(cityName, langCode) { translatedCity ->
             tvLocation.text = translatedCity
+            loadingOverlay.visibility = android.view.View.GONE
         }
+
+        tvHumidity.text = "${d(current.relative_humidity_2m)}%"
+
+        val windSpeed = d(current.wind_speed_10m.toInt())
+        tvWind.text = "$windSpeed ${t("km/h")}"
+
+        val dewPoint = d(current.dew_point_2m.toInt())
+        tvDewPoint.text = "$dewPoint°"
+
+        updateAqiPill(tvAqi, aqiIndex, ::t)
 
         val initialSummary = generateQuickSummary(data, aqiIndex, langCode)
         tvSummaryBody.text = initialSummary
@@ -297,7 +330,6 @@ class WeatherActivity : BaseActivity() {
                 }
             }
         }
-        loadingOverlay.visibility = android.view.View.GONE
     }
 
     private fun generateQuickSummary(data: OpenMeteoResponse, aqiIndex: Int, langCode: String?): String {
@@ -560,7 +592,6 @@ class WeatherActivity : BaseActivity() {
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
-        // 1. STANDARD & SAFE HELPER FUNCTIONS (Matches other UIs)
         fun t(text: String): String {
             if (langCode == TranslateLanguage.ENGLISH) return text
             return TranslationHelper.getManualTranslation(text, langCode) ?: text
@@ -628,7 +659,7 @@ class WeatherActivity : BaseActivity() {
         if (todayRain > 50) {
             insightList.add(InsightModel(
                 t("Rainfall Alert"),
-                "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying pesticides")}${t(".")}",
+                "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying pesticides")}.",
                 R.drawable.rain_image
             ))
             hasAlert = true
@@ -638,7 +669,7 @@ class WeatherActivity : BaseActivity() {
         if (windSpeed > 15) {
             insightList.add(InsightModel(
                 t("Spraying Alert"),
-                "${t("Wind is too strong")} (${d(windSpeed)} ${t("km/h")}). ${t("Avoid spraying pesticides")}${t(".")}",
+                "${t("Wind is too strong")} (${d(windSpeed)} ${t("km/h")}). ${t("Avoid spraying pesticides")}.",
                 R.drawable.wind_warning_image
             ))
             hasAlert = true
@@ -648,7 +679,7 @@ class WeatherActivity : BaseActivity() {
         if (currentSoilMoisture > 0.35) {
             insightList.add(InsightModel(
                 t("Soil Status"),
-                "${t("Soil is likely wet")}. ${t("Avoid heavy machinery")}${t(".")}",
+                "${t("Soil is likely wet")}. ${t("Avoid heavy machinery")}.",
                 R.drawable.wetsoil_image
             ))
             hasAlert = true
@@ -658,14 +689,12 @@ class WeatherActivity : BaseActivity() {
         if (!hasAlert) {
             insightList.add(InsightModel(
                 t("Today's Activity"),
-                "${t("Conditions are clear")}. ${t("Good time for irrigation")}${t(".")}",
+                "${t("Conditions are clear")}. ${t("Good time for irrigation")}.",
                 R.drawable.spraying_image
             ))
         }
 
-        // ==================================================
         // FUTURE FORECAST
-        // ==================================================
         var heavyRainDay: String? = null
         val lookaheadDays = 14
 
@@ -680,20 +709,18 @@ class WeatherActivity : BaseActivity() {
 
             insightList.add(InsightModel(
                 t("Upcoming Weather"),
-                "${t("Heavy rain expected on")} $translatedDay. ${t("Plan drainage")}${t(".")}",
+                "${t("Heavy rain expected on")} $translatedDay. ${t("Plan drainage")}.",
                 R.drawable.rain_image
             ))
         } else {
             insightList.add(InsightModel(
                 t("Upcoming Weather"),
-                "${t("No rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Perfect time to irrigate")}",
+                "${t("No rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Perfect time to irrigate")}.",
                 R.drawable.irrigation_image
             ))
         }
 
-        // ==================================================
         // MONTHLY ADVICE
-        // ==================================================
         val calendar = java.util.Calendar.getInstance()
         val currentMonthIndex = calendar.get(java.util.Calendar.MONTH)
 
