@@ -137,28 +137,59 @@ class WeatherActivity : BaseActivity() {
     private fun getConditionText(code: Int): String {
         return when (code) {
             0 -> "Clear"
-            1, 2, 3 -> "Partly cloudy"
-            45, 48 -> "Fog"
-            51, 53, 55 -> "Light drizzle"
+            1 -> "Mainly Clear"
+            2 -> "Partly Cloudy"
+            3 -> "Cloudy"
+            45 -> "Mist"
+            48 -> "Fog"
+            51, 53, 55 -> "Drizzle"
+            56, 57 -> "Sleet"
             61, 63, 65 -> "Rain"
-            80, 81, 82 -> "Heavy rain"
-            95, 96, 99 -> "Thunderstorm"
-            71, 73, 75, 77, 85, 86 -> "Snow"
-            else -> "Overcast"
+            66, 67 -> "Sleet"
+            71, 73, 75, 77 -> "Snow"
+            80, 81, 82 -> "Rain"
+            85, 86 -> "Snow"
+            95 -> "Thunderstorm"
+            96, 99 -> "Hail"
+            else -> "Unknown"
         }
     }
 
     private fun getIconForCondition(conditionRaw: String, isDay: Int = 1): Int {
         val text = conditionRaw.lowercase()
         return when {
+            // Clear / Sunny
             text.contains("clear") || text.contains("sunny") -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
+
+            // Clouds
             text.contains("partly") -> if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
-            text.contains("cloudy") || text.contains("overcast") -> R.raw.overcast
-            text.contains("drizzle") -> R.raw.drizzle
-            text.contains("heavy rain") -> R.raw.rain
-            text.contains("rain") -> R.raw.rain
-            text.contains("thunder") -> R.raw.thunderstorms
+            text.contains("cloudy") -> R.raw.cloudy
+            text.contains("overcast") -> R.raw.overcast
+
+            // Atmosphere
+            text.contains("mist") -> R.raw.mist
             text.contains("fog") -> R.raw.fog
+            text.contains("haze") -> R.raw.haze
+            text.contains("dust") -> R.raw.dust
+
+            // Rain / Drizzle
+            text.contains("drizzle") -> R.raw.drizzle
+            text.contains("sleet") -> R.raw.sleet
+
+            // Thunderstorms
+            text.contains("thunder") && text.contains("rain") -> R.raw.thunderstorms_rain
+            text.contains("hail") -> R.raw.hail
+            text.contains("thunder") -> R.raw.thunderstorms
+
+            // Rain / Snow
+            text.contains("rain") -> R.raw.rain
+            text.contains("snow") -> R.raw.snow
+
+            // Extreme
+            text.contains("tornado") -> R.raw.tornado
+            text.contains("hurricane") -> R.raw.hurricane
+            text.contains("wind") -> R.raw.wind
+
             else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
         }
     }
@@ -242,7 +273,7 @@ class WeatherActivity : BaseActivity() {
             else -> Pair("Hazardous", "#B71C1C") // Maroon
         }
 
-        tvAqi.text = "AQI: ${t(status)}"
+        tvAqi.text = "${t("AQI")}: ${t(status)}"
 
         try {
             tvAqi.background.setTint(colorHex.toColorInt())
@@ -296,7 +327,7 @@ class WeatherActivity : BaseActivity() {
         val unit = t("°C")
         tvTemp.text = "${d(tempNum)}$unit"
 
-        val feelsPrefix = t("feels like")
+        val feelsPrefix = t("Feels Like")
         val feelsNum = d(current.apparent_temperature.toInt())
         tvFeelsLike.text = "$feelsPrefix $feelsNum$unit"
 
