@@ -9,6 +9,17 @@
 
     <string name="chatbot_title">Chat</string>
 
+    <string-array name="state_locations">
+        <item>Maharashtra</item>
+        <item>Goa</item>
+        <item>Gujarat</item>
+        <item>Punjab</item>
+        <item>Tamil Nadu</item>
+        <item>West Bengal</item>
+        <item>Uttar Pradesh</item>
+        <item>Rajasthan</item>
+    </string-array>
+
     <string-array name="market_locations">
         <item>Karnal</item>
         <item>Pune</item>

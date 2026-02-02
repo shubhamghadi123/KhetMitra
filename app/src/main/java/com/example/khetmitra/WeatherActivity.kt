@@ -638,7 +638,9 @@ class WeatherActivity : BaseActivity() {
 
         if (daily.time.isNullOrEmpty()) return
 
-        for (i in daily.time.indices) {
+        val daysToShow = minOf(daily.time.size, 7)
+
+        for (i in 0 until daysToShow) {
             if (i >= daily.temperature_2m_max.size || i >= daily.temperature_2m_min.size) break
 
             val rawDate = daily.time[i]

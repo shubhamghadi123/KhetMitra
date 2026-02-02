@@ -14,6 +14,17 @@ class MarketActivity : AppCompatActivity() {
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
 
+        val spinnerState = findViewById<Spinner>(R.id.spinnerState)
+
+        val stateAdapter = ArrayAdapter.createFromResource(
+            this,
+            R.array.state_locations,
+            R.layout.item_spinner_selected
+        )
+
+        stateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerState.adapter = stateAdapter
+
         val spinnerMarket = findViewById<Spinner>(R.id.spinnerMarket)
 
         val marketAdapter = ArrayAdapter.createFromResource(
