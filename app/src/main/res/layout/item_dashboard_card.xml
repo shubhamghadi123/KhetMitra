@@ -2,6 +2,7 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="24dp"
@@ -27,7 +28,8 @@
             android:textSize="20sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="HardcodedText"/>
 
         <TextView
             android:id="@+id/tvCardSubtitle"
@@ -38,7 +40,8 @@
             android:textColor="#000000"
             android:textSize="16sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvCardTitle" />
+            app:layout_constraintTop_toBottomOf="@id/tvCardTitle"
+            tools:ignore="HardcodedText"/>
 
         <com.airbnb.lottie.LottieAnimationView
             android:id="@+id/tvIcon"

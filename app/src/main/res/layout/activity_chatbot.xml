@@ -74,8 +74,10 @@
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center"
+                android:importantForAccessibility="no"
                 android:src="@drawable/round_add_24"
                 app:tint="#000000" />
+
         </FrameLayout>
 
         <EditText
@@ -84,7 +86,8 @@
             android:layout_height="48dp"
             android:layout_marginStart="12dp"
             android:background="@drawable/bg_chat_input"
-            android:hint="Ask anything"
+            android:hint="Ask anything..."
+            android:importantForAutofill="no"
             android:inputType="textCapSentences|textMultiLine"
             android:imeOptions="actionSend"
             android:maxLines="3"
@@ -96,13 +99,15 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/btnPlus"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="HardcodedText"/>
 
         <ImageView
             android:id="@+id/btnMic"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginEnd="12dp"
+            android:importantForAccessibility="no"
             android:src="@drawable/round_mic_24"
             app:layout_constraintBottom_toBottomOf="@id/etMessageInput"
             app:layout_constraintEnd_toEndOf="@id/etMessageInput"

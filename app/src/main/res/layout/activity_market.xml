@@ -84,7 +84,8 @@
                     android:textColor="#333333"
                     android:textSize="12sp"
                     app:layout_constraintStart_toEndOf="@id/iconState"
-                    app:layout_constraintTop_toTopOf="@id/iconState" />
+                    app:layout_constraintTop_toTopOf="@id/iconState"
+                    tools:ignore="HardcodedText"/>
 
                 <Spinner
                     android:id="@+id/spinnerState"
@@ -100,6 +101,7 @@
                 <ImageView
                     android:layout_width="60dp"
                     android:layout_height="60dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/arrow_down"
                     app:layout_constraintBottom_toBottomOf="@+id/iconState"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -146,7 +148,8 @@
                     android:textColor="#333333"
                     android:textSize="12sp"
                     app:layout_constraintStart_toEndOf="@id/iconMarket"
-                    app:layout_constraintTop_toTopOf="@id/iconMarket" />
+                    app:layout_constraintTop_toTopOf="@id/iconMarket"
+                    tools:ignore="HardcodedText"/>
 
                 <Spinner
                     android:id="@+id/spinnerMarket"
@@ -162,6 +165,7 @@
                 <ImageView
                     android:layout_width="60dp"
                     android:layout_height="60dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/arrow_down"
                     app:layout_constraintBottom_toBottomOf="@+id/iconMarket"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -208,7 +212,8 @@
                     android:textColor="#333333"
                     android:textSize="12sp"
                     app:layout_constraintStart_toEndOf="@id/iconCrop"
-                    app:layout_constraintTop_toTopOf="@id/iconCrop" />
+                    app:layout_constraintTop_toTopOf="@id/iconCrop"
+                    tools:ignore="HardcodedText"/>
 
                 <Spinner
                     android:id="@+id/spinnerCrop"
@@ -224,6 +229,7 @@
                 <ImageView
                     android:layout_width="60dp"
                     android:layout_height="60dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/arrow_down"
                     app:layout_constraintBottom_toBottomOf="@+id/iconCrop"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -261,7 +267,8 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="HardcodedText"/>
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/iconPriceCircle"
@@ -282,7 +289,9 @@
                         android:text="₹"
                         android:textColor="#000000"
                         android:textSize="32sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        tools:ignore="HardcodedText"/>
+
                 </androidx.cardview.widget.CardView>
 
                 <TextView
@@ -295,7 +304,8 @@
                     android:textSize="36sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toEndOf="@id/iconPriceCircle"
-                    app:layout_constraintTop_toTopOf="@id/iconPriceCircle" />
+                    app:layout_constraintTop_toTopOf="@id/iconPriceCircle"
+                    tools:ignore="HardcodedText"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -304,7 +314,8 @@
                     android:textColor="#333333"
                     android:textSize="14sp"
                     app:layout_constraintStart_toStartOf="@id/tvPriceValue"
-                    app:layout_constraintTop_toBottomOf="@id/tvPriceValue" />
+                    app:layout_constraintTop_toBottomOf="@id/tvPriceValue"
+                    tools:ignore="HardcodedText"/>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -336,12 +347,14 @@
                     android:text="Future Price Prediction"
                     android:textColor="#000000"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText"/>
 
                 <ImageView
                     android:id="@+id/trending_up"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/round_trending_up_24"
                     android:layout_gravity="center"
                     android:layout_marginTop="10dp"/>
@@ -350,6 +363,7 @@
                     android:id="@+id/trending_down"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/round_trending_down_24"
                     android:layout_gravity="center"
                     android:visibility="gone"
@@ -362,7 +376,8 @@
                     android:text="Price will go UP"
                     android:textColor="#000000"
                     android:textSize="24sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -371,7 +386,8 @@
                     android:gravity="center"
                     android:text="In the next month, the price is projected\nto increase by ₹125"
                     android:textColor="#333333"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    tools:ignore="HardcodedText"/>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
