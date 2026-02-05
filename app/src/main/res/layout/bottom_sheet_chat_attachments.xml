@@ -31,6 +31,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:importantForAccessibility="no"
             android:src="@drawable/round_photo_camera_24"
             app:tint="#000000" />
 
@@ -61,6 +62,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:importantForAccessibility="no"
             android:src="@drawable/round_photo_library_24"
             app:tint="#000000" />
 
@@ -91,6 +93,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:importantForAccessibility="no"
             android:src="@drawable/round_file_present_24"
             app:tint="#000000" />
 

@@ -20,7 +20,8 @@
         android:visibility="visible"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="visible" />
+        tools:visibility="visible"
+        tools:ignore="HardcodedText"/>
 
     <TextView
         android:id="@+id/tvUserMessage"
@@ -36,7 +37,8 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="visible" />
+        tools:visibility="visible"
+        tools:ignore="HardcodedText" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cardUserImage"
@@ -54,8 +56,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"
+            android:importantForAccessibility="no"
             android:scaleType="centerCrop"
             android:src="@android:drawable/ic_menu_gallery" />
+
     </androidx.cardview.widget.CardView>
 
     <androidx.cardview.widget.CardView
@@ -75,11 +79,13 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="12dp">
+            android:padding="12dp"
+            tools:ignore="UseCompoundDrawables">
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
+                android:importantForAccessibility="no"
                 android:src="@android:drawable/ic_menu_save"
                 app:tint="#000000"/>
 
@@ -94,7 +100,8 @@
                 android:textStyle="bold"
                 android:maxWidth="180dp"
                 android:ellipsize="end"
-                android:maxLines="1"/>
+                android:maxLines="1"
+                tools:ignore="HardcodedText"/>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

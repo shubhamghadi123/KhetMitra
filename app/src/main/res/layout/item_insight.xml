@@ -36,7 +36,8 @@
                 android:text="Rainfall Alert"
                 android:textColor="#333333"
                 android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                tools:ignore="HardcodedText"/>
 
             <TextView
                 android:id="@+id/tvInsightDesc"
@@ -46,7 +47,8 @@
                 android:lineSpacingExtra="4dp"
                 android:text="Heavy rain is expected tomorrow. Delay spraying pesticides."
                 android:textColor="#555555"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                tools:ignore="HardcodedText"/>
         </LinearLayout>
 
         <androidx.cardview.widget.CardView

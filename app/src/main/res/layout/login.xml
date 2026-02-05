@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
     android:gravity="center"
     android:padding="60dp"
     android:orientation="vertical">
@@ -12,7 +13,8 @@
         android:layout_height="wrap_content"
         android:text="Login"
         android:textAlignment="center"
-        android:textSize="30sp" />
+        android:textSize="30sp"
+        tools:ignore="HardcodedText"/>
 
     <EditText
         android:id="@+id/loginPhone"
@@ -21,7 +23,9 @@
         android:ems="10"
         android:layout_marginTop="30dp"
         android:hint="Mobile Number"
-        android:inputType="phone" />
+        android:importantForAutofill="no"
+        android:inputType="phone"
+        tools:ignore="HardcodedText"/>
 
     <EditText
         android:id="@+id/loginPassword"
@@ -30,13 +34,16 @@
         android:ems="10"
         android:layout_marginTop="20dp"
         android:hint="Password"
-        android:inputType="textPassword" />
+        android:importantForAutofill="no"
+        android:inputType="textPassword"
+        tools:ignore="HardcodedText"/>
 
     <Button
         android:id="@+id/loginButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="30dp"
-        android:text="Login" />
+        android:text="Login"
+        tools:ignore="HardcodedText"/>
 
 </LinearLayout>

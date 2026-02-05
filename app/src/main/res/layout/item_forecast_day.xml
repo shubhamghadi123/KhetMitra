@@ -2,6 +2,7 @@
 <androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="80dp"
     android:layout_height="wrap_content"
     android:layout_marginTop="6dp"
@@ -27,7 +28,8 @@
             android:text="25°"
             android:textColor="#000000"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            tools:ignore="HardcodedText"/>
 
         <TextView
             android:id="@+id/tvLowTemp"
@@ -36,7 +38,8 @@
             android:layout_marginTop="2dp"
             android:text="23°"
             android:textColor="#757575"
-            android:textSize="14sp" />
+            android:textSize="14sp"
+            tools:ignore="HardcodedText"/>
 
         <com.airbnb.lottie.LottieAnimationView
             android:id="@+id/ivWeatherIcon"
@@ -54,7 +57,8 @@
             android:text="Sat"
             android:textColor="#000000"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            tools:ignore="HardcodedText"/>
 
         <TextView
             android:id="@+id/tvDate"
@@ -63,7 +67,8 @@
             android:layout_marginTop="2dp"
             android:text="01/17"
             android:textColor="#757575"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            tools:ignore="HardcodedText"/>
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

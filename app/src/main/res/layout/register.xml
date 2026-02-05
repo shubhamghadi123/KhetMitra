@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
     android:gravity="center"
     android:padding="60dp"
     android:orientation="vertical">
@@ -12,7 +13,8 @@
         android:layout_height="wrap_content"
         android:text="Register"
         android:textAlignment="center"
-        android:textSize="30sp" />
+        android:textSize="30sp"
+        tools:ignore="HardcodedText"/>
 
     <EditText
         android:id="@+id/registerPhone"
@@ -21,7 +23,9 @@
         android:ems="10"
         android:layout_marginTop="30dp"
         android:hint="Mobile Number"
-        android:inputType="phone" />
+        android:inputType="phone"
+        tools:ignore="HardcodedText"
+        android:importantForAutofill="no"/>
 
     <EditText
         android:id="@+id/registerPassword"
@@ -30,13 +34,16 @@
         android:ems="10"
         android:layout_marginTop="20dp"
         android:hint="Password"
-        android:inputType="textPassword" />
+        android:inputType="textPassword"
+        tools:ignore="HardcodedText"
+        android:importantForAutofill="no"/>
 
     <Button
         android:id="@+id/registerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="30dp"
-        android:text="Register" />
+        android:text="Register"
+        tools:ignore="HardcodedText"/>
 
 </LinearLayout>
