@@ -17,11 +17,31 @@
         tools:ignore="HardcodedText"/>
 
     <EditText
+        android:id="@+id/firstName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:hint="First Name"
+        android:inputType="textPersonName"
+        tools:ignore="HardcodedText"
+        android:importantForAutofill="no"/>
+
+    <EditText
+        android:id="@+id/lastName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:hint="Last Name"
+        android:inputType="textPersonName"
+        tools:ignore="HardcodedText"
+        android:importantForAutofill="no"/>
+
+    <EditText
         android:id="@+id/registerPhone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ems="10"
-        android:layout_marginTop="30dp"
+        android:layout_marginTop="20dp"
         android:hint="Mobile Number"
         android:inputType="phone"
         tools:ignore="HardcodedText"
@@ -31,10 +51,19 @@
         android:id="@+id/registerPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ems="10"
         android:layout_marginTop="20dp"
         android:hint="Password"
         android:inputType="textPassword"
+        tools:ignore="HardcodedText"
+        android:importantForAutofill="no"/>
+
+    <EditText
+        android:id="@+id/email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:hint="Email Address"
+        android:inputType="textEmailAddress"
         tools:ignore="HardcodedText"
         android:importantForAutofill="no"/>
 
