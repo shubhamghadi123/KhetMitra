@@ -87,3 +87,9 @@ data class ChatMessage(
     val isImage: Boolean = true,
     val fileName: String = ""
 )
+
+data class SoilType(
+    val id: Int,
+    val nameEn: String,
+    val imageRes: Int
+)

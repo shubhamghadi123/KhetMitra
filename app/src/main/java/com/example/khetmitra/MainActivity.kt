@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.material.button.MaterialButton
 import com.google.mlkit.nl.translate.TranslateLanguage
 import retrofit2.Call
 import retrofit2.Callback
@@ -40,9 +41,18 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
+
+        btnStartMapping.setOnClickListener {
+            supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, FieldMeasurementFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
         TranslationHelper.initTranslations(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
         setupInitialData()
 
@@ -130,7 +140,7 @@ class MainActivity : BaseActivity() {
             val parts = query.split(",")
             lat = parts[0].trim().toDouble()
             lon = parts[1].trim().toDouble()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             lat = 19.07
             lon = 72.87
         }
@@ -289,7 +299,7 @@ class MainActivity : BaseActivity() {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedCode = codes[position]
                 if (selectedCode != currentLangCode) {
-                    val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+                    val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
                     prefs.edit { putString("Language", selectedCode) }
                     recreate()
                 }
