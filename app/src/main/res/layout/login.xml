@@ -1,49 +1,148 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:gravity="center"
-    android:padding="60dp"
-    android:orientation="vertical">
+    android:background="#F5F5F5"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/loginText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Login"
-        android:textAlignment="center"
-        android:textSize="30sp"
-        tools:ignore="HardcodedText"/>
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_vertical">
 
-    <EditText
-        android:id="@+id/loginPhone"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ems="10"
-        android:layout_marginTop="30dp"
-        android:hint="Mobile Number"
-        android:importantForAutofill="no"
-        android:inputType="phone"
-        tools:ignore="HardcodedText"/>
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/ic_launcher_foreground"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp"
+            app:tint="#2E7D32"
+            tools:ignore="ContentDescription" />
 
-    <EditText
-        android:id="@+id/loginPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ems="10"
-        android:layout_marginTop="20dp"
-        android:hint="Password"
-        android:importantForAutofill="no"
-        android:inputType="textPassword"
-        tools:ignore="HardcodedText"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Welcome Back"
+            android:textSize="28sp"
+            android:fontFamily="sans-serif-black"
+            android:textColor="#2E7D32"
+            android:textAlignment="center"
+            tools:ignore="HardcodedText" />
 
-    <Button
-        android:id="@+id/loginButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="30dp"
-        android:text="Login"
-        tools:ignore="HardcodedText"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Login to continue"
+            android:textSize="16sp"
+            android:textAlignment="center"
+            android:textColor="#757575"
+            android:layout_marginBottom="40dp"
+            tools:ignore="HardcodedText" />
 
-</LinearLayout>
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:boxCornerRadiusTopStart="16dp"
+            app:boxCornerRadiusTopEnd="16dp"
+            app:boxCornerRadiusBottomStart="16dp"
+            app:boxCornerRadiusBottomEnd="16dp"
+            app:boxBackgroundColor="#FFFFFF"
+            app:boxStrokeColor="#4CAF50"
+            app:startIconDrawable="@drawable/ic_phone"
+            app:startIconTint="#4CAF50"
+            app:prefixText="+91 "
+            android:hint="Mobile Number"
+            tools:ignore="HardcodedText">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etLoginMobile"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="52dp"
+                android:inputType="phone"
+                tools:ignore="RtlSymmetry" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:boxCornerRadiusTopStart="16dp"
+            app:boxCornerRadiusTopEnd="16dp"
+            app:boxCornerRadiusBottomStart="16dp"
+            app:boxCornerRadiusBottomEnd="16dp"
+            app:boxBackgroundColor="#FFFFFF"
+            app:boxStrokeColor="#4CAF50"
+            app:startIconDrawable="@drawable/ic_lock"
+            app:startIconTint="#4CAF50"
+            app:endIconMode="password_toggle"
+            android:hint="Password"
+            tools:ignore="HardcodedText">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etLoginPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="52dp"
+                android:inputType="textPassword"
+                tools:ignore="RtlSymmetry" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:id="@+id/tvForgotPassword"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Forgot Password?"
+            android:textColor="#2E7D32"
+            android:textStyle="bold"
+            android:layout_gravity="end"
+            android:layout_marginTop="12dp"
+            android:padding="8dp"
+            tools:ignore="HardcodedText" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogin"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="32dp"
+            android:text="Login"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            app:backgroundTint="#2E7D32"
+            app:cornerRadius="32dp"
+            app:elevation="4dp"
+            tools:ignore="HardcodedText" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Don't have an account? "
+                android:textColor="#757575"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/tvRegisterLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Register"
+                android:textColor="#2E7D32"
+                android:textStyle="bold"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
