@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.Toast
 import androidx.core.graphics.toColorInt
 import androidx.core.os.bundleOf
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -23,26 +24,29 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. Handle Ribbon Test Card Clicks
-        view.findViewById<MaterialCardView>(R.id.cardSandy).setOnClickListener {
+        val sandySoilCard = view.findViewById<MaterialCardView>(R.id.cardSandy)
+        val loamySoilCard = view.findViewById<MaterialCardView>(R.id.cardLoamy)
+        val blackSoilCard = view.findViewById<MaterialCardView>(R.id.cardClay)
+        val btnSaveProfile = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
+
+        sandySoilCard.setOnClickListener {
             selectSoil("Sandy Soil", it as MaterialCardView)
         }
-        view.findViewById<MaterialCardView>(R.id.cardLoamy).setOnClickListener {
+        loamySoilCard.setOnClickListener {
             selectSoil("Loamy Soil", it as MaterialCardView)
         }
-        view.findViewById<MaterialCardView>(R.id.cardClay).setOnClickListener {
+        blackSoilCard.setOnClickListener {
             selectSoil("Clay/Black Soil", it as MaterialCardView)
         }
 
-        // 2. Setup Crop Dropdown (The "OR" Path)
         val crops = arrayOf("Cotton", "Soybean", "Rice", "Sugarcane", "Pulses")
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, crops)
+        val adapter =
+            ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, crops)
         val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
         autoCompleteCrop.setAdapter(adapter)
 
         autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
-            // Logic: Estimate soil based on crop
-            val estimatedSoil = when(crops[position]) {
+            val estimatedSoil = when (crops[position]) {
                 "Rice" -> "Clay Soil"
                 "Cotton" -> "Black Cotton Soil"
                 else -> "Loamy Soil"
@@ -50,18 +54,31 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             temporarySelectedSoil = estimatedSoil
         }
 
-        // 3. Save Button
-        view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
+        btnSaveProfile.setOnClickListener {
             temporarySelectedSoil?.let {
-                parentFragmentManager.setFragmentResult("soil_request", bundleOf("selected_soil" to it))
-                dismiss()
+                parentFragmentManager.setFragmentResultListener(
+                    "soil_request",
+                    viewLifecycleOwner
+                ) { _, bundle ->
+                    val detectedSoil = bundle.getString("selected_soil")
+                    detectedSoil?.let {
+                        saveFinalFarmData(it)
+                        dismiss()
+                    }
+                }
             }
         }
     }
 
+    private fun saveFinalFarmData(soilType: String) {
+        Toast.makeText(requireContext(), "Farm Saved: $soilType", Toast.LENGTH_SHORT).show()
+        val intent = android.content.Intent(requireContext(), MainActivity::class.java)
+        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+    }
+
     private fun selectSoil(soil: String, card: MaterialCardView) {
         temporarySelectedSoil = soil
-        // Optional: Visual feedback (stroke color change)
         card.strokeColor = "#4400FF00".toColorInt()
         card.strokeWidth = 4
     }
