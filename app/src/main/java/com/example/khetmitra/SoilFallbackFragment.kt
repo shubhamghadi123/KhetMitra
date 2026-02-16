@@ -7,15 +7,30 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
-import androidx.core.graphics.toColorInt
 import androidx.core.os.bundleOf
+import android.widget.TextView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
 
 class SoilFallbackFragment : BottomSheetDialogFragment() {
 
     private var temporarySelectedSoil: String? = null
+    private lateinit var manualSoilAdapter: SoilAdapter
+    private lateinit var ribbonAdapter: RibbonAdapter
+
+    private val soilList = listOf(
+        SoilType(1, "Alluvial Soil", R.drawable.soil_alluvial, "#C2A278"),
+        SoilType(2, "Black / Regur Soil", R.drawable.soil_black, "#1A1A1A"),
+        SoilType(3, "Red & Yellow Soil", R.drawable.soil_red, "#9E231C"),
+        SoilType(4, "Laterite Soil", R.drawable.soil_laterite, "#8B5E3C"),
+        SoilType(5, "Arid / Desert Soil", R.drawable.soil_arid, "#E3B484"),
+        SoilType(6, "Mountain / Forest Soil", R.drawable.soil_mountain, "#3E2B1A"),
+        SoilType(7, "Saline & Alkaline Soil", R.drawable.soil_saline, "#A8A8A8"),
+        SoilType(8, "Peaty & Marshy Soil", R.drawable.soil_peaty, "#2B1E18")
+    )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_soil_fallback, container, false)
@@ -24,62 +39,106 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val sandySoilCard = view.findViewById<MaterialCardView>(R.id.cardSandy)
-        val loamySoilCard = view.findViewById<MaterialCardView>(R.id.cardLoamy)
-        val blackSoilCard = view.findViewById<MaterialCardView>(R.id.cardClay)
-        val btnSaveProfile = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
+        setupManualGrid(view)
+        setupRibbonRecyclerView(view)
+        setupCropEstimation(view)
 
-        sandySoilCard.setOnClickListener {
-            selectSoil("Sandy Soil", it as MaterialCardView)
+        view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
+            if (temporarySelectedSoil != null) {
+                parentFragmentManager.setFragmentResult("soil_request", bundleOf("selected_soil" to temporarySelectedSoil))
+                dismiss()
+            } else {
+                Toast.makeText(requireContext(), "Please select an option", Toast.LENGTH_SHORT).show()
+            }
         }
-        loamySoilCard.setOnClickListener {
-            selectSoil("Loamy Soil", it as MaterialCardView)
-        }
-        blackSoilCard.setOnClickListener {
-            selectSoil("Clay/Black Soil", it as MaterialCardView)
-        }
+    }
 
-        val crops = arrayOf("Cotton", "Soybean", "Rice", "Sugarcane", "Pulses")
-        val adapter =
-            ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, crops)
+    private fun setupRibbonRecyclerView(view: View) {
+        val rvRibbon = view.findViewById<RecyclerView>(R.id.rvRibbonTest)
+        val rvSoil = view.findViewById<RecyclerView>(R.id.rvFilteredSoils)
+        val tvHeader2 = view.findViewById<TextView>(R.id.tvStep2Header)
+
+        rvRibbon.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+
+        val ribbonOptions = listOf(
+            RibbonData("Breaks Easily", "Sandy / Arid Desert Soil", R.drawable.soil_arid),
+            RibbonData("Short Ribbon", "Alluvial / Red / Laterite / Mountain Soil", R.drawable.soil_alluvial),
+            RibbonData("Long Ribbon", "Black / Peaty / Saline Soil", R.drawable.soil_black)
+        )
+
+        ribbonAdapter = RibbonAdapter(ribbonOptions) { selected ->
+            view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.text?.clear()
+            temporarySelectedSoil = null
+
+            tvHeader2?.visibility = View.VISIBLE
+            rvSoil?.visibility = View.VISIBLE
+
+            val filteredSoils = when(selected.result) {
+                "Breaks Easily" -> soilList.filter { it.id == 5 }
+                "Short Ribbon" -> soilList.filter { it.id in listOf(1, 3, 4, 6) }
+                "Long Ribbon" -> soilList.filter { it.id in listOf(2, 7, 8) }
+                else -> soilList
+            }
+
+            if (::manualSoilAdapter.isInitialized) {
+                manualSoilAdapter.updateData(filteredSoils)
+                view.findViewById<androidx.core.widget.NestedScrollView>(R.id.nestedScrollView)?.post {
+                    view.findViewById<androidx.core.widget.NestedScrollView>(R.id.nestedScrollView)
+                        .smoothScrollTo(0, tvHeader2?.top ?: 0)
+                }
+            }
+        }
+        rvRibbon.adapter = ribbonAdapter
+    }
+
+    private fun setupManualGrid(view: View) {
+        val rvSoil = view.findViewById<RecyclerView>(R.id.rvFilteredSoils)
+        if (rvSoil != null) {
+            rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
+            manualSoilAdapter = SoilAdapter(emptyList()) { selectedSoil ->
+                temporarySelectedSoil = selectedSoil.nameEn
+                ribbonAdapter.clearSelection()
+            }
+            rvSoil.adapter = manualSoilAdapter
+        }
+    }
+
+    private fun setupCropEstimation(view: View) {
+        val crops = arrayOf(
+            "Rice", "Wheat",        // Alluvial
+            "Cotton", "Soybean",     // Black
+            "Pulses", "Groundnut",   // Red & Yellow
+            "Cashew", "Rubber",      // Laterite
+            "Millets", "Bajra",      // Arid
+            "Tea", "Coffee",         // Mountain
+            "Barley", "Tobacco",     // Saline
+            "Jute"                   // Peaty
+        )
+
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, crops)
         val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
         autoCompleteCrop.setAdapter(adapter)
 
         autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
-            val estimatedSoil = when (crops[position]) {
-                "Rice" -> "Clay Soil"
-                "Cotton" -> "Black Cotton Soil"
-                else -> "Loamy Soil"
+            temporarySelectedSoil = when (crops[position]) {
+                "Rice", "Wheat" -> "Alluvial Soil"
+                "Cotton", "Soybean" -> "Black / Regur Soil"
+                "Pulses", "Groundnut" -> "Red & Yellow Soil"
+                "Cashew", "Rubber" -> "Laterite Soil"
+                "Millets", "Bajra" -> "Arid / Desert Soil"
+                "Tea", "Coffee" -> "Mountain / Forest Soil"
+                "Barley", "Tobacco" -> "Saline & Alkaline Soil"
+                "Jute" -> "Peaty & Marshy Soil"
+                else -> "Alluvial Soil"
             }
-            temporarySelectedSoil = estimatedSoil
+
+            if (::manualSoilAdapter.isInitialized) manualSoilAdapter.clearSelection()
+            if (::ribbonAdapter.isInitialized) ribbonAdapter.clearSelection()
+
+            view.findViewById<TextView>(R.id.tvStep2Header)?.visibility = View.GONE
+            view.findViewById<RecyclerView>(R.id.rvFilteredSoils)?.visibility = View.GONE
+
+            Toast.makeText(requireContext(), "Soil estimated: $temporarySelectedSoil", Toast.LENGTH_SHORT).show()
         }
-
-        btnSaveProfile.setOnClickListener {
-            temporarySelectedSoil?.let {
-                parentFragmentManager.setFragmentResultListener(
-                    "soil_request",
-                    viewLifecycleOwner
-                ) { _, bundle ->
-                    val detectedSoil = bundle.getString("selected_soil")
-                    detectedSoil?.let {
-                        saveFinalFarmData(it)
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun saveFinalFarmData(soilType: String) {
-        Toast.makeText(requireContext(), "Farm Saved: $soilType", Toast.LENGTH_SHORT).show()
-        val intent = android.content.Intent(requireContext(), MainActivity::class.java)
-        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
-    }
-
-    private fun selectSoil(soil: String, card: MaterialCardView) {
-        temporarySelectedSoil = soil
-        card.strokeColor = "#4400FF00".toColorInt()
-        card.strokeWidth = 4
     }
 }

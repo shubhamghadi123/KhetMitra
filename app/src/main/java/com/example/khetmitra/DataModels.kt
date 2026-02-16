@@ -91,5 +91,12 @@ data class ChatMessage(
 data class SoilType(
     val id: Int,
     val nameEn: String,
-    val imageRes: Int
+    val textureRes: Int,
+    val hexColor: String
+)
+
+data class RibbonData(
+    val result: String,
+    val soilType: String,
+    val icon: Int
 )

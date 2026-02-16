@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -25,10 +26,14 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     private var fieldAreaAcres: Double = 0.0
 
     private val soilList = listOf(
-        SoilType(1, "Black Soil", 0),
-        SoilType(2, "Red Soil",  0),
-        SoilType(3, "Sandy Soil",  0),
-        SoilType(4, "Clay Soil",  0)
+        SoilType(1, "Alluvial Soil", R.drawable.soil_alluvial, "#C2A278"),
+        SoilType(2, "Black / Regur Soil", R.drawable.soil_black, "#342D21"),
+        SoilType(3, "Red & Yellow Soil", R.drawable.soil_red, "#B83227"),
+        SoilType(4, "Laterite Soil", R.drawable.soil_laterite, "#8B5E3C"),
+        SoilType(5, "Arid / Desert Soil", R.drawable.soil_arid, "#E3B484"),
+        SoilType(6, "Mountain / Forest Soil", R.drawable.soil_mountain, "#4B3621"),
+        SoilType(7, "Saline & Alkaline Soil", R.drawable.soil_saline, "#A8A8A8"),
+        SoilType(8, "Peaty & Marshy Soil", R.drawable.soil_peaty, "#322722")
     )
 
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
@@ -75,8 +80,10 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         val btnSaveProfileMain = view.findViewById<MaterialButton>(R.id.btnSaveProfileMain)
 
         rvSoil.layoutManager = LinearLayoutManager(requireContext())
+        rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
         rvSoil.adapter = SoilAdapter(soilList) { selected ->
             selectedSoil = selected.nameEn
+            btnSaveProfileMain.isEnabled = true
         }
 
         btnConfirmSoil.setOnClickListener {
