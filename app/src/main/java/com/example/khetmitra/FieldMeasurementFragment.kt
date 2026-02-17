@@ -2,6 +2,7 @@ package com.example.khetmitra
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
@@ -26,6 +27,8 @@ import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import androidx.core.view.isVisible
 import androidx.core.graphics.toColorInt
+import com.google.mlkit.nl.translate.TranslateLanguage
+import java.util.Locale
 
 class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
@@ -43,8 +46,13 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private lateinit var btnWalkBoundary: MaterialButton
     private lateinit var btnNextStep: MaterialButton
 
+    private var langCode: String = TranslateLanguage.ENGLISH
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
         mapView = view.findViewById(R.id.mapView)
         tvCalculatedArea = view.findViewById(R.id.tvCalculatedArea)
@@ -80,15 +88,12 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
             centerMapOnCurrentLocation()
 
-            // THE ONLY CLICK LISTENER YOU NEED
             mapView.mapboxMap.addOnMapClickListener { point ->
-                // If instructions are still there, hide them on first tap
                 if (overlay.isVisible) {
                     overlay.visibility = View.GONE
                     overlay.isClickable = false
                 }
 
-                // Logic for adding points
                 if (!isTracking) {
                     addPoint(point.latitude(), point.longitude(), true)
                 } else {
@@ -98,20 +103,34 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             }
         }
 
-        // Button Listeners
         btnWalkBoundary.setOnClickListener { if (isTracking) stopTracking() else startTracking() }
         btnClearMap.setOnClickListener { resetMap() }
         btnNextStep.setOnClickListener {
             val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres)
             soilSheet.show(parentFragmentManager, "SoilSheet")
         }
-
         setupLocationCallback()
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            view.post {
+                TranslationHelper.translateViewHierarchy(view, langCode) {}
+            }
+        }
+        resetMap()
+    }
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+    }
+
+    private fun d(num: Any): String {
+        return TranslationHelper.convertDigits(num.toString(), langCode)
     }
 
     private fun startInstructionAnimation(view: View) {
         val lottieIcon = view.findViewById<com.airbnb.lottie.LottieAnimationView>(R.id.iconMapAnim)
-        lottieIcon.setRenderMode(com.airbnb.lottie.RenderMode.HARDWARE)
+        lottieIcon.renderMode = com.airbnb.lottie.RenderMode.HARDWARE
         lottieIcon.setCacheComposition(true)
         lottieIcon.setMinAndMaxFrame(1, 433)
 
@@ -140,7 +159,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             if (location != null) {
                 moveCamera(location.latitude, location.longitude)
             } else {
-                // If lastLocation is null, request a single update
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                     .setMaxUpdates(1)
                     .build()
@@ -169,8 +187,8 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             if (::circleAnnotationManager.isInitialized) {
                 val circleOptions = CircleAnnotationOptions()
                     .withPoint(Point.fromLngLat(lng, lat))
-                    .withCircleRadius(8.0) // Make it slightly larger for better visibility
-                    .withCircleColor("#FFEE58") // Yellow
+                    .withCircleRadius(8.0)
+                    .withCircleColor("#FFEE58")
                     .withCircleStrokeWidth(2.0)
                     .withCircleStrokeColor("#ffffff")
 
@@ -197,12 +215,13 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         }
     }
 
-    @SuppressLint("DefaultLocale")
+    @SuppressLint("DefaultLocale", "SetTextI18n")
     private fun calculateArea() {
         if (boundaryPoints.size >= 3) {
             val areaMeters = SphericalUtil.computeArea(boundaryPoints)
             lastCalculatedAreaAcres = areaMeters * 0.000247105
-            tvCalculatedArea.text = String.format("%.2f Acres", lastCalculatedAreaAcres)
+            val formattedNum = String.format(Locale.US, "%.2f", lastCalculatedAreaAcres)
+            tvCalculatedArea.text = "${d(formattedNum)} ${t("Acres")}"
             btnNextStep.isEnabled = true
         }
     }
@@ -224,7 +243,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             return
         }
         isTracking = true
-        btnWalkBoundary.text = "Stop Walking"
+        btnWalkBoundary.text = t("Stop Walking")
         btnWalkBoundary.setBackgroundColor(Color.RED)
         resetMap()
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).setMinUpdateDistanceMeters(2f).build()
@@ -233,30 +252,35 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
     private fun stopTracking() {
         isTracking = false
-        btnWalkBoundary.text = "Start Walking"
+        btnWalkBoundary.text = t("Start Walking")
         btnWalkBoundary.setBackgroundColor("#2E7D32".toColorInt())
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
+    @SuppressLint("SetTextI18n")
     private fun resetMap() {
         boundaryPoints.clear()
-        polygonAnnotationManager.deleteAll()
-        circleAnnotationManager.deleteAll()
-        tvCalculatedArea.text = "0.00 Acres"
+        if (::polygonAnnotationManager.isInitialized) polygonAnnotationManager.deleteAll()
+        if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
+
+        tvCalculatedArea.text = "${d("0.00")} ${t("Acres")}"
         btnNextStep.isEnabled = false
     }
 
+    @SuppressLint("Lifecycle")
     override fun onStart() {
-        super.onStart();
+        super.onStart()
         mapView.onStart()
     }
+    @SuppressLint("Lifecycle")
     override fun onStop() {
-        super.onStop();
-        mapView.onStop();
+        super.onStop()
+        mapView.onStop()
         if (isTracking) stopTracking()
     }
+    @SuppressLint("Lifecycle")
     override fun onDestroy() {
-        super.onDestroy();
+        super.onDestroy()
         mapView.onDestroy()
     }
 }
