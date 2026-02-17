@@ -97,6 +97,5 @@ data class SoilType(
 
 data class RibbonData(
     val result: String,
-    val soilType: String,
-    val icon: Int
+    val soilType: String
 )

@@ -1,16 +1,15 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Looper
 import android.view.View
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import androidx.core.graphics.ColorUtils
 import androidx.fragment.app.Fragment
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
@@ -47,7 +46,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Views
         mapView = view.findViewById(R.id.mapView)
         tvCalculatedArea = view.findViewById(R.id.tvCalculatedArea)
         btnWalkBoundary = view.findViewById(R.id.btnWalkBoundary)
@@ -55,7 +53,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         val btnClearMap = view.findViewById<MaterialButton>(R.id.btnClearMap)
         val overlay = view.findViewById<View>(R.id.mapInstructionsOverlay)
 
-        // Setup Overlay
         overlay.visibility = View.VISIBLE
         startInstructionAnimation(overlay)
 
@@ -65,14 +62,13 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 .setDuration(300)
                 .withEndAction {
                     overlay.visibility = View.GONE
-                    overlay.isClickable = false // Stop blocking touches
+                    overlay.isClickable = false
                 }
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
 
         mapView.mapboxMap.loadStyle(Style.SATELLITE_STREETS) {
-            // Initialize Annotation Managers
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
             circleAnnotationManager = annotationApi.createCircleAnnotationManager()
@@ -201,6 +197,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun calculateArea() {
         if (boundaryPoints.size >= 3) {
             val areaMeters = SphericalUtil.computeArea(boundaryPoints)
@@ -237,7 +234,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private fun stopTracking() {
         isTracking = false
         btnWalkBoundary.text = "Start Walking"
-        btnWalkBoundary.setBackgroundColor(Color.parseColor("#2E7D32"))
+        btnWalkBoundary.setBackgroundColor("#2E7D32".toColorInt())
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 

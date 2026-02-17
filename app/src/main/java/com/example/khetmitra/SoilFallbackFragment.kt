@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class SoilFallbackFragment : BottomSheetDialogFragment() {
 
@@ -43,6 +44,10 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         setupRibbonRecyclerView(view)
         setupCropEstimation(view)
 
+        view.findViewById<TextView>(R.id.tvHowToTest).setOnClickListener {
+            showRibbonTestInstructions()
+        }
+
         view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
             if (temporarySelectedSoil != null) {
                 parentFragmentManager.setFragmentResult("soil_request", bundleOf("selected_soil" to temporarySelectedSoil))
@@ -53,6 +58,21 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         }
     }
 
+    private fun showRibbonTestInstructions() {
+        val customView = layoutInflater.inflate(R.layout.ribbon_instructions, null)
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(customView)
+            .setCancelable(true)
+            .create()
+
+        val btnGotIt = customView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnGotIt)
+        btnGotIt.setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
     private fun setupRibbonRecyclerView(view: View) {
         val rvRibbon = view.findViewById<RecyclerView>(R.id.rvRibbonTest)
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvFilteredSoils)
@@ -61,13 +81,16 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         rvRibbon.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
         val ribbonOptions = listOf(
-            RibbonData("Breaks Easily", "Sandy / Arid Desert Soil", R.drawable.soil_arid),
-            RibbonData("Short Ribbon", "Alluvial / Red / Laterite / Mountain Soil", R.drawable.soil_alluvial),
-            RibbonData("Long Ribbon", "Black / Peaty / Saline Soil", R.drawable.soil_black)
+            RibbonData("Breaks Easily", "Sandy / Arid Desert Soil"),
+            RibbonData("Short Ribbon", "Alluvial / Red / Laterite / Mountain Soil"),
+            RibbonData("Long Ribbon", "Black / Peaty / Saline Soil")
         )
 
         ribbonAdapter = RibbonAdapter(ribbonOptions) { selected ->
-            view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.text?.clear()
+            view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
+                setText("", false)
+                clearFocus()
+            }
             temporarySelectedSoil = null
 
             tvHeader2?.visibility = View.VISIBLE
@@ -95,9 +118,13 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvFilteredSoils)
         if (rvSoil != null) {
             rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
-            manualSoilAdapter = SoilAdapter(emptyList()) { selectedSoil ->
+
+            manualSoilAdapter = SoilAdapter(emptyList<SoilType>()) { selectedSoil ->
                 temporarySelectedSoil = selectedSoil.nameEn
-                ribbonAdapter.clearSelection()
+                view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
+                    setText("", false)
+                    clearFocus()
+                }
             }
             rvSoil.adapter = manualSoilAdapter
         }

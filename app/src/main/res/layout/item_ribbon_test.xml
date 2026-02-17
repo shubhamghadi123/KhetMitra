@@ -2,9 +2,10 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/ribbonCard"
     android:layout_width="140dp"
-    android:layout_height="170dp"
+    android:layout_height="100dp"
     android:layout_marginEnd="12dp"
     android:layout_marginVertical="8dp"
     app:cardCornerRadius="16dp"
@@ -19,37 +20,31 @@
         android:padding="12dp"
         android:gravity="center">
 
-        <ImageView
-        android:id="@+id/ivRibbonIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:padding="8dp"
-        android:src="@android:drawable/ic_menu_gallery"/>
-
         <TextView
             android:id="@+id/tvRibbonResult"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
             android:text="Short Ribbon"
             android:textAlignment="center"
             android:gravity="center"
             android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnSurface" />
+            android:textColor="?attr/colorOnSurface"
+            tools:ignore="HardcodedText" />
 
         <TextView
             android:id="@+id/tvRibbonSoilType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Alluvial / Red /\nLaterite Soil"
+            android:layout_marginTop="5dp"
+            android:text="Alluvial Soil"
             android:textAlignment="center"
             android:gravity="center"
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:textColor="?attr/colorOutline"
             android:lines="4"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            tools:ignore="HardcodedText" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

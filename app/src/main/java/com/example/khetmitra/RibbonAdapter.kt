@@ -3,10 +3,10 @@ package com.example.khetmitra
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
+import androidx.core.graphics.toColorInt
 
 class RibbonAdapter(
     private val items: List<RibbonData>,
@@ -19,7 +19,6 @@ class RibbonAdapter(
         val card: MaterialCardView = view.findViewById(R.id.ribbonCard)
         val tvResult: TextView = view.findViewById(R.id.tvRibbonResult)
         val tvSoil: TextView = view.findViewById(R.id.tvRibbonSoilType)
-        val icon: ImageView = view.findViewById(R.id.ivRibbonIcon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -31,13 +30,11 @@ class RibbonAdapter(
         val item = items[position]
         holder.tvResult.text = item.result
         holder.tvSoil.text = item.soilType
-        holder.icon.setImageResource(item.icon)
 
         val isSelected = position == selectedPosition
 
-        // High-visibility selection stroke for farmers
         holder.card.strokeWidth = if (isSelected) 6 else 0
-        holder.card.strokeColor = android.graphics.Color.parseColor("#4CAF50")
+        holder.card.strokeColor = "#4CAF50".toColorInt()
 
         holder.itemView.setOnClickListener {
             val prev = selectedPosition
@@ -50,7 +47,6 @@ class RibbonAdapter(
 
     override fun getItemCount() = items.size
 
-    // Call this from SoilFallbackFragment when a different section is used
     fun clearSelection() {
         val previous = selectedPosition
         selectedPosition = -1

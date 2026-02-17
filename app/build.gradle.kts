@@ -46,9 +46,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val apiKey = localProperties.getProperty("WEATHER_API_KEY") ?: ""
-        buildConfigField("String", "WEATHER_API_KEY", "\"$apiKey\"")
-
         val mapboxToken = localProperties.getProperty("MAPBOX_PUBLIC_TOKEN") ?: ""
         buildConfigField("String", "MAPBOX_PUBLIC_TOKEN", "\"$mapboxToken\"")
         resValue("string", "mapbox_access_token", mapboxToken)
