@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -16,14 +17,26 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.util.Locale
 
 class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
     private var selectedSoil: String? = null
     private var fieldAreaAcres: Double = 0.0
+    private var langCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+    }
+
+    private fun d(num: Any): String {
+        return TranslationHelper.convertDigits(num.toString(), langCode)
+    }
 
     private val soilList = listOf(
         SoilType(1, "Alluvial Soil", R.drawable.soil_alluvial, "#C2A278"),
@@ -44,7 +57,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) startSoilHealthCardScanner()
-        else Toast.makeText(context, "Camera permission required to scan card", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(context, t("Camera permission required to scan card"), Toast.LENGTH_SHORT).show()
     }
 
     companion object {
@@ -73,6 +86,9 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvSoilTypes)
         val btnConfirmSoil = view.findViewById<MaterialButton>(R.id.btnConfirmSoil)
         val btnNotSure = view.findViewById<MaterialButton>(R.id.btnNotSure)
@@ -90,7 +106,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             selectedSoil?.let {
                 saveFinalFarmData(it)
                 dismiss()
-            } ?: Toast.makeText(context, "Please select soil", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(context, t("Please select soil"), Toast.LENGTH_SHORT).show()
         }
 
         cardScanSHC.setOnClickListener {
@@ -115,7 +131,13 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 saveFinalFarmData(selectedSoil!!)
                 dismiss()
             } else {
-                Toast.makeText(requireContext(), "Please select soil first", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), t("Please select soil"), Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            view.post {
+                TranslationHelper.translateViewHierarchy(view, langCode) {}
             }
         }
     }
@@ -140,11 +162,11 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                     saveFinalFarmData(detectedSoil)
                     dismiss()
                 } else {
-                    Toast.makeText(context, "Soil type not found on card. Try manual selection.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, t("Soil type not found on card. Try manual selection."), Toast.LENGTH_LONG).show()
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(context, "Failed to read card", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, t("Failed to read card"), Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -160,9 +182,9 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun saveFinalFarmData(soilType: String) {
-        val finalMessage = "Field: %.2f Acres | Soil: %s".format(fieldAreaAcres, soilType)
-        Toast.makeText(requireContext(), "Farm Profile Saved: $finalMessage", Toast.LENGTH_LONG).show()
-
+        val formattedAcres = String.format(Locale.US, "%.2f", fieldAreaAcres)
+        val translatedMessage = "${t("Farm profile saved")}: ${d(formattedAcres)} ${t("Acres")} | ${t("Soil")}: ${t(soilType)}"
+        Toast.makeText(requireContext(), translatedMessage, Toast.LENGTH_LONG).show()
         val intent = android.content.Intent(requireContext(), MainActivity::class.java)
         intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)

@@ -48,6 +48,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
     private var langCode: String = TranslateLanguage.ENGLISH
 
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+    }
+
+    private fun d(num: Any): String {
+        return TranslationHelper.convertDigits(num.toString(), langCode)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -97,7 +106,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 if (!isTracking) {
                     addPoint(point.latitude(), point.longitude(), true)
                 } else {
-                    Toast.makeText(requireContext(), "Stop walking to tap manually", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), t("Stop walking to tap manually"), Toast.LENGTH_SHORT).show()
                 }
                 true
             }
@@ -117,15 +126,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             }
         }
         resetMap()
-    }
-
-    private fun t(text: String): String {
-        if (langCode == TranslateLanguage.ENGLISH) return text
-        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
-    }
-
-    private fun d(num: Any): String {
-        return TranslationHelper.convertDigits(num.toString(), langCode)
     }
 
     private fun startInstructionAnimation(view: View) {

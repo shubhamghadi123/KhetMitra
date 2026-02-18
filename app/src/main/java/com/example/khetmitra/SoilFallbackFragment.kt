@@ -1,5 +1,6 @@
 package com.example.khetmitra
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,12 +16,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 class SoilFallbackFragment : BottomSheetDialogFragment() {
 
     private var temporarySelectedSoil: String? = null
     private lateinit var manualSoilAdapter: SoilAdapter
     private lateinit var ribbonAdapter: RibbonAdapter
+    private var langCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+    }
 
     private val soilList = listOf(
         SoilType(1, "Alluvial Soil", R.drawable.soil_alluvial, "#C2A278"),
@@ -40,6 +48,9 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
         setupManualGrid(view)
         setupRibbonRecyclerView(view)
         setupCropEstimation(view)
@@ -53,7 +64,13 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
                 parentFragmentManager.setFragmentResult("soil_request", bundleOf("selected_soil" to temporarySelectedSoil))
                 dismiss()
             } else {
-                Toast.makeText(requireContext(), "Please select an option", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), t("Please select an option"), Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            view.post {
+                TranslationHelper.translateViewHierarchy(view, langCode) {}
             }
         }
     }
@@ -65,6 +82,12 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             .setView(customView)
             .setCancelable(true)
             .create()
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            customView.post {
+                TranslationHelper.translateViewHierarchy(customView, langCode) {}
+            }
+        }
 
         val btnGotIt = customView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnGotIt)
         btnGotIt.setOnClickListener {
@@ -81,9 +104,9 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         rvRibbon.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
         val ribbonOptions = listOf(
-            RibbonData("Breaks Easily", "Sandy / Arid Desert Soil"),
-            RibbonData("Short Ribbon", "Alluvial / Red / Laterite / Mountain Soil"),
-            RibbonData("Long Ribbon", "Black / Peaty / Saline Soil")
+            RibbonData(t("Breaks Easily"), t("Sandy / Arid Desert Soil")),
+            RibbonData(t("Short Ribbon"), t("Alluvial / Red / Laterite / Mountain Soil")),
+            RibbonData(t("Long Ribbon"), t("Black / Peaty / Saline Soil"))
         )
 
         ribbonAdapter = RibbonAdapter(ribbonOptions) { selected ->
@@ -97,9 +120,9 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             rvSoil?.visibility = View.VISIBLE
 
             val filteredSoils = when(selected.result) {
-                "Breaks Easily" -> soilList.filter { it.id == 5 }
-                "Short Ribbon" -> soilList.filter { it.id in listOf(1, 3, 4, 6) }
-                "Long Ribbon" -> soilList.filter { it.id in listOf(2, 7, 8) }
+                t("Breaks Easily") -> soilList.filter { it.id == 5 }
+                t("Short Ribbon") -> soilList.filter { it.id in listOf(1, 3, 4, 6) }
+                t("Long Ribbon") -> soilList.filter { it.id in listOf(2, 7, 8) }
                 else -> soilList
             }
 
@@ -142,6 +165,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             "Jute"                   // Peaty
         )
 
+        val translatedCrops = crops.map { t(it.lowercase()) }.toTypedArray()
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, crops)
         val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
         autoCompleteCrop.setAdapter(adapter)
@@ -165,7 +189,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             view.findViewById<TextView>(R.id.tvStep2Header)?.visibility = View.GONE
             view.findViewById<RecyclerView>(R.id.rvFilteredSoils)?.visibility = View.GONE
 
-            Toast.makeText(requireContext(), "Soil estimated: $temporarySelectedSoil", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "${t("Soil Estimated")}: ${t(temporarySelectedSoil!!)}", Toast.LENGTH_SHORT).show()
         }
     }
 }
