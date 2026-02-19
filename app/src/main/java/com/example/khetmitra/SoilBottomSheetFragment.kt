@@ -29,25 +29,16 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     private var fieldAreaAcres: Double = 0.0
     private var langCode: String = TranslateLanguage.ENGLISH
 
-    private fun t(text: String): String {
+    private lateinit var soilList: List<SoilType>
+
+    fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
-        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
 
-    private fun d(num: Any): String {
+    fun d(num: Any): String {
         return TranslationHelper.convertDigits(num.toString(), langCode)
     }
-
-    private val soilList = listOf(
-        SoilType(1, "Alluvial Soil", R.drawable.soil_alluvial, "#C2A278"),
-        SoilType(2, "Black / Regur Soil", R.drawable.soil_black, "#342D21"),
-        SoilType(3, "Red & Yellow Soil", R.drawable.soil_red, "#B83227"),
-        SoilType(4, "Laterite Soil", R.drawable.soil_laterite, "#8B5E3C"),
-        SoilType(5, "Arid / Desert Soil", R.drawable.soil_arid, "#E3B484"),
-        SoilType(6, "Mountain / Forest Soil", R.drawable.soil_mountain, "#4B3621"),
-        SoilType(7, "Saline & Alkaline Soil", R.drawable.soil_saline, "#A8A8A8"),
-        SoilType(8, "Peaty & Marshy Soil", R.drawable.soil_peaty, "#322722")
-    )
 
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         bitmap?.let { processImage(it) }
@@ -88,6 +79,17 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
         val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
+        soilList = listOf(
+            SoilType(1, t("Alluvial Soil"), R.drawable.soil_alluvial, "#C2A278"),
+            SoilType(2, t("Black / Regur Soil"), R.drawable.soil_black, "#1A1A1A"),
+            SoilType(3, t("Red & Yellow Soil"), R.drawable.soil_red, "#9E231C"),
+            SoilType(4, t("Laterite Soil"), R.drawable.soil_laterite, "#8B5E3C"),
+            SoilType(5, t("Arid / Desert Soil"), R.drawable.soil_arid, "#E3B484"),
+            SoilType(6, t("Mountain / Forest Soil"), R.drawable.soil_mountain, "#3E2B1A"),
+            SoilType(7, t("Saline & Alkaline Soil"), R.drawable.soil_saline, "#A8A8A8"),
+            SoilType(8, t("Peaty & Marshy Soil"), R.drawable.soil_peaty, "#2B1E18")
+        )
 
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvSoilTypes)
         val btnConfirmSoil = view.findViewById<MaterialButton>(R.id.btnConfirmSoil)
