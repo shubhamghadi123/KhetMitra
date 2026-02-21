@@ -70,10 +70,20 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             }
         }
 
+        val setupAdapters = {
+            setupManualGrid(view)
+            setupRibbonRecyclerView(view)
+            setupCropEstimation(view)
+        }
+
         if (langCode != TranslateLanguage.ENGLISH) {
             view.post {
-                TranslationHelper.translateViewHierarchy(view, langCode) {}
+                TranslationHelper.translateViewHierarchy(view, langCode) {
+                    view.post { setupAdapters() }
+                }
             }
+        } else {
+            setupAdapters()
         }
     }
 
@@ -172,6 +182,12 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         )
         val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
         autoCompleteCrop.setAdapter(adapter)
+
+        try {
+            val parentInputLayout = autoCompleteCrop.parent.parent as? com.google.android.material.textfield.TextInputLayout
+            parentInputLayout?.hint = t("Select previous crop")
+        } catch (_: Exception) {
+        }
 
         autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
             temporarySelectedSoil = when (crops[position]) {

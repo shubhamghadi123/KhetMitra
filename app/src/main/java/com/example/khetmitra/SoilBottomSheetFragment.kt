@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
@@ -97,11 +96,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         val cardScanSHC = view.findViewById<MaterialCardView>(R.id.cardScanSHC)
         val btnSaveProfileMain = view.findViewById<MaterialButton>(R.id.btnSaveProfileMain)
 
-        rvSoil.layoutManager = LinearLayoutManager(requireContext())
         rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
-        rvSoil.adapter = SoilAdapter(soilList) { selected ->
-            selectedSoil = selected.nameEn
-            btnSaveProfileMain.isEnabled = true
+        val attachAdapter = {
+            rvSoil.adapter = SoilAdapter(soilList) { selected ->
+                selectedSoil = selected.nameEn
+                btnSaveProfileMain.isEnabled = true
+            }
         }
 
         btnConfirmSoil.setOnClickListener {
@@ -139,8 +139,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
         if (langCode != TranslateLanguage.ENGLISH) {
             view.post {
-                TranslationHelper.translateViewHierarchy(view, langCode) {}
+                TranslationHelper.translateViewHierarchy(view, langCode) {
+                    rvSoil.post { attachAdapter() }
+                }
             }
+        } else {
+            attachAdapter()
         }
     }
 
@@ -184,9 +188,18 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun saveFinalFarmData(soilType: String) {
-        val formattedAcres = String.format(Locale.US, "%.2f", fieldAreaAcres)
-        val translatedMessage = "${t("Farm profile saved")}: ${d(formattedAcres)} ${t("Acres")} | ${t("Soil")}: ${t(soilType)}"
+        val displayAreaText = if (fieldAreaAcres < 1.0) {
+            val areaGuntas = fieldAreaAcres * 40
+            val formattedGuntas = String.format(Locale.US, "%.2f", areaGuntas)
+            "${d(formattedGuntas)} ${t("Guntas")}"
+        } else {
+            val formattedAcres = String.format(Locale.US, "%.2f", fieldAreaAcres)
+            "${d(formattedAcres)} ${t("Acres")}"
+        }
+        val translatedMessage = "${t("Farm profile saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
+
         Toast.makeText(requireContext(), translatedMessage, Toast.LENGTH_LONG).show()
+
         val intent = android.content.Intent(requireContext(), MainActivity::class.java)
         intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)

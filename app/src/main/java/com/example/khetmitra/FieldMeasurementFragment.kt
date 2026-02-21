@@ -29,6 +29,8 @@ import androidx.core.view.isVisible
 import androidx.core.graphics.toColorInt
 import com.google.mlkit.nl.translate.TranslateLanguage
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.hypot
 
 class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
@@ -36,6 +38,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private lateinit var polygonAnnotationManager: PolygonAnnotationManager
     private lateinit var circleAnnotationManager: CircleAnnotationManager
     private val boundaryPoints = mutableListOf<LatLng>()
+    private val circleIdToIndex = mutableMapOf<String, Int>()
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -48,12 +51,12 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
     private var langCode: String = TranslateLanguage.ENGLISH
 
-    private fun t(text: String): String {
+    fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
-        return TranslationHelper.getManualTranslation(text.lowercase(), langCode) ?: text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
 
-    private fun d(num: Any): String {
+    fun d(num: Any): String {
         return TranslationHelper.convertDigits(num.toString(), langCode)
     }
 
@@ -68,6 +71,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         btnWalkBoundary = view.findViewById(R.id.btnWalkBoundary)
         btnNextStep = view.findViewById(R.id.btnNextStep)
         val btnClearMap = view.findViewById<MaterialButton>(R.id.btnClearMap)
+        val btnUndo = view.findViewById<MaterialButton>(R.id.btnUndo)
         val overlay = view.findViewById<View>(R.id.mapInstructionsOverlay)
 
         overlay.visibility = View.VISIBLE
@@ -89,6 +93,30 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
             circleAnnotationManager = annotationApi.createCircleAnnotationManager()
+
+            circleAnnotationManager.addDragListener(object : OnCircleAnnotationDragListener {
+                override fun onAnnotationDrag(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
+                    val circle = annotation as CircleAnnotation
+                    val index = circleIdToIndex[circle.id]
+                    if (index != null && index < boundaryPoints.size) {
+                        boundaryPoints[index] = LatLng(circle.point.latitude(), circle.point.longitude())
+                        updatePolygon()
+                    }
+                }
+
+                override fun onAnnotationDragStarted(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
+                }
+
+                override fun onAnnotationDragFinished(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
+                    val circle = annotation as CircleAnnotation
+                    val index = circleIdToIndex[circle.id]
+                    if (index != null && index < boundaryPoints.size) {
+                        boundaryPoints[index] = LatLng(circle.point.latitude(), circle.point.longitude())
+                        updatePolygon()
+                        calculateArea()
+                    }
+                }
+            })
 
             mapView.location.updateSettings {
                 enabled = true
@@ -113,7 +141,10 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         }
 
         btnWalkBoundary.setOnClickListener { if (isTracking) stopTracking() else startTracking() }
+
         btnClearMap.setOnClickListener { resetMap() }
+        btnUndo?.setOnClickListener { undoLastPoint() }
+
         btnNextStep.setOnClickListener {
             val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres)
             soilSheet.show(parentFragmentManager, "SoilSheet")
@@ -122,10 +153,13 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
         if (langCode != TranslateLanguage.ENGLISH) {
             view.post {
-                TranslationHelper.translateViewHierarchy(view, langCode) {}
+                TranslationHelper.translateViewHierarchy(view, langCode) {
+                    resetMap()
+                }
             }
+        } else {
+            resetMap()
         }
-        resetMap()
     }
 
     private fun startInstructionAnimation(view: View) {
@@ -182,21 +216,60 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
     private fun addPoint(lat: Double, lng: Double, isManual: Boolean) {
         boundaryPoints.add(LatLng(lat, lng))
+        val currentIndex = boundaryPoints.size - 1
 
         if (isManual) {
-            if (::circleAnnotationManager.isInitialized) {
-                val circleOptions = CircleAnnotationOptions()
-                    .withPoint(Point.fromLngLat(lng, lat))
-                    .withCircleRadius(8.0)
-                    .withCircleColor("#FFEE58")
-                    .withCircleStrokeWidth(2.0)
-                    .withCircleStrokeColor("#ffffff")
-
-                circleAnnotationManager.create(circleOptions)
-            }
+            createCircleAtPoint(lat, lng, currentIndex)
         }
         updatePolygon()
         calculateArea()
+    }
+
+    private fun createCircleAtPoint(lat: Double, lng: Double, index: Int) {
+        if (::circleAnnotationManager.isInitialized) {
+            val circleOptions = CircleAnnotationOptions()
+                .withPoint(Point.fromLngLat(lng, lat))
+                .withCircleRadius(8.0)
+                .withCircleColor("#FFEE58")
+                .withCircleStrokeWidth(2.0)
+                .withCircleStrokeColor("#ffffff")
+                .withDraggable(true)
+
+            val annotation = circleAnnotationManager.create(circleOptions)
+            circleIdToIndex[annotation.id] = index
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun undoLastPoint() {
+        if (boundaryPoints.isEmpty()) return
+
+        boundaryPoints.removeAt(boundaryPoints.size - 1)
+
+        if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
+        if (::polygonAnnotationManager.isInitialized) polygonAnnotationManager.deleteAll()
+        circleIdToIndex.clear()
+
+        boundaryPoints.forEachIndexed { index, latLng ->
+            val circleOptions = CircleAnnotationOptions()
+                .withPoint(Point.fromLngLat(latLng.longitude, latLng.latitude))
+                .withCircleRadius(8.0)
+                .withCircleColor("#FFEE58")
+                .withCircleStrokeWidth(2.0)
+                .withCircleStrokeColor("#ffffff")
+                .withDraggable(true)
+
+            val annotation = circleAnnotationManager.create(circleOptions)
+            circleIdToIndex[annotation.id] = index
+        }
+
+        updatePolygon()
+        calculateArea()
+
+        if (boundaryPoints.size < 3) {
+            tvCalculatedArea.text = "${d("0.00")} ${t("Acres")}"
+            btnNextStep.isEnabled = false
+        }
     }
 
     private fun updatePolygon() {
@@ -220,8 +293,14 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         if (boundaryPoints.size >= 3) {
             val areaMeters = SphericalUtil.computeArea(boundaryPoints)
             lastCalculatedAreaAcres = areaMeters * 0.000247105
-            val formattedNum = String.format(Locale.US, "%.2f", lastCalculatedAreaAcres)
-            tvCalculatedArea.text = "${d(formattedNum)} ${t("Acres")}"
+            val areaGuntas = lastCalculatedAreaAcres * 40
+            if (lastCalculatedAreaAcres < 1.0) {
+                val formattedGuntas = String.format(Locale.US, "%.2f", areaGuntas)
+                tvCalculatedArea.text = "${d(formattedGuntas)} ${t("Guntas")}"
+            } else {
+                val formattedAcres = String.format(Locale.US, "%.2f", lastCalculatedAreaAcres)
+                tvCalculatedArea.text = "${d(formattedAcres)} ${t("Acres")}"
+            }
             btnNextStep.isEnabled = true
         }
     }
@@ -235,6 +314,51 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 }
             }
         }
+    }
+
+    private fun simplifyPath(points: List<LatLng>, toleranceMeters: Double): List<LatLng> {
+        if (points.size < 3) return points
+
+        var dmax = 0.0
+        var index = 0
+        val end = points.size - 1
+
+        for (i in 1 until end) {
+            val d = perpendicularDistance(points[i], points[0], points[end])
+            if (d > dmax) {
+                index = i
+                dmax = d
+            }
+        }
+
+        return if (dmax > toleranceMeters) {
+            val left = simplifyPath(points.subList(0, index + 1), toleranceMeters)
+            val right = simplifyPath(points.subList(index, end + 1), toleranceMeters)
+
+            val result = left.toMutableList()
+            result.removeAt(result.size - 1)
+            result.addAll(right)
+            result
+        } else {
+            listOf(points[0], points[end])
+        }
+    }
+
+    private fun perpendicularDistance(pt: LatLng, lineStart: LatLng, lineEnd: LatLng): Double {
+        val x0 = pt.longitude
+        val y0 = pt.latitude
+        val x1 = lineStart.longitude
+        val y1 = lineStart.latitude
+        val x2 = lineEnd.longitude
+        val y2 = lineEnd.latitude
+
+        val area = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+        val bottom = hypot(y2 - y1, x2 - x1)
+
+        if (bottom == 0.0) return 0.0
+
+        val distDegrees = area / bottom
+        return distDegrees * 111320.0
     }
 
     private fun startTracking() {
@@ -255,11 +379,29 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         btnWalkBoundary.text = t("Start Walking")
         btnWalkBoundary.setBackgroundColor("#2E7D32".toColorInt())
         fusedLocationClient.removeLocationUpdates(locationCallback)
+
+        if (boundaryPoints.isNotEmpty()) {
+            val simplifiedPoints = simplifyPath(boundaryPoints, 2.5)
+
+            boundaryPoints.clear()
+            boundaryPoints.addAll(simplifiedPoints)
+
+            circleAnnotationManager.deleteAll()
+            circleIdToIndex.clear()
+
+            boundaryPoints.forEachIndexed { index, latLng ->
+                createCircleAtPoint(latLng.latitude, latLng.longitude, index)
+            }
+        }
+
+        updatePolygon()
+        calculateArea()
     }
 
     @SuppressLint("SetTextI18n")
     private fun resetMap() {
         boundaryPoints.clear()
+        circleIdToIndex.clear()
         if (::polygonAnnotationManager.isInitialized) polygonAnnotationManager.deleteAll()
         if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
 

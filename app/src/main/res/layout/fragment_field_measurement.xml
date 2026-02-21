@@ -78,7 +78,10 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnClearMap"
@@ -86,18 +89,32 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="4dp"
                     android:text="Clean"
+                    android:paddingHorizontal="4dp"
+                    tools:ignore="HardcodedText" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUndo"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="4dp"
+                    android:text="Undo"
+                    android:paddingHorizontal="4dp"
                     tools:ignore="HardcodedText" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnWalkBoundary"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1.5"
-                    android:backgroundTint="?attr/colorPrimary"
+                    android:layout_weight="2"
+                    android:layout_marginStart="4dp"
+                    android:backgroundTint="#2E7D32"
                     android:text="Start Walking"
                     app:icon="@android:drawable/ic_menu_mylocation"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
                     tools:ignore="HardcodedText" />
 
             </LinearLayout>
