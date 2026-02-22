@@ -146,7 +146,10 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         btnUndo?.setOnClickListener { undoLastPoint() }
 
         btnNextStep.setOnClickListener {
-            val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres)
+            val fieldLat = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].latitude else 0.0
+            val fieldLng = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].longitude else 0.0
+
+            val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres, fieldLat, fieldLng)
             soilSheet.show(parentFragmentManager, "SoilSheet")
         }
         setupLocationCallback()

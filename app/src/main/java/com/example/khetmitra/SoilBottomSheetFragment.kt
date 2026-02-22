@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -8,6 +9,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -26,6 +28,9 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
     private var selectedSoil: String? = null
     private var fieldAreaAcres: Double = 0.0
+
+    private var fieldLat: Double = 0.0
+    private var fieldLng: Double = 0.0
     private var langCode: String = TranslateLanguage.ENGLISH
 
     private lateinit var soilList: List<SoilType>
@@ -51,10 +56,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     companion object {
-        fun newInstance(area: Double): SoilBottomSheetFragment {
+        fun newInstance(area: Double, lat: Double, lng: Double): SoilBottomSheetFragment {
             val fragment = SoilBottomSheetFragment()
             val args = Bundle()
             args.putDouble("ARG_AREA", area)
+            args.putDouble("ARG_LAT", lat)
+            args.putDouble("ARG_LNG", lng)
             fragment.arguments = args
             return fragment
         }
@@ -63,6 +70,8 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         fieldAreaAcres = arguments?.getDouble("ARG_AREA") ?: 0.0
+        fieldLat = arguments?.getDouble("ARG_LAT") ?: 0.0
+        fieldLng = arguments?.getDouble("ARG_LNG") ?: 0.0
     }
 
     override fun onCreateView(
@@ -73,6 +82,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         return inflater.inflate(R.layout.fragment_soil_bottom_sheet, container, false)
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -91,10 +101,77 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         )
 
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvSoilTypes)
-        val btnConfirmSoil = view.findViewById<MaterialButton>(R.id.btnConfirmSoil)
+        val tvLocalMatchDesc = view.findViewById<TextView>(R.id.tvLocalMatchDesc)
+        val btnLocalSoilMatch = view.findViewById<MaterialButton>(R.id.btnLocalSoilMatch)
         val btnNotSure = view.findViewById<MaterialButton>(R.id.btnNotSure)
         val cardScanSHC = view.findViewById<MaterialCardView>(R.id.cardScanSHC)
         val btnSaveProfileMain = view.findViewById<MaterialButton>(R.id.btnSaveProfileMain)
+
+        var recommendedSoilData = Pair("Black / Regur Soil", "Black/Dark Brown")
+
+        if (fieldLat != 0.0 && fieldLng != 0.0) {
+            try {
+                val geocoder = android.location.Geocoder(requireContext(), Locale.ENGLISH)
+                val addresses = geocoder.getFromLocation(fieldLat, fieldLng, 1)
+
+                if (!addresses.isNullOrEmpty()) {
+                    val stateName = addresses[0].adminArea ?: ""
+
+                    recommendedSoilData = when {
+                        stateName.contains("Maharashtra", true) || stateName.contains("Gujarat", true) || stateName.contains("Madhya Pradesh", true) ->
+                            Pair("Black / Regur Soil", "Black / Dark Brown")
+
+                        stateName.contains("Punjab", true) || stateName.contains("Haryana", true) || stateName.contains("Uttar Pradesh", true) || stateName.contains("Bihar", true) ->
+                            Pair("Alluvial Soil", "Light Gray / Ashy")
+
+                        stateName.contains("Rajasthan", true) ->
+                            Pair("Arid / Desert Soil", "Light Brown / Sandy")
+
+                        stateName.contains("Karnataka", true) || stateName.contains("Kerala", true) || stateName.contains("Tamil Nadu", true) || stateName.contains("Odisha", true) ->
+                            Pair("Red & Yellow Soil", "Red / Yellowish")
+
+                        stateName.contains("Assam", true) || stateName.contains("Himachal", true) || stateName.contains("Uttarakhand", true) ->
+                            Pair("Mountain / Forest Soil", "Dark Brown / Blackish")
+
+                        else -> Pair("Alluvial Soil", "Light Gray / Ashy")
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val soilName = recommendedSoilData.first
+        val colorHint = recommendedSoilData.second
+
+        tvLocalMatchDesc?.text = ""
+        btnLocalSoilMatch?.text = ""
+
+        val loadDynamicContent = {
+            tvLocalMatchDesc?.text = "${t("Most farms near you have")} ${t(soilName)}. ${t("Is your soil")} ${t(colorHint)}?"
+            btnLocalSoilMatch?.text = "${t("Yes, it's")} ${t(soilName)}"
+
+            rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
+            rvSoil.adapter = SoilAdapter(soilList) { selected ->
+                selectedSoil = selected.nameEn
+                btnSaveProfileMain.isEnabled = true
+            }
+
+            btnLocalSoilMatch?.setOnClickListener {
+                selectedSoil = soilName
+                saveFinalFarmData(soilName)
+            }
+        }
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            view.post {
+                TranslationHelper.translateViewHierarchy(view, langCode) {
+                    view.post { loadDynamicContent() }
+                }
+            }
+        } else {
+            loadDynamicContent()
+        }
 
         rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
         val attachAdapter = {
@@ -104,7 +181,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             }
         }
 
-        btnConfirmSoil.setOnClickListener {
+        btnLocalSoilMatch.setOnClickListener {
             selectedSoil?.let {
                 saveFinalFarmData(it)
                 dismiss()

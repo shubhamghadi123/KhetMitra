@@ -60,6 +60,7 @@
                     tools:ignore="HardcodedText" />
 
                 <TextView
+                    android:id="@+id/tvLocalMatchDesc"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
@@ -75,7 +76,7 @@
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnConfirmSoil"
+                        android:id="@+id/btnLocalSoilMatch"
                         style="@style/Widget.Material3.Button"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
