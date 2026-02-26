@@ -1,7 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
-import android.content.Context
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -15,11 +15,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.navigation.NavigationView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import retrofit2.Call
 import retrofit2.Callback
@@ -41,7 +44,30 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
+        val navView = findViewById<NavigationView>(R.id.navView)
+        val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
         val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
+
+        profileCard.setOnClickListener {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        // Handle clicks on the side menu items
+        navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_profile -> {
+                }
+                R.id.nav_settings -> {
+                }
+                R.id.nav_help -> {
+                }
+                R.id.nav_logout -> {
+                }
+            }
+            drawerLayout.closeDrawer(GravityCompat.START)
+            true
+        }
 
         btnStartMapping.setOnClickListener {
             supportFragmentManager.beginTransaction()
@@ -74,6 +100,16 @@ class MainActivity : BaseActivity() {
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
         setupLanguageSpinner()
+    }
+
+    @SuppressLint("GestureBackNavigation")
+    override fun onBackPressed() {
+        val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            super.onBackPressed()
+        }
     }
 
     private fun checkLocationPermissionAndFetch() {
