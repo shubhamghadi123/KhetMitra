@@ -7,14 +7,9 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Spinner
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -53,12 +48,12 @@ class MainActivity : BaseActivity() {
             drawerLayout.openDrawer(GravityCompat.START)
         }
 
-        // Handle clicks on the side menu items
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_profile -> {
                 }
                 R.id.nav_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
                 }
                 R.id.nav_help -> {
                 }
@@ -99,9 +94,9 @@ class MainActivity : BaseActivity() {
         }
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
-        setupLanguageSpinner()
     }
 
+    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
@@ -307,40 +302,6 @@ class MainActivity : BaseActivity() {
             text.contains("wind") -> R.raw.wind
 
             else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-        }
-    }
-
-    private fun setupLanguageSpinner() {
-        val spinner = findViewById<Spinner>(R.id.languageSpinner)
-        val languages = listOf("English", "हिंदी", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "தமிழ்", "తెలుగు", "বাংলা")
-        val codes = listOf(
-            TranslateLanguage.ENGLISH,
-            TranslateLanguage.HINDI,
-            TranslateLanguage.MARATHI,
-            TranslateLanguage.GUJARATI,
-            TranslateLanguage.KANNADA,
-            TranslateLanguage.TAMIL,
-            TranslateLanguage.TELUGU,
-            TranslateLanguage.BENGALI
-        )
-
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, languages)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinner.adapter = adapter
-
-        val index = codes.indexOf(currentLangCode)
-        if (index >= 0) spinner.setSelection(index, false)
-
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedCode = codes[position]
-                if (selectedCode != currentLangCode) {
-                    val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
-                    prefs.edit { putString("Language", selectedCode) }
-                    recreate()
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
         }
     }
 }
