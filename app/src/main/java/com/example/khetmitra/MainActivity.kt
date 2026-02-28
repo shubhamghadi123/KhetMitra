@@ -24,6 +24,8 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import androidx.core.view.size
+import androidx.core.view.get
 
 class MainActivity : BaseActivity() {
 
@@ -75,6 +77,7 @@ class MainActivity : BaseActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+        translateNavigationDrawer()
         setupInitialData()
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
@@ -93,6 +96,43 @@ class MainActivity : BaseActivity() {
             }
         }
         recyclerView.adapter = adapter
+        checkLocationPermissionAndFetch()
+    }
+
+    private fun translateNavigationDrawer() {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return
+
+        val navView = findViewById<NavigationView>(R.id.navView) ?: return
+
+        if (navView.headerCount > 0) {
+            val headerView = navView.getHeaderView(0)
+            TranslationHelper.translateViewHierarchy(headerView, currentLangCode) {}
+        }
+
+        val menu = navView.menu
+        for (i in 0 until menu.size) {
+            val item = menu[i]
+
+            if (item.title != null) {
+                item.title = t(item.title.toString())
+            }
+
+            if (item.hasSubMenu()) {
+                val subMenu = item.subMenu
+                if (subMenu != null) {
+                    for (j in 0 until subMenu.size) {
+                        val subItem = subMenu[j]
+                        if (subItem.title != null) {
+                            subItem.title = t(subItem.title.toString())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
         checkLocationPermissionAndFetch()
     }
 
@@ -163,6 +203,20 @@ class MainActivity : BaseActivity() {
         dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
         dashboardItems.add(DataModels(t("Market"), marketSubtitle, R.drawable.ic_market))
     }
+
+    private fun isFahrenheit(prefs: android.content.SharedPreferences): Boolean {
+        val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)") ?: "Celsius (°C)"
+        return tempUnitPref.contains("Fahrenheit")
+    }
+
+    private fun convertTemp(celsius: Double, isFahrenheit: Boolean): Int {
+        return if (isFahrenheit) {
+            ((celsius * 9 / 5) + 32).toInt()
+        } else {
+            celsius.toInt()
+        }
+    }
+
     private fun fetchWeather(query: String) {
         var lat: Double
         var lon: Double
@@ -187,21 +241,25 @@ class MainActivity : BaseActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!
 
-                    val currentTemp = data.current.temperature_2m
+                    val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+                    val useFahrenheit = isFahrenheit(prefs)
+                    val tempSymbol = if (useFahrenheit) t("°F") else t("°C")
+
+                    val currentTempRaw = data.current.temperature_2m
+                    val tempText = convertTemp(currentTempRaw, useFahrenheit).toString()
+
                     val weatherCode = data.current.weathercode
                     val isDay = data.current.is_day
 
                     val rawCondition = getConditionText(weatherCode)
-                    val tempText = currentTemp.toInt().toString()
-
                     val iconRes = getIconForCondition(rawCondition, isDay)
                     val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
 
                     if (manualTranslation != null) {
-                        updateWeatherCard(manualTranslation, tempText, iconRes)
+                        updateWeatherCard(manualTranslation, tempText, tempSymbol, iconRes)
                     } else {
                         translateWithMLKit(rawCondition) { translatedText ->
-                            updateWeatherCard(translatedText, tempText, iconRes)
+                            updateWeatherCard(translatedText, tempText, tempSymbol, iconRes)
                         }
                     }
                 }
@@ -234,8 +292,8 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun updateWeatherCard(condition: String, temp: String, iconRes: Int) {
-        val newSubtitle = "$condition, ${d(temp)}${t("°C")}"
+    private fun updateWeatherCard(condition: String, temp: String, unitSymbol: String, iconRes: Int) {
+        val newSubtitle = "$condition, ${d(temp)}$unitSymbol"
 
         if (dashboardItems.isNotEmpty()) {
             dashboardItems[0] = DataModels(t("Weather"), newSubtitle, iconRes)
