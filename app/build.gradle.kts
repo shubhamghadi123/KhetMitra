@@ -1,11 +1,11 @@
 import java.io.FileInputStream
 import java.util.Properties
 
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -31,24 +31,28 @@ android {
 
         externalNativeBuild {
             cmake {
-                // Forces the linker to use 16KB alignment for any local native code
                 arguments("-DANDROID_ALIGNED_16KB=ON")
             }
         }
 
         packaging {
             jniLibs {
-                // This ensures that the libraries are not compressed in the APK,
-                // which is required for the OS to memory-map them on 16KB page devices.
                 useLegacyPackaging = false
             }
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Mapbox Keys
         val mapboxToken = localProperties.getProperty("MAPBOX_PUBLIC_TOKEN") ?: ""
         buildConfigField("String", "MAPBOX_PUBLIC_TOKEN", "\"$mapboxToken\"")
         resValue("string", "mapbox_access_token", mapboxToken)
+
+        // Supabase Keys
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: ""
+        val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     buildTypes {
@@ -97,6 +101,11 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.0")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.4.0")
+    implementation("io.ktor:ktor-client-android:2.3.8")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     kapt("com.github.bumptech.glide:compiler:5.0.5")
     testImplementation(libs.junit)

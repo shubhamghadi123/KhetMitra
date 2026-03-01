@@ -150,7 +150,7 @@
             app:boxStrokeColor="#4CAF50"
             app:startIconDrawable="@drawable/ic_email"
             app:startIconTint="#4CAF50"
-            android:hint="Email (Optional)"
+            android:hint="Email"
             tools:ignore="HardcodedText">
 
             <com.google.android.material.textfield.TextInputEditText

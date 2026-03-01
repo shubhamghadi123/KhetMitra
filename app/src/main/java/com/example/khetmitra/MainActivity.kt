@@ -7,10 +7,14 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.get
+import androidx.core.view.size
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,13 +23,16 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.navigation.NavigationView
 import com.google.mlkit.nl.translate.TranslateLanguage
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import androidx.core.view.size
-import androidx.core.view.get
 
 class MainActivity : BaseActivity() {
 
@@ -60,6 +67,25 @@ class MainActivity : BaseActivity() {
                 R.id.nav_help -> {
                 }
                 R.id.nav_logout -> {
+                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            SupabaseManager.client.auth.signOut()
+
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, t("Logged out successfully"), Toast.LENGTH_SHORT).show()
+                                val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                startActivity(intent)
+                                finish()
+                            }
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, t("Error logging out: ") + e.message, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                 }
             }
             drawerLayout.closeDrawer(GravityCompat.START)
@@ -79,6 +105,7 @@ class MainActivity : BaseActivity() {
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
         translateNavigationDrawer()
         setupInitialData()
+        fetchAndDisplayFarmerName()
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -97,6 +124,60 @@ class MainActivity : BaseActivity() {
         }
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun fetchAndDisplayFarmerName() {
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
+
+                if (userId == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Debug: User ID is null! Session lost.", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
+
+                val profile = SupabaseManager.client.postgrest["farmers"]
+                    .select { filter { eq("id", userId) } }
+                    .decodeSingleOrNull<FarmerProfile>()
+
+                withContext(Dispatchers.Main) {
+                    if (profile != null) {
+                        val tvWelcomeMessage = findViewById<TextView>(R.id.tvWelcome)
+                        val tvUsername = findViewById<TextView>(R.id.tvUsername)
+
+                        if (tvUsername == null) {
+                            Toast.makeText(this@MainActivity, "Debug: tvUsername ID not found in XML!", Toast.LENGTH_LONG).show()
+                        }
+
+                        val welcomeText = t("Welcome Back")
+                        tvWelcomeMessage?.text = "$welcomeText,"
+
+                        translateWithMLKit("${profile.first_name}!") { translatedFirstName ->
+                            tvUsername?.text = translatedFirstName
+                        }
+
+                        val navView = findViewById<NavigationView>(R.id.navView)
+                        val headerView = navView?.getHeaderView(0)
+                        val tvHeaderName = headerView?.findViewById<TextView>(R.id.navUserName)
+                        translateWithMLKit(profile.first_name) { translatedFullName ->
+                            tvHeaderName?.text = translatedFullName
+                        }
+                    } else {
+                        Toast.makeText(this@MainActivity, "Debug: Profile is NULL. Database blocked the read!", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Debug DB Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                Log.e("MainActivity", "Failed to fetch farmer name: ${e.message}")
+            }
+        }
     }
 
     private fun translateNavigationDrawer() {
