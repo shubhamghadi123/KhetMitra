@@ -8,8 +8,10 @@ import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
 import android.util.Patterns
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +22,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Phone
 import io.github.jan.supabase.postgrest.postgrest
@@ -31,6 +34,17 @@ import java.util.Locale
 class RegisterActivity : AppCompatActivity() {
     private lateinit var btnRegister: MaterialButton
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+
+    private var currentLangCode = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
+    }
+
+    private fun d(num: String): String {
+        return TranslationHelper.convertDigits(num, currentLangCode)
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -44,6 +58,16 @@ class RegisterActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
 
+        TranslationHelper.initTranslations(this)
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
+        if (currentLangCode != TranslateLanguage.ENGLISH) {
+            val rootView = findViewById<View>(android.R.id.content)
+            translateScreenInstant(rootView)
+            translateHints()
+        }
+
         btnRegister = findViewById(R.id.btnRegister)
         setupSpinners()
 
@@ -56,6 +80,42 @@ class RegisterActivity : AppCompatActivity() {
 
         btnRegister.setOnClickListener {
             registerFarmer()
+        }
+    }
+
+    private fun translateHints() {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return
+
+        val inputs = mapOf(
+            R.id.etFirstName to "First Name",
+            R.id.etLastName to "Last Name",
+            R.id.etPhone to "Phone Number",
+            R.id.etPassword to "Password",
+            R.id.etEmail to "Email",
+            R.id.etFarmerId to "Government Farmer ID"
+        )
+
+        for ((id, englishHint) in inputs) {
+            val editText = findViewById<TextInputEditText>(id)
+            val textInputLayout = editText?.parent?.parent as? com.google.android.material.textfield.TextInputLayout
+            textInputLayout?.hint = t(englishHint)
+        }
+    }
+
+    private fun translateScreenInstant(view: View) {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return
+
+        if (view is TextView) {
+            val originalText = view.text.toString()
+            if (originalText.isNotEmpty()) {
+                view.text = t(originalText)
+            }
+        }
+
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                translateScreenInstant(view.getChildAt(i))
+            }
         }
     }
 
@@ -87,11 +147,19 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun selectStateInSpinner(detectedState: String) {
         val spinner = findViewById<Spinner>(R.id.spinnerState)
-        val adapter = spinner.adapter
 
-        for (i in 0 until adapter.count) {
-            val spinnerItem = adapter.getItem(i).toString()
-            if (spinnerItem.equals(detectedState, ignoreCase = true) || detectedState.contains(spinnerItem, ignoreCase = true)) {
+        val englishStates = arrayOf(
+            "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+            "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
+            "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
+            "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+            "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+            "Uttarakhand", "West Bengal"
+        )
+
+        for (i in englishStates.indices) {
+            val stateEnglish = englishStates[i]
+            if (stateEnglish.equals(detectedState, ignoreCase = true) || detectedState.contains(stateEnglish, ignoreCase = true)) {
                 spinner.setSelection(i)
                 break
             }
@@ -107,41 +175,52 @@ class RegisterActivity : AppCompatActivity() {
         val password = findViewById<TextInputEditText>(R.id.etPassword).text.toString()
         val farmerId = findViewById<TextInputEditText>(R.id.etFarmerId).text.toString().trim()
 
-        val day = findViewById<Spinner>(R.id.spinnerDay).selectedItem?.toString() ?: "01"
-        val month = findViewById<Spinner>(R.id.spinnerMonth).selectedItem?.toString() ?: "Jan"
-        val year = findViewById<Spinner>(R.id.spinnerYear).selectedItem?.toString() ?: "1990"
-        val state = findViewById<Spinner>(R.id.spinnerState).selectedItem?.toString() ?: "Unknown"
-        val income = findViewById<Spinner>(R.id.spinnerIncome).selectedItem?.toString() ?: "Unknown"
+        val dayIndex = findViewById<Spinner>(R.id.spinnerDay).selectedItemPosition
+        val dayEnglish = if (dayIndex >= 0) (dayIndex + 1).toString() else "01"
 
-        // --- 1. STRICT PRODUCTION VALIDATION ---
+        val monthIndex = findViewById<Spinner>(R.id.spinnerMonth).selectedItemPosition
+
+        val yearIndex = findViewById<Spinner>(R.id.spinnerYear).selectedItemPosition
+        val yearEnglish = if (yearIndex >= 0) (2026 - yearIndex).toString() else "1990"
+
+        val statePosition = findViewById<Spinner>(R.id.spinnerState).selectedItemPosition
+        val incomePosition = findViewById<Spinner>(R.id.spinnerIncome).selectedItemPosition
+
+        val englishStates = arrayOf("Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal")
+        val englishIncomes = arrayOf("Below ₹50,000", "₹50,000 - ₹1,00,000", "₹1,00,000 - ₹3,00,000", "Above ₹3,00,000")
+
+        val stateEnglish = if (statePosition >= 0) englishStates[statePosition] else "Unknown"
+        val incomeEnglish = if (incomePosition >= 0) englishIncomes[incomePosition] else "Unknown"
+
         if (firstName.isEmpty() || lastName.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Please fill all required fields"), Toast.LENGTH_SHORT).show()
             return
         }
+
         if (phone.length < 10) {
-            Toast.makeText(this, "Please enter a valid 10-digit phone number", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Please enter a valid 10-digit phone number"), Toast.LENGTH_SHORT).show()
             return
         }
         if (password.length <= 6) {
-            Toast.makeText(this, "Password must be more than 6 characters long", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Password must be more than 6 characters long"), Toast.LENGTH_SHORT).show()
             return
         }
         val hasLetter = password.any { it.isLetter() }
         val hasNumber = password.any { it.isDigit() }
         if (!hasLetter || !hasNumber) {
-            Toast.makeText(this, "Password must include both letters and numbers", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Password must include both letters and numbers"), Toast.LENGTH_SHORT).show()
             return
         }
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(this, "Please enter a valid email format", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Please enter a valid email format"), Toast.LENGTH_SHORT).show()
             return
         }
 
-        val dob = formatDob(day, month, year)
+        val dob = formatDob(dayEnglish, monthIndex, yearEnglish)
         val formattedPhone = if (phone.startsWith("+")) phone else "+91$phone"
 
         btnRegister.isEnabled = false
-        btnRegister.text = "Registering..."
+        btnRegister.text = t("Registering...")
 
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -161,7 +240,7 @@ class RegisterActivity : AppCompatActivity() {
                         }
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        throw Exception("This email is already registered to another account. Please use a different email.")
+                        throw Exception(t("This email is already registered to another account. Please use a different email."))
                     }
 
                     val newProfile = FarmerProfile(
@@ -172,22 +251,22 @@ class RegisterActivity : AppCompatActivity() {
                         email = email,
                         gov_farmer_id = farmerId.ifEmpty { null },
                         date_of_birth = dob,
-                        state_location = state,
-                        annual_income_range = income
+                        state_location = stateEnglish,
+                        annual_income_range = incomeEnglish
                     )
 
                     SupabaseManager.client.postgrest["farmers"].insert(newProfile)
 
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@RegisterActivity, "Registration Successful!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@RegisterActivity, t("Registration Successful!"), Toast.LENGTH_LONG).show()
                         startActivity(Intent(this@RegisterActivity, LoginActivity::class.java))
                         finish()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
                         btnRegister.isEnabled = true
-                        btnRegister.text = "Register"
-                        Toast.makeText(this@RegisterActivity, "Login blocked. Check Supabase settings.", Toast.LENGTH_LONG).show()
+                        btnRegister.text = t("Register")
+                        Toast.makeText(this@RegisterActivity, t("Login blocked. Check Supabase settings."), Toast.LENGTH_LONG).show()
                     }
                 }
 
@@ -196,9 +275,9 @@ class RegisterActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     btnRegister.isEnabled = true
-                    btnRegister.text = "Register"
+                    btnRegister.text = t("Register")
 
-                    val errorMsg = e.message?.lowercase() ?: ""
+                    val errorMsg = e.message?.lowercase() ?: t("")
 
                     if (errorMsg.contains("already registered") || errorMsg.contains("already exists") || errorMsg.contains("in use") && !errorMsg.contains("email")) {
                         val intent = Intent(this@RegisterActivity, LoginActivity::class.java)
@@ -214,42 +293,37 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    private fun formatDob(day: String, month: String, year: String): String {
-        val monthNumber = when (month.take(3).lowercase()) {
-            "jan" -> "01"; "feb" -> "02"; "mar" -> "03"; "apr" -> "04"
-            "may" -> "05"; "jun" -> "06"; "jul" -> "07"; "aug" -> "08"
-            "sep" -> "09"; "oct" -> "10"; "nov" -> "11"; "dec" -> "12"
-            else -> "01"
-        }
+    private fun formatDob(day: String, monthIndex: Int, year: String): String {
+        val monthNumber = (monthIndex + 1).toString().padStart(2, '0')
         val paddedDay = day.padStart(2, '0')
         return "$year-$monthNumber-$paddedDay"
     }
 
     private fun setupSpinners() {
-        val days = (1..31).map { it.toString() }.toTypedArray()
+        val days = (1..31).map { d(it.toString()) }.toTypedArray()
         findViewById<Spinner>(R.id.spinnerDay).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, days)
 
-        val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        val months = arrayOf(t("Jan"), t("Feb"), t("Mar"), t("Apr"), t("May"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Oct"), t("Nov"), t("Dec"))
         findViewById<Spinner>(R.id.spinnerMonth).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, months)
 
-        val years = (1940..2026).map { it.toString() }.reversed().toTypedArray()
+        val years = (1940..2026).map { d(it.toString()) }.reversed().toTypedArray()
         findViewById<Spinner>(R.id.spinnerYear).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, years)
 
         val states = arrayOf(
-            "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-            "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
-            "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
-            "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
-            "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
-            "Uttarakhand", "West Bengal"
+            t("Andhra Pradesh"), t("Arunachal Pradesh"), t("Assam"), t("Bihar"), t("Chhattisgarh"),
+            t("Goa"), t("Gujarat"), t("Haryana"), t("Himachal Pradesh"), t("Jammu and Kashmir"),
+            t("Jharkhand"), t("Karnataka"), t("Kerala"), t("Madhya Pradesh"), t("Maharashtra"),
+            t("Manipur"), t("Meghalaya"), t("Mizoram"), t("Nagaland"), t("Odisha"), t("Punjab"),
+            t("Rajasthan"), t("Sikkim"), t("Tamil Nadu"), t("Telangana"), t("Tripura"), t("Uttar Pradesh"),
+            t("Uttarakhand"), t("West Bengal")
         )
         findViewById<Spinner>(R.id.spinnerState).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, states)
 
         val incomes = arrayOf(
-            "Below ₹50,000",
-            "₹50,000 - ₹1,00,000",
-            "₹1,00,000 - ₹3,00,000",
-            "Above ₹3,00,000"
+            d(t("Below ₹50,000")),
+            d(t("₹50,000 - ₹1,00,000")),
+            d(t("₹1,00,000 - ₹3,00,000")),
+            d(t("Above ₹3,00,000"))
         )
         findViewById<Spinner>(R.id.spinnerIncome).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, incomes)
     }

@@ -22,30 +22,7 @@
         android:theme="@style/Theme.KhetMitra">
 
         <activity
-            android:name=".SettingsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ForgotPasswordActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ResetPasswordVerifyActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ChatbotActivity"
-            android:exported="false" />
-        <activity
-            android:name=".MarketActivity"
-            android:exported="false" />
-        <activity
-            android:name=".WeatherActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".LoginActivity"
+            android:name=".LanguageSelectionActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -54,7 +31,40 @@
         </activity>
 
         <activity
+            android:name=".LoginActivity"
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".ForgotPasswordActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ResetPasswordVerifyActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".RegisterActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ChatbotActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MarketActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".WeatherActivity"
             android:exported="false" />
 
     </application>
