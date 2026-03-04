@@ -107,7 +107,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="52dp"
-                android:inputType="phone"
+                android:inputType="number"
+                android:maxLength="10"
                 tools:ignore="RtlSymmetry" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -288,33 +289,76 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="State"
-            android:layout_marginTop="16dp"
-            android:textSize="14sp"
-            android:textColor="#616161"
-            tools:ignore="HardcodedText"/>
-
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="4dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="#757575"
-            app:cardBackgroundColor="#FFFFFF">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp">
 
-            <Spinner
-                android:id="@+id/spinnerState"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingStart="8dp"
-                tools:ignore="RtlSymmetry" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="8dp">
 
-        </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="State"
+                    android:textSize="14sp"
+                    android:textColor="#616161"/>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="4dp"
+                    app:cardCornerRadius="16dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#757575"
+                    app:cardBackgroundColor="#FFFFFF">
+
+                    <Spinner
+                        android:id="@+id/spinnerState"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:paddingStart="8dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="District"
+                    android:textSize="14sp"
+                    android:textColor="#616161"/>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="4dp"
+                    app:cardCornerRadius="16dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#757575"
+                    app:cardBackgroundColor="#FFFFFF">
+
+                    <Spinner
+                        android:id="@+id/spinnerDistrict"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:paddingStart="8dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"

@@ -22,6 +22,10 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class SoilBottomSheetFragment : BottomSheetDialogFragment() {
@@ -153,7 +157,17 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
             rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
             rvSoil.adapter = SoilAdapter(soilList) { selected ->
-                selectedSoil = selected.nameEn
+                selectedSoil = when (selected.id) {
+                    1 -> "Alluvial Soil"
+                    2 -> "Black / Regur Soil"
+                    3 -> "Red & Yellow Soil"
+                    4 -> "Laterite Soil"
+                    5 -> "Arid / Desert Soil"
+                    6 -> "Mountain / Forest Soil"
+                    7 -> "Saline & Alkaline Soil"
+                    8 -> "Peaty & Marshy Soil"
+                    else -> "Unknown Soil"
+                }
                 btnSaveProfileMain.isEnabled = true
             }
 
@@ -176,7 +190,17 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
         val attachAdapter = {
             rvSoil.adapter = SoilAdapter(soilList) { selected ->
-                selectedSoil = selected.nameEn
+                selectedSoil = when (selected.id) {
+                    1 -> "Alluvial Soil"
+                    2 -> "Black / Regur Soil"
+                    3 -> "Red & Yellow Soil"
+                    4 -> "Laterite Soil"
+                    5 -> "Arid / Desert Soil"
+                    6 -> "Mountain / Forest Soil"
+                    7 -> "Saline & Alkaline Soil"
+                    8 -> "Peaty & Marshy Soil"
+                    else -> "Unknown Soil"
+                }
                 btnSaveProfileMain.isEnabled = true
             }
         }
@@ -201,14 +225,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             val detectedSoil = bundle.getString("selected_soil")
             detectedSoil?.let {
                 saveFinalFarmData(it)
-                dismiss()
             }
         }
 
         btnSaveProfileMain.setOnClickListener {
             if (selectedSoil != null) {
                 saveFinalFarmData(selectedSoil!!)
-                dismiss()
             } else {
                 Toast.makeText(requireContext(), t("Please select soil"), Toast.LENGTH_SHORT).show()
             }
@@ -243,7 +265,6 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 val detectedSoil = parseSoilFromText(visionText.text)
                 if (detectedSoil != null) {
                     saveFinalFarmData(detectedSoil)
-                    dismiss()
                 } else {
                     Toast.makeText(context, t("Soil type not found on card. Try manual selection."), Toast.LENGTH_LONG).show()
                 }
@@ -265,6 +286,13 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun saveFinalFarmData(soilType: String) {
+
+        val dbAreaText = if (fieldAreaAcres < 1.0) {
+            String.format(Locale.US, "%.2f Guntas", fieldAreaAcres * 40)
+        } else {
+            String.format(Locale.US, "%.2f Acres", fieldAreaAcres)
+        }
+
         val displayAreaText = if (fieldAreaAcres < 1.0) {
             val areaGuntas = fieldAreaAcres * 40
             val formattedGuntas = String.format(Locale.US, "%.2f", areaGuntas)
@@ -273,13 +301,43 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             val formattedAcres = String.format(Locale.US, "%.2f", fieldAreaAcres)
             "${d(formattedAcres)} ${t("Acres")}"
         }
-        val translatedMessage = "${t("Farm profile saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
 
-        Toast.makeText(requireContext(), translatedMessage, Toast.LENGTH_LONG).show()
+        Toast.makeText(requireContext(), t("Saving farm profile..."), Toast.LENGTH_SHORT).show()
+        val safeContext = requireContext()
 
-        val intent = android.content.Intent(requireContext(), MainActivity::class.java)
-        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
-        dismiss()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val user = SupabaseManager.client.auth.currentUserOrNull()
+
+                if (user != null) {
+                    SupabaseManager.client.postgrest["farmers"].update(
+                        {
+                            set("land_size", dbAreaText)
+                            set("soil_type", soilType)
+                        }
+                    ) {
+                        filter { eq("id", user.id) }
+                    }
+
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        val translatedMessage = "${t("Farm profile saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
+                        Toast.makeText(safeContext, translatedMessage, Toast.LENGTH_LONG).show()
+
+                        val intent = android.content.Intent(safeContext, MainActivity::class.java)
+                        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        safeContext.startActivity(intent)
+                    }
+                } else {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(safeContext, t("Error: User not logged in"), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(safeContext, "Database Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 }

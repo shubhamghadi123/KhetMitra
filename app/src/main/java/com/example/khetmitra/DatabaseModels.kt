@@ -12,5 +12,10 @@ data class FarmerProfile(
     val gov_farmer_id: String? = null,
     val date_of_birth: String,
     val state_location: String,
-    val annual_income_range: String
+    val annual_income_range: String,
+    val district: String,
+
+    val land_size: String? = null,
+    val soil_type: String? = null,
+    val crops: String? = null
 )

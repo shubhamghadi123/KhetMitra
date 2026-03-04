@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.util.Log
 import android.util.Patterns
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.TextView
@@ -24,7 +25,6 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.providers.builtin.Phone
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -34,8 +34,10 @@ import java.util.Locale
 class RegisterActivity : AppCompatActivity() {
     private lateinit var btnRegister: MaterialButton
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
     private var currentLangCode = TranslateLanguage.ENGLISH
+    private lateinit var spinnerState: Spinner
+    private lateinit var spinnerDistrict: Spinner
+    private lateinit var spinnerIncome: Spinner
 
     private fun t(text: String): String {
         if (currentLangCode == TranslateLanguage.ENGLISH) return text
@@ -45,6 +47,30 @@ class RegisterActivity : AppCompatActivity() {
     private fun d(num: String): String {
         return TranslationHelper.convertDigits(num, currentLangCode)
     }
+
+    private val englishStates = arrayOf(
+        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+        "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
+        "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
+        "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+        "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+        "Uttarakhand", "West Bengal"
+    )
+
+    private val englishDistrictsMap = mapOf(
+        "Maharashtra" to arrayOf("Pune", "Nashik", "Nagpur", "Aurangabad", "Solapur", "Mumbai", "Kolhapur", "Other"),
+        "Punjab" to arrayOf("Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Other"),
+        "Gujarat" to arrayOf("Ahmedabad", "Surat", "Rajkot", "Vadodara", "Bhavnagar", "Other"),
+        "Madhya Pradesh" to arrayOf("Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Other"),
+        "Rajasthan" to arrayOf("Jaipur", "Jodhpur", "Udaipur", "Ajmer", "Kota", "Other")
+    )
+
+    private val englishIncomes = arrayOf(
+        "Below ₹50,000",
+        "₹50,000 - ₹1,00,000",
+        "₹1,00,000 - ₹3,00,000",
+        "Above ₹3,00,000"
+    )
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -69,6 +95,9 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         btnRegister = findViewById(R.id.btnRegister)
+        spinnerState = findViewById(R.id.spinnerState)
+        spinnerDistrict = findViewById(R.id.spinnerDistrict)
+        spinnerIncome = findViewById(R.id.spinnerIncome)
         setupSpinners()
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -146,21 +175,10 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun selectStateInSpinner(detectedState: String) {
-        val spinner = findViewById<Spinner>(R.id.spinnerState)
-
-        val englishStates = arrayOf(
-            "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-            "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
-            "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
-            "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
-            "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
-            "Uttarakhand", "West Bengal"
-        )
-
         for (i in englishStates.indices) {
             val stateEnglish = englishStates[i]
             if (stateEnglish.equals(detectedState, ignoreCase = true) || detectedState.contains(stateEnglish, ignoreCase = true)) {
-                spinner.setSelection(i)
+                spinnerState.setSelection(i)
                 break
             }
         }
@@ -183,14 +201,15 @@ class RegisterActivity : AppCompatActivity() {
         val yearIndex = findViewById<Spinner>(R.id.spinnerYear).selectedItemPosition
         val yearEnglish = if (yearIndex >= 0) (2026 - yearIndex).toString() else "1990"
 
-        val statePosition = findViewById<Spinner>(R.id.spinnerState).selectedItemPosition
-        val incomePosition = findViewById<Spinner>(R.id.spinnerIncome).selectedItemPosition
-
-        val englishStates = arrayOf("Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal")
-        val englishIncomes = arrayOf("Below ₹50,000", "₹50,000 - ₹1,00,000", "₹1,00,000 - ₹3,00,000", "Above ₹3,00,000")
+        val statePosition = spinnerState.selectedItemPosition
+        val districtPosition = spinnerDistrict.selectedItemPosition
+        val incomePosition = spinnerIncome.selectedItemPosition
 
         val stateEnglish = if (statePosition >= 0) englishStates[statePosition] else "Unknown"
         val incomeEnglish = if (incomePosition >= 0) englishIncomes[incomePosition] else "Unknown"
+
+        val districtsForStateEng = englishDistrictsMap[stateEnglish] ?: arrayOf("Other")
+        val districtEnglish = if (districtPosition >= 0 && districtPosition < districtsForStateEng.size) districtsForStateEng[districtPosition] else "Unknown"
 
         if (firstName.isEmpty() || lastName.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, t("Please fill all required fields"), Toast.LENGTH_SHORT).show()
@@ -224,8 +243,8 @@ class RegisterActivity : AppCompatActivity() {
 
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             try {
-                SupabaseManager.client.auth.signUpWith(Phone) {
-                    this.phone = formattedPhone
+                SupabaseManager.client.auth.signUpWith(io.github.jan.supabase.gotrue.providers.builtin.Email) {
+                    this.email = email
                     this.password = password
                 }
 
@@ -236,11 +255,11 @@ class RegisterActivity : AppCompatActivity() {
 
                     try {
                         SupabaseManager.client.auth.updateUser {
-                            this.email = email
+                            this.phone = formattedPhone
                         }
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        throw Exception(t("This email is already registered to another account. Please use a different email."))
+                        throw Exception("This phone number is already linked to another account.")
                     }
 
                     val newProfile = FarmerProfile(
@@ -252,6 +271,7 @@ class RegisterActivity : AppCompatActivity() {
                         gov_farmer_id = farmerId.ifEmpty { null },
                         date_of_birth = dob,
                         state_location = stateEnglish,
+                        district = districtEnglish,
                         annual_income_range = incomeEnglish
                     )
 
@@ -309,22 +329,21 @@ class RegisterActivity : AppCompatActivity() {
         val years = (1940..2026).map { d(it.toString()) }.reversed().toTypedArray()
         findViewById<Spinner>(R.id.spinnerYear).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, years)
 
-        val states = arrayOf(
-            t("Andhra Pradesh"), t("Arunachal Pradesh"), t("Assam"), t("Bihar"), t("Chhattisgarh"),
-            t("Goa"), t("Gujarat"), t("Haryana"), t("Himachal Pradesh"), t("Jammu and Kashmir"),
-            t("Jharkhand"), t("Karnataka"), t("Kerala"), t("Madhya Pradesh"), t("Maharashtra"),
-            t("Manipur"), t("Meghalaya"), t("Mizoram"), t("Nagaland"), t("Odisha"), t("Punjab"),
-            t("Rajasthan"), t("Sikkim"), t("Tamil Nadu"), t("Telangana"), t("Tripura"), t("Uttar Pradesh"),
-            t("Uttarakhand"), t("West Bengal")
-        )
-        findViewById<Spinner>(R.id.spinnerState).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, states)
+        val translatedStates = englishStates.map { t(it) }.toTypedArray()
+        spinnerState.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, translatedStates)
 
-        val incomes = arrayOf(
-            d(t("Below ₹50,000")),
-            d(t("₹50,000 - ₹1,00,000")),
-            d(t("₹1,00,000 - ₹3,00,000")),
-            d(t("Above ₹3,00,000"))
-        )
-        findViewById<Spinner>(R.id.spinnerIncome).adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, incomes)
+        spinnerState.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val stateEng = englishStates[position]
+                val districtsEng = englishDistrictsMap[stateEng] ?: arrayOf("Other")
+
+                val districtsTranslated = districtsEng.map { t(it) }.toTypedArray()
+                spinnerDistrict.adapter = ArrayAdapter(this@RegisterActivity, android.R.layout.simple_spinner_dropdown_item, districtsTranslated)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        val translatedIncomes = englishIncomes.map { d(t(it)) }.toTypedArray()
+        spinnerIncome.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, translatedIncomes)
     }
 }

@@ -7,9 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
-import android.widget.TextView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -132,9 +132,9 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             rvSoil?.visibility = View.VISIBLE
 
             val filteredSoils = when(selected.result) {
-                t("Breaks Easily") -> soilList.filter { it.nameEn in listOf(t("Arid / Desert Soil")) }
-                t("Short Ribbon") -> soilList.filter { it.nameEn in listOf(t("Alluvial Soil"),t("Red & Yellow Soil"),t("Laterite Soil"),t("Mountain / Forest Soil")) }
-                t("Long Ribbon") -> soilList.filter { it.nameEn in listOf(t("Black / Regur Soil"),t("Peaty & Marshy Soil"),t("Saline & Alkaline Soil")) }
+                t("Breaks Easily") -> soilList.filter { it.id == 5 } // Arid
+                t("Short Ribbon") -> soilList.filter { it.id in listOf(1, 3, 4, 6) } // Alluvial, Red, Laterite, Mountain
+                t("Long Ribbon") -> soilList.filter { it.id in listOf(2, 7, 8) } // Black, Saline, Peaty
                 else -> soilList
             }
 
@@ -155,7 +155,19 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
 
             manualSoilAdapter = SoilAdapter(emptyList()) { selectedSoil ->
-                temporarySelectedSoil = selectedSoil.nameEn
+
+                temporarySelectedSoil = when (selectedSoil.id) {
+                    1 -> "Alluvial Soil"
+                    2 -> "Black / Regur Soil"
+                    3 -> "Red & Yellow Soil"
+                    4 -> "Laterite Soil"
+                    5 -> "Arid / Desert Soil"
+                    6 -> "Mountain / Forest Soil"
+                    7 -> "Saline & Alkaline Soil"
+                    8 -> "Peaty & Marshy Soil"
+                    else -> "Unknown Soil"
+                }
+
                 view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
                     setText(t(""), false)
                     clearFocus()
@@ -191,15 +203,15 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
 
         autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
             temporarySelectedSoil = when (crops[position]) {
-                t("Rice"), t("Wheat") -> t("Alluvial Soil")
-                t("Cotton"), t("Soybean") -> t("Black / Regur Soil")
-                t("Pulses"), t("Groundnut") -> t("Red & Yellow Soil")
-                t("Cashew"), t("Rubber") -> t("Laterite Soil")
-                t("Millets"), t("Bajra") -> t("Arid / Desert Soil")
-                t("Tea"), t("Coffee") -> t("Mountain / Forest Soil")
-                t("Barley"), t("Tobacco") -> t("Saline & Alkaline Soil")
-                t("Jute") -> t("Peaty & Marshy Soil")
-                else -> t("Alluvial Soil")
+                t("Rice"), t("Wheat") -> "Alluvial Soil"
+                t("Cotton"), t("Soybean") -> "Black / Regur Soil"
+                t("Pulses"), t("Groundnut") -> "Red & Yellow Soil"
+                t("Cashew"), t("Rubber") -> "Laterite Soil"
+                t("Millets"), t("Bajra") -> "Arid / Desert Soil"
+                t("Tea"), t("Coffee") -> "Mountain / Forest Soil"
+                t("Barley"), t("Tobacco") -> "Saline & Alkaline Soil"
+                t("Jute") -> "Peaty & Marshy Soil"
+                else -> "Alluvial Soil"
             }
 
             if (::manualSoilAdapter.isInitialized) manualSoilAdapter.clearSelection()

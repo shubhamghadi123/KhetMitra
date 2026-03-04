@@ -64,7 +64,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="52dp"
-                android:inputType="phone"
+                android:inputType="number"
+                android:maxLength="10"
                 tools:ignore="RtlSymmetry" />
         </com.google.android.material.textfield.TextInputLayout>
 
