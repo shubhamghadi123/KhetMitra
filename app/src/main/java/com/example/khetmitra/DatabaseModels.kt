@@ -19,3 +19,18 @@ data class FarmerProfile(
     val soil_type: String? = null,
     val crops: String? = null
 )
+
+@Serializable
+data class FarmEntry(
+    val farmer_id: String,
+    val land_size: String,
+    val soil_type: String,
+    val coordinates: String
+)
+
+@Serializable
+data class FetchedFarm(
+    val coordinates: String,
+    val land_size: String,
+    val soil_type: String
+)

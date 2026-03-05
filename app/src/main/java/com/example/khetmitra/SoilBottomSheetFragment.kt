@@ -35,6 +35,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
     private var fieldLat: Double = 0.0
     private var fieldLng: Double = 0.0
+    private var coordinatesJson: String = ""
     private var langCode: String = TranslateLanguage.ENGLISH
 
     private lateinit var soilList: List<SoilType>
@@ -60,12 +61,13 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     companion object {
-        fun newInstance(area: Double, lat: Double, lng: Double): SoilBottomSheetFragment {
+        fun newInstance(area: Double, lat: Double, lng: Double, coordinates: String): SoilBottomSheetFragment {
             val fragment = SoilBottomSheetFragment()
             val args = Bundle()
             args.putDouble("ARG_AREA", area)
             args.putDouble("ARG_LAT", lat)
             args.putDouble("ARG_LNG", lng)
+            args.putString("ARG_COORDINATES", coordinates)
             fragment.arguments = args
             return fragment
         }
@@ -76,6 +78,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         fieldAreaAcres = arguments?.getDouble("ARG_AREA") ?: 0.0
         fieldLat = arguments?.getDouble("ARG_LAT") ?: 0.0
         fieldLng = arguments?.getDouble("ARG_LNG") ?: 0.0
+        coordinatesJson = arguments?.getString("ARG_COORDINATES") ?: "[]"
     }
 
     override fun onCreateView(
@@ -111,7 +114,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         val cardScanSHC = view.findViewById<MaterialCardView>(R.id.cardScanSHC)
         val btnSaveProfileMain = view.findViewById<MaterialButton>(R.id.btnSaveProfileMain)
 
-        var recommendedSoilData = Pair("Black / Regur Soil", "Black/Dark Brown")
+        var recommendedSoilData = Pair("Black / Regur Soil", "Black / Dark Brown")
 
         if (fieldLat != 0.0 && fieldLng != 0.0) {
             try {
@@ -151,9 +154,14 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         tvLocalMatchDesc?.text = ""
         btnLocalSoilMatch?.text = ""
 
-        val loadDynamicContent = {
+        val setupUI = {
             tvLocalMatchDesc?.text = "${t("Most farms near you have")} ${t(soilName)}. ${t("Is your soil")} ${t(colorHint)}?"
             btnLocalSoilMatch?.text = "${t("Yes, it's")} ${t(soilName)}"
+
+            btnLocalSoilMatch?.setOnClickListener {
+                selectedSoil = soilName
+                saveFinalFarmData(soilName)
+            }
 
             rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
             rvSoil.adapter = SoilAdapter(soilList) { selected ->
@@ -170,46 +178,16 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 }
                 btnSaveProfileMain.isEnabled = true
             }
-
-            btnLocalSoilMatch?.setOnClickListener {
-                selectedSoil = soilName
-                saveFinalFarmData(soilName)
-            }
         }
 
         if (langCode != TranslateLanguage.ENGLISH) {
             view.post {
                 TranslationHelper.translateViewHierarchy(view, langCode) {
-                    view.post { loadDynamicContent() }
+                    view.post { setupUI() }
                 }
             }
         } else {
-            loadDynamicContent()
-        }
-
-        rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
-        val attachAdapter = {
-            rvSoil.adapter = SoilAdapter(soilList) { selected ->
-                selectedSoil = when (selected.id) {
-                    1 -> "Alluvial Soil"
-                    2 -> "Black / Regur Soil"
-                    3 -> "Red & Yellow Soil"
-                    4 -> "Laterite Soil"
-                    5 -> "Arid / Desert Soil"
-                    6 -> "Mountain / Forest Soil"
-                    7 -> "Saline & Alkaline Soil"
-                    8 -> "Peaty & Marshy Soil"
-                    else -> "Unknown Soil"
-                }
-                btnSaveProfileMain.isEnabled = true
-            }
-        }
-
-        btnLocalSoilMatch.setOnClickListener {
-            selectedSoil?.let {
-                saveFinalFarmData(it)
-                dismiss()
-            } ?: Toast.makeText(context, t("Please select soil"), Toast.LENGTH_SHORT).show()
+            setupUI()
         }
 
         cardScanSHC.setOnClickListener {
@@ -221,13 +199,6 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             fallbackFrag.show(parentFragmentManager, "SoilGuidance")
         }
 
-        parentFragmentManager.setFragmentResultListener("soil_request", viewLifecycleOwner) { _, bundle ->
-            val detectedSoil = bundle.getString("selected_soil")
-            detectedSoil?.let {
-                saveFinalFarmData(it)
-            }
-        }
-
         btnSaveProfileMain.setOnClickListener {
             if (selectedSoil != null) {
                 saveFinalFarmData(selectedSoil!!)
@@ -236,14 +207,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             }
         }
 
-        if (langCode != TranslateLanguage.ENGLISH) {
-            view.post {
-                TranslationHelper.translateViewHierarchy(view, langCode) {
-                    rvSoil.post { attachAdapter() }
-                }
+        parentFragmentManager.setFragmentResultListener("soil_request", viewLifecycleOwner) { _, bundle ->
+            val detectedSoil = bundle.getString("selected_soil")
+            detectedSoil?.let {
+                saveFinalFarmData(it)
+                dismiss()
             }
-        } else {
-            attachAdapter()
         }
     }
 
@@ -286,7 +255,6 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     private fun saveFinalFarmData(soilType: String) {
-
         val dbAreaText = if (fieldAreaAcres < 1.0) {
             String.format(Locale.US, "%.2f Guntas", fieldAreaAcres * 40)
         } else {
@@ -310,22 +278,23 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 val user = SupabaseManager.client.auth.currentUserOrNull()
 
                 if (user != null) {
-                    SupabaseManager.client.postgrest["farmers"].update(
-                        {
-                            set("land_size", dbAreaText)
-                            set("soil_type", soilType)
-                        }
-                    ) {
-                        filter { eq("id", user.id) }
-                    }
+                    val newFarm = FarmEntry(
+                        farmer_id = user.id,
+                        land_size = dbAreaText,
+                        soil_type = soilType,
+                        coordinates = coordinatesJson
+                    )
+
+                    SupabaseManager.client.postgrest["farms"].insert(newFarm)
 
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        val translatedMessage = "${t("Farm profile saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
+                        val translatedMessage = "${t("Farm saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
                         Toast.makeText(safeContext, translatedMessage, Toast.LENGTH_LONG).show()
 
                         val intent = android.content.Intent(safeContext, MainActivity::class.java)
                         intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                         safeContext.startActivity(intent)
+                        dismiss()
                     }
                 } else {
                     withContext(kotlinx.coroutines.Dispatchers.Main) {

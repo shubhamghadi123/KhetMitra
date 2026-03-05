@@ -11,23 +11,45 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
+import androidx.core.graphics.toColorInt
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.button.MaterialButton
+import com.google.gson.Gson
 import com.google.maps.android.SphericalUtil
+import com.google.mlkit.nl.translate.TranslateLanguage
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.annotation.annotations
-import com.mapbox.maps.plugin.annotation.generated.*
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotation
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.OnCircleAnnotationDragListener
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
-import androidx.core.view.isVisible
-import androidx.core.graphics.toColorInt
-import com.google.mlkit.nl.translate.TranslateLanguage
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -37,6 +59,9 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private lateinit var mapView: MapView
     private lateinit var polygonAnnotationManager: PolygonAnnotationManager
     private lateinit var circleAnnotationManager: CircleAnnotationManager
+    private lateinit var pointAnnotationManager: PointAnnotationManager
+    private val savedFarmsDataMap = mutableMapOf<String, FetchedFarm>()
+    private var activePolygonAnnotation: com.mapbox.maps.plugin.annotation.generated.PolygonAnnotation? = null
     private val boundaryPoints = mutableListOf<LatLng>()
     private val circleIdToIndex = mutableMapOf<String, Int>()
 
@@ -93,6 +118,17 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
             circleAnnotationManager = annotationApi.createCircleAnnotationManager()
+            pointAnnotationManager = annotationApi.createPointAnnotationManager()
+
+            pointAnnotationManager.addClickListener { annotation ->
+                val farmData = savedFarmsDataMap[annotation.id]
+                if (farmData != null) {
+                    showFarmDetailsDialog(farmData)
+                }
+                true
+            }
+
+            loadExistingFarms()
 
             circleAnnotationManager.addDragListener(object : OnCircleAnnotationDragListener {
                 override fun onAnnotationDrag(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
@@ -149,7 +185,10 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val fieldLat = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].latitude else 0.0
             val fieldLng = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].longitude else 0.0
 
-            val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres, fieldLat, fieldLng)
+            val coordinatesList = boundaryPoints.map { mapOf("lat" to it.latitude, "lng" to it.longitude) }
+            val coordinatesJson = Gson().toJson(coordinatesList)
+
+            val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres, fieldLat, fieldLng, coordinatesJson)
             soilSheet.show(parentFragmentManager, "SoilSheet")
         }
         setupLocationCallback()
@@ -162,6 +201,100 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             }
         } else {
             resetMap()
+        }
+    }
+
+    private fun showFarmDetailsDialog(farm: FetchedFarm) {
+        val translatedTitle = t("Saved Farm Details")
+
+        val areaParts = farm.land_size.split(" ")
+
+        val translatedArea = if (areaParts.size == 2) {
+            val numberStr = areaParts[0]
+            val unitStr = areaParts[1]
+            "${d(numberStr)} ${t(unitStr)}"
+        } else {
+            farm.land_size
+        }
+
+        // 3. Build the final translated message
+        val message = "${t("Area")}: $translatedArea\n${t("Soil")}: ${t(farm.soil_type)}"
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(translatedTitle)
+            .setMessage(message)
+            .setPositiveButton(t("OK")) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun loadExistingFarms() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val user = SupabaseManager.client.auth.currentUserOrNull()
+                if (user != null) {
+                    val farms = SupabaseManager.client.postgrest["farms"]
+                        .select {
+                            filter { eq("farmer_id", user.id) }
+                        }.decodeList<FetchedFarm>()
+
+                    withContext(Dispatchers.Main) {
+                        savedFarmsDataMap.clear()
+                        farms.forEachIndexed { index, farm ->
+                            drawExistingFarm(farm, index + 1)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun drawExistingFarm(farm: FetchedFarm, farmNumber: Int) {
+        try {
+            val type = object : com.google.gson.reflect.TypeToken<List<Map<String, Double>>>() {}.type
+            val latLngList: List<Map<String, Double>>? = Gson().fromJson(farm.coordinates, type)
+
+            if (latLngList != null && latLngList.size >= 3) {
+                val points = latLngList.map {
+                    Point.fromLngLat(it["lng"]!!, it["lat"]!!)
+                }.toMutableList()
+
+                points.add(points.first())
+                val polygon = Polygon.fromLngLats(listOf(points))
+
+                val polygonOptions = PolygonAnnotationOptions()
+                    .withGeometry(polygon)
+                    .withFillColor("#442196F3".toColorInt())
+                    .withFillOutlineColor("#2196F3")
+
+                polygonAnnotationManager.create(polygonOptions)
+
+                var sumLat = 0.0
+                var sumLng = 0.0
+                latLngList.forEach {
+                    sumLat += it["lat"]!!
+                    sumLng += it["lng"]!!
+                }
+                val centerLat = sumLat / latLngList.size
+                val centerLng = sumLng / latLngList.size
+
+                val textOptions = PointAnnotationOptions()
+                    .withPoint(Point.fromLngLat(centerLng, centerLat))
+                    .withTextField(d(farmNumber))
+                    .withTextSize(12.0)
+                    .withTextColor("#FFFFFF")
+                    .withTextHaloColor("#000000")
+                    .withTextHaloWidth(1.0)
+
+                val textAnnotation = pointAnnotationManager.create(textOptions)
+
+                savedFarmsDataMap[textAnnotation.id] = farm
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -250,7 +383,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         boundaryPoints.removeAt(boundaryPoints.size - 1)
 
         if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
-        if (::polygonAnnotationManager.isInitialized) polygonAnnotationManager.deleteAll()
         circleIdToIndex.clear()
 
         boundaryPoints.forEachIndexed { index, latLng ->
@@ -276,7 +408,11 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     }
 
     private fun updatePolygon() {
-        polygonAnnotationManager.deleteAll()
+        activePolygonAnnotation?.let {
+            polygonAnnotationManager.delete(it)
+            activePolygonAnnotation = null
+        }
+
         if (boundaryPoints.size >= 3) {
             val points = boundaryPoints.map { Point.fromLngLat(it.longitude, it.latitude) }.toMutableList()
             points.add(points.first())
@@ -287,7 +423,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 .withFillColor("#4400FF00".toColorInt())
                 .withFillOutlineColor("#00FF00")
 
-            polygonAnnotationManager.create(polygonOptions)
+            activePolygonAnnotation = polygonAnnotationManager.create(polygonOptions)
         }
     }
 
@@ -405,7 +541,14 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private fun resetMap() {
         boundaryPoints.clear()
         circleIdToIndex.clear()
-        if (::polygonAnnotationManager.isInitialized) polygonAnnotationManager.deleteAll()
+
+        if (::polygonAnnotationManager.isInitialized) {
+            activePolygonAnnotation?.let {
+                polygonAnnotationManager.delete(it)
+                activePolygonAnnotation = null
+            }
+        }
+
         if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
 
         tvCalculatedArea.text = "${d("0.00")} ${t("Acres")}"

@@ -66,7 +66,6 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="8dp"
-                android:background="@drawable/rounded_bg_semi_transparent"
                 android:orientation="horizontal"
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="4dp">
