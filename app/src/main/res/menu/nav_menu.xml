@@ -9,6 +9,12 @@
             android:title="My Profile"
             android:layout_width="40dp"
             android:layout_height="40dp"/>
+
+        <item
+            android:id="@+id/nav_manage_fields"
+            android:icon="@drawable/manage_fields"
+            android:title="Manage Fields" />
+
         <item
             android:id="@+id/nav_settings"
             android:icon="@drawable/round_settings_24"

@@ -14,7 +14,6 @@ data class FarmerProfile(
     val state_location: String,
     val annual_income_range: String,
     val district: String,
-
     val land_size: String? = null,
     val soil_type: String? = null,
     val crops: String? = null
@@ -22,10 +21,13 @@ data class FarmerProfile(
 
 @Serializable
 data class FarmEntry(
+    val id: String? = null,
     val farmer_id: String,
+    val name: String? = null,
     val land_size: String,
     val soil_type: String,
-    val coordinates: String
+    val coordinates: String,
+    val crop: String? = "Not Selected"
 )
 
 @Serializable

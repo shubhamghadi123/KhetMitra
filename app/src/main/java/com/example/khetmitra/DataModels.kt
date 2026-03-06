@@ -99,3 +99,11 @@ data class RibbonData(
     val result: String,
     val soilType: String
 )
+
+data class FieldModel(
+    val fieldName: String,
+    val fieldSize: String,
+    val soilType: String,
+    val crop: String,
+    val buttonText: String
+)

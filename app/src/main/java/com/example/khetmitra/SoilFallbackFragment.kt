@@ -220,7 +220,8 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             view.findViewById<TextView>(R.id.tvStep2Header)?.visibility = View.GONE
             view.findViewById<RecyclerView>(R.id.rvFilteredSoils)?.visibility = View.GONE
 
-            Toast.makeText(requireContext(), "${t("Soil Estimated")}: ${t(temporarySelectedSoil!!)}", Toast.LENGTH_SHORT).show()
-        }
+            val tvEstimated = view.findViewById<TextView>(R.id.tvEstimatedCropText)
+            tvEstimated.text = "${t("Estimated Soil")}: ${t(temporarySelectedSoil!!)}"
+            tvEstimated.visibility = View.VISIBLE}
     }
 }

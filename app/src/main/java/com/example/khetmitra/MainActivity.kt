@@ -57,10 +57,22 @@ class MainActivity : BaseActivity() {
             drawerLayout.openDrawer(GravityCompat.START)
         }
 
+        val shouldOpenMap = intent.getBooleanExtra("OPEN_MAP_FRAGMENT", false)
+
+        if (shouldOpenMap) {
+            supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, FieldMeasurementFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_profile -> {
                     startActivity(Intent(this, ProfileActivity::class.java))
+                }
+                R.id.nav_manage_fields -> {
+                    startActivity(Intent(this, ManageFieldsActivity::class.java))
                 }
                 R.id.nav_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
