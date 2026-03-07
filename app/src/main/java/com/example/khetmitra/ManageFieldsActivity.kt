@@ -1,9 +1,9 @@
 package com.example.khetmitra
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.InputFilter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,8 +32,19 @@ class ManageFieldsActivity : AppCompatActivity() {
     private val farmsList = mutableListOf<FarmEntry>()
     private var langCode: String = TranslateLanguage.ENGLISH
 
-    // We only need options for the Crop now, since Soil Type is read-only!
-    private val cropOptions = listOf("Not Selected", "Wheat", "Rice", "Sugarcane", "Cotton", "Maize", "Soybean")
+    private val cropOptions = listOf(
+        "Not Selected",
+        "Rice", "Wheat",
+        "Cotton", "Soybean",
+        "Pulses", "Groundnut",
+        "Sugarcane",
+        "Maize",
+        "Cashew", "Rubber",
+        "Millets", "Bajra",
+        "Tea", "Coffee",
+        "Barley", "Tobacco",
+        "Jute"
+    )
 
     fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -48,8 +59,18 @@ class ManageFieldsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_fields)
 
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
+        findViewById<ImageView>(R.id.btnBack).setOnClickListener {
+            navigateToHome()
+        }
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                navigateToHome()
+            }
+        })
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
 
@@ -58,7 +79,6 @@ class ManageFieldsActivity : AppCompatActivity() {
         adapter = ManageFieldsAdapter(farmsList)
         recyclerFields.adapter = adapter
 
-        // Add Field button takes the user to the Map!
         findViewById<MaterialButton>(R.id.btnAddField).setOnClickListener {
             val intent = Intent(this, MainActivity::class.java)
             intent.putExtra("OPEN_MAP_FRAGMENT", true)
@@ -66,16 +86,13 @@ class ManageFieldsActivity : AppCompatActivity() {
             finish()
         }
 
-        // Header Edit Button toggles the global Delete Mode
         val btnHeaderEdit = findViewById<ImageView>(R.id.btnHeaderEdit)
         btnHeaderEdit.setOnClickListener {
             val isNowDeleteMode = adapter.toggleDeleteMode()
 
             if (isNowDeleteMode) {
-                // Show the "Done" checkmark when in Delete Mode
                 btnHeaderEdit.setImageResource(R.drawable.round_check_24)
             } else {
-                // Show the Pencil when in Normal Mode
                 btnHeaderEdit.setImageResource(R.drawable.round_edit_24)
             }
         }
@@ -87,6 +104,13 @@ class ManageFieldsActivity : AppCompatActivity() {
                 TranslationHelper.translateViewHierarchy(findViewById(android.R.id.content), langCode) {}
             }
         }
+    }
+
+    private fun navigateToHome() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -120,15 +144,38 @@ class ManageFieldsActivity : AppCompatActivity() {
         }
     }
 
-    // Function to update the crop in Supabase (Soil stays the same)
-    private fun updateFieldInDatabase(fieldId: String, newName: String, currentSoil: String, newCrop: String, position: Int) {
-        Toast.makeText(this, t("Saving changes..."), Toast.LENGTH_SHORT).show()
+    // NEW: Added onSuccess callback so the UI waits for the database!
+    private fun updateFieldInDatabase(fieldId: String, newName: String, currentSoil: String, newCrop: String, position: Int, onSuccess: () -> Unit) {
+        val cleanName = newName.trim()
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val user = SupabaseManager.client.auth.currentUserOrNull()
+                if (user == null) return@launch
+
+                val existingFarms = SupabaseManager.client.postgrest["farms"]
+                    .select {
+                        filter {
+                            eq("farmer_id", user.id)
+                            ilike("name", cleanName) // FIX: ilike ensures "My Farm" and "my farm" are caught as duplicates!
+                            neq("id", fieldId)
+                        }
+                    }.decodeList<FarmEntry>()
+
+                if (existingFarms.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@ManageFieldsActivity, t("A farm with this name already exists!"), Toast.LENGTH_LONG).show()
+                    }
+                    return@launch // Reject the save and stop!
+                }
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ManageFieldsActivity, t("Saving changes..."), Toast.LENGTH_SHORT).show()
+                }
+
                 SupabaseManager.client.postgrest["farms"].update(
                     {
-                        set("name", newName) // NEW: Save the name!
+                        set("name", cleanName)
                         set("soil_type", currentSoil)
                         set("crop", newCrop)
                     }
@@ -138,7 +185,11 @@ class ManageFieldsActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     val oldField = farmsList[position]
-                    farmsList[position] = oldField.copy(name = newName, soil_type = currentSoil, crop = newCrop)
+                    farmsList[position] = oldField.copy(name = cleanName, soil_type = currentSoil, crop = newCrop)
+
+                    // SUCCESS! Tell the UI to close the edit mode.
+                    onSuccess()
+
                     adapter.notifyItemChanged(position)
                     Toast.makeText(this@ManageFieldsActivity, t("Changes saved!"), Toast.LENGTH_SHORT).show()
                 }
@@ -190,7 +241,7 @@ class ManageFieldsActivity : AppCompatActivity() {
         @SuppressLint("NotifyDataSetChanged")
         fun toggleDeleteMode(): Boolean {
             isDeleteMode = !isDeleteMode
-            editingRows.clear() // Cancel any active edits if they switch to delete mode
+            editingRows.clear()
             notifyDataSetChanged()
             return isDeleteMode
         }
@@ -229,31 +280,29 @@ class ManageFieldsActivity : AppCompatActivity() {
                 holder.layoutFieldSize.suffixText = null
             }
 
-            // 2. Set Field Name
             val defaultName = "${t("Field")} ${d(position + 1)}"
             holder.etFieldName.setText(field.name ?: defaultName)
-
-            // 3. Set Read-Only Soil Type
             holder.tvSoilType.setText(t(field.soil_type))
-
-            // 4. Translate all Floating Hints
             holder.layoutFieldSize.hint = t("Field Size")
             holder.layoutSoilType.hint = t("Soil Type")
             holder.layoutCrop.hint = t("Crop")
 
-            // 5. Setup ONLY the Crop Dropdown
             val translatedCropOptions = cropOptions.map { t(it) }
             holder.spinnerCrop.setAdapter(ArrayAdapter(this@ManageFieldsActivity, android.R.layout.simple_dropdown_item_1line, translatedCropOptions))
             holder.spinnerCrop.setText(t(field.crop ?: "Not Selected"), false)
 
             val isEditing = editingRows.contains(field.id)
 
+            holder.etFieldName.filters = arrayOf(InputFilter { source, _, _, _, _, _ ->
+                if (source.toString().matches(Regex("[a-zA-Z0-9 ]*"))) null else ""
+            })
+
             if (isDeleteMode) {
                 holder.btnEditField.setImageResource(android.R.drawable.ic_menu_delete)
                 holder.btnEditField.setColorFilter(android.graphics.Color.RED)
 
                 holder.etFieldName.isEnabled = false
-                holder.etFieldName.setBackgroundResource(0) // Remove underline
+                holder.etFieldName.setBackgroundResource(0)
 
                 holder.layoutCrop.isEnabled = true
                 holder.layoutCrop.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
@@ -268,7 +317,6 @@ class ManageFieldsActivity : AppCompatActivity() {
                 if (isEditing) {
                     holder.btnEditField.setImageResource(R.drawable.round_check_24)
 
-                    // Enable Field Name editing
                     holder.etFieldName.isEnabled = true
                     holder.etFieldName.setBackgroundResource(androidx.appcompat.R.drawable.abc_edit_text_material)
                     holder.etFieldName.requestFocus()
@@ -281,16 +329,15 @@ class ManageFieldsActivity : AppCompatActivity() {
                         val selectedCropUi = holder.spinnerCrop.text.toString()
                         val selectedCrop = cropOptions.find { t(it) == selectedCropUi } ?: "Not Selected"
 
-                        // Grab new name, fallback to default if they accidentally wiped it blank
                         val newName = holder.etFieldName.text.toString().takeIf { it.isNotBlank() } ?: defaultName
 
-                        editingRows.remove(field.id)
-                        updateFieldInDatabase(field.id!!, newName, field.soil_type, selectedCrop, holder.adapterPosition)
+                        updateFieldInDatabase(field.id!!, newName, field.soil_type, selectedCrop, holder.adapterPosition) {
+                            editingRows.remove(field.id)
+                        }
                     }
                 } else {
                     holder.btnEditField.setImageResource(R.drawable.round_edit_24)
 
-                    // Lock Field Name editing
                     holder.etFieldName.isEnabled = false
                     holder.etFieldName.setBackgroundResource(0)
 

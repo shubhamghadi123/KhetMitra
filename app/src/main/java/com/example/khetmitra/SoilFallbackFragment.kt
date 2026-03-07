@@ -1,5 +1,6 @@
 package com.example.khetmitra
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -21,6 +22,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 class SoilFallbackFragment : BottomSheetDialogFragment() {
 
     private var temporarySelectedSoil: String? = null
+    private var temporarySelectedCrop: String? = "Not Selected"
     private lateinit var manualSoilAdapter: SoilAdapter
     private lateinit var ribbonAdapter: RibbonAdapter
     private var langCode: String = TranslateLanguage.ENGLISH
@@ -63,7 +65,10 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
 
         view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
             if (temporarySelectedSoil != null) {
-                parentFragmentManager.setFragmentResult("soil_request", bundleOf("selected_soil" to temporarySelectedSoil))
+                parentFragmentManager.setFragmentResult("soil_request", bundleOf(
+                    "selected_soil" to temporarySelectedSoil,
+                    "selected_crop" to temporarySelectedCrop
+                ))
                 dismiss()
             } else {
                 Toast.makeText(requireContext(), t("Please select an option"), Toast.LENGTH_SHORT).show()
@@ -127,9 +132,12 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
                 clearFocus()
             }
             temporarySelectedSoil = null
+            temporarySelectedCrop = "Not Selected"
 
             tvHeader2?.visibility = View.VISIBLE
             rvSoil?.visibility = View.VISIBLE
+
+            view.findViewById<TextView>(R.id.tvEstimatedCropText)?.visibility = View.GONE
 
             val filteredSoils = when(selected.result) {
                 t("Breaks Easily") -> soilList.filter { it.id == 5 } // Arid
@@ -168,30 +176,28 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
                     else -> "Unknown Soil"
                 }
 
+                temporarySelectedCrop = "Not Selected"
                 view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
                     setText(t(""), false)
                     clearFocus()
                 }
+                view.findViewById<TextView>(R.id.tvEstimatedCropText)?.visibility = View.GONE
             }
             rvSoil.adapter = manualSoilAdapter
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun setupCropEstimation(view: View) {
-        val crops = arrayOf(
-            t("Rice"), t("Wheat"),        // Alluvial
-            t("Cotton"), t("Soybean"),     // Black
-            t("Pulses"), t("Groundnut"),   // Red & Yellow
-            t("Cashew"), t("Rubber"),      // Laterite
-            t("Millets"), t("Bajra"),      // Arid
-            t("Tea"), t("Coffee"),         // Mountain
-            t("Barley"), t("Tobacco"),     // Saline
-            t("Jute")                   // Peaty
+        val cropKeys = arrayOf(
+            "Rice", "Wheat", "Cotton", "Soybean", "Pulses", "Groundnut",
+            "Cashew", "Rubber", "Millets", "Bajra", "Tea", "Coffee",
+            "Barley", "Tobacco", "Jute"
         )
 
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line,
-            crops
-        )
+        val translatedCrops = cropKeys.map { t(it) }.toTypedArray()
+
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, translatedCrops)
         val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
         autoCompleteCrop.setAdapter(adapter)
 
@@ -202,15 +208,18 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         }
 
         autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
-            temporarySelectedSoil = when (crops[position]) {
-                t("Rice"), t("Wheat") -> "Alluvial Soil"
-                t("Cotton"), t("Soybean") -> "Black / Regur Soil"
-                t("Pulses"), t("Groundnut") -> "Red & Yellow Soil"
-                t("Cashew"), t("Rubber") -> "Laterite Soil"
-                t("Millets"), t("Bajra") -> "Arid / Desert Soil"
-                t("Tea"), t("Coffee") -> "Mountain / Forest Soil"
-                t("Barley"), t("Tobacco") -> "Saline & Alkaline Soil"
-                t("Jute") -> "Peaty & Marshy Soil"
+            val selectedCropEnglish = cropKeys[position]
+            temporarySelectedCrop = selectedCropEnglish
+
+            temporarySelectedSoil = when (selectedCropEnglish) {
+                "Rice", "Wheat" -> "Alluvial Soil"
+                "Cotton", "Soybean" -> "Black / Regur Soil"
+                "Pulses", "Groundnut" -> "Red & Yellow Soil"
+                "Cashew", "Rubber" -> "Laterite Soil"
+                "Millets", "Bajra" -> "Arid / Desert Soil"
+                "Tea", "Coffee" -> "Mountain / Forest Soil"
+                "Barley", "Tobacco" -> "Saline & Alkaline Soil"
+                "Jute" -> "Peaty & Marshy Soil"
                 else -> "Alluvial Soil"
             }
 
@@ -222,6 +231,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
 
             val tvEstimated = view.findViewById<TextView>(R.id.tvEstimatedCropText)
             tvEstimated.text = "${t("Estimated Soil")}: ${t(temporarySelectedSoil!!)}"
-            tvEstimated.visibility = View.VISIBLE}
+            tvEstimated.visibility = View.VISIBLE
+        }
     }
 }

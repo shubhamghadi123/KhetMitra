@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -24,6 +25,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -209,9 +211,9 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
         parentFragmentManager.setFragmentResultListener("soil_request", viewLifecycleOwner) { _, bundle ->
             val detectedSoil = bundle.getString("selected_soil")
+            val detectedCrop = bundle.getString("selected_crop") ?: "Not Selected"
             detectedSoil?.let {
-                saveFinalFarmData(it)
-                dismiss()
+                saveFinalFarmData(it, detectedCrop)
             }
         }
     }
@@ -254,7 +256,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         }
     }
 
-    private fun saveFinalFarmData(soilType: String) {
+    private fun saveFinalFarmData(soilType: String, cropType: String = "Not Selected") {
         val dbAreaText = if (fieldAreaAcres < 1.0) {
             String.format(Locale.US, "%.2f Guntas", fieldAreaAcres * 40)
         } else {
@@ -273,37 +275,51 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         Toast.makeText(requireContext(), t("Saving farm profile..."), Toast.LENGTH_SHORT).show()
         val safeContext = requireContext()
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = SupabaseManager.client.auth.currentUserOrNull()
 
                 if (user != null) {
+                    val existingFarms = SupabaseManager.client.postgrest["farms"]
+                        .select {
+                            filter { eq("farmer_id", user.id) }
+                        }.decodeList<FarmEntry>()
+
+                    val existingNames = existingFarms.mapNotNull { it.name }
+                    var nextNumber = existingFarms.size + 1
+                    var autoName = "Farm $nextNumber"
+                    while (existingNames.contains(autoName)) {
+                        nextNumber++
+                        autoName = "Farm $nextNumber"
+                    }
+
                     val newFarm = FarmEntry(
                         farmer_id = user.id,
+                        name = autoName,
                         land_size = dbAreaText,
                         soil_type = soilType,
-                        coordinates = coordinatesJson
+                        coordinates = coordinatesJson,
+                        crop = cropType
                     )
 
                     SupabaseManager.client.postgrest["farms"].insert(newFarm)
 
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    withContext(Dispatchers.Main) {
                         val translatedMessage = "${t("Farm saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
                         Toast.makeText(safeContext, translatedMessage, Toast.LENGTH_LONG).show()
-
-                        val intent = android.content.Intent(safeContext, MainActivity::class.java)
-                        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        val intent = android.content.Intent(safeContext, ManageFieldsActivity::class.java)
                         safeContext.startActivity(intent)
                         dismiss()
+                        activity?.finish()
                     }
                 } else {
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    withContext(Dispatchers.Main) {
                         Toast.makeText(safeContext, t("Error: User not logged in"), Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(safeContext, "Database Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
