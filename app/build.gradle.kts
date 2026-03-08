@@ -53,6 +53,11 @@ android {
         val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+
+        // Agromonitoring Keys
+        val agroKey = localProperties.getProperty("AGRO_API_KEY") ?: ""
+        buildConfigField("String", "AGRO_API_KEY", "\"$agroKey\"")
+        buildConfigField("String", "AGRO_BASE_URL", "\"https://api.agromonitoring.com/agro/1.0/\"")
     }
 
     buildTypes {

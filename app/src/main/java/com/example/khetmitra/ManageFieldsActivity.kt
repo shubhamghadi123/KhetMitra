@@ -2,8 +2,8 @@ package com.example.khetmitra
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
-import android.text.InputFilter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,7 +18,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputLayout
 import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
@@ -144,7 +147,6 @@ class ManageFieldsActivity : AppCompatActivity() {
         }
     }
 
-    // NEW: Added onSuccess callback so the UI waits for the database!
     private fun updateFieldInDatabase(fieldId: String, newName: String, currentSoil: String, newCrop: String, position: Int, onSuccess: () -> Unit) {
         val cleanName = newName.trim()
 
@@ -157,7 +159,7 @@ class ManageFieldsActivity : AppCompatActivity() {
                     .select {
                         filter {
                             eq("farmer_id", user.id)
-                            ilike("name", cleanName) // FIX: ilike ensures "My Farm" and "my farm" are caught as duplicates!
+                            ilike("name", cleanName)
                             neq("id", fieldId)
                         }
                     }.decodeList<FarmEntry>()
@@ -166,7 +168,7 @@ class ManageFieldsActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@ManageFieldsActivity, t("A farm with this name already exists!"), Toast.LENGTH_LONG).show()
                     }
-                    return@launch // Reject the save and stop!
+                    return@launch
                 }
 
                 withContext(Dispatchers.Main) {
@@ -186,10 +188,7 @@ class ManageFieldsActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     val oldField = farmsList[position]
                     farmsList[position] = oldField.copy(name = cleanName, soil_type = currentSoil, crop = newCrop)
-
-                    // SUCCESS! Tell the UI to close the edit mode.
                     onSuccess()
-
                     adapter.notifyItemChanged(position)
                     Toast.makeText(this@ManageFieldsActivity, t("Changes saved!"), Toast.LENGTH_SHORT).show()
                 }
@@ -230,6 +229,39 @@ class ManageFieldsActivity : AppCompatActivity() {
             }
             .setNegativeButton(t("Cancel")) { dialog, _ -> dialog.dismiss() }
             .show()
+    }
+
+    private fun translateToEnglish(text: String, sourceLang: String, onResult: (String) -> Unit) {
+        if (sourceLang == TranslateLanguage.ENGLISH) {
+            onResult(text)
+            return
+        }
+
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(sourceLang)
+            .setTargetLanguage(TranslateLanguage.ENGLISH)
+            .build()
+        val translator = Translation.getClient(options)
+
+        translator.downloadModelIfNeeded()
+            .addOnSuccessListener {
+                translator.translate(text)
+                    .addOnSuccessListener { translatedText ->
+                        val titleCased = translatedText.split(" ").joinToString(" ") {
+                            it.replaceFirstChar { char -> char.uppercase() }
+                        }
+                        onResult(titleCased)
+                        translator.close()
+                    }
+                    .addOnFailureListener {
+                        onResult(text)
+                        translator.close()
+                    }
+            }
+            .addOnFailureListener {
+                onResult(text)
+                translator.close()
+            }
     }
 
     inner class ManageFieldsAdapter(private val fields: List<FarmEntry>) :
@@ -280,8 +312,15 @@ class ManageFieldsActivity : AppCompatActivity() {
                 holder.layoutFieldSize.suffixText = null
             }
 
-            val defaultName = "${t("Field")} ${d(position + 1)}"
-            holder.etFieldName.setText(field.name ?: defaultName)
+            val rawName = field.name ?: "Farm ${position + 1}"
+            val isAutoName = rawName.matches(Regex("Farm \\d+"))
+
+            val translatedName = if (isAutoName) {
+                "${t("Farm")} ${d(rawName.substringAfter("Farm "))}"
+            } else {
+                t(rawName)
+            }
+
             holder.tvSoilType.setText(t(field.soil_type))
             holder.layoutFieldSize.hint = t("Field Size")
             holder.layoutSoilType.hint = t("Soil Type")
@@ -293,19 +332,17 @@ class ManageFieldsActivity : AppCompatActivity() {
 
             val isEditing = editingRows.contains(field.id)
 
-            holder.etFieldName.filters = arrayOf(InputFilter { source, _, _, _, _, _ ->
-                if (source.toString().matches(Regex("[a-zA-Z0-9 ]*"))) null else ""
-            })
+            holder.etFieldName.filters = arrayOf()
 
             if (isDeleteMode) {
                 holder.btnEditField.setImageResource(android.R.drawable.ic_menu_delete)
-                holder.btnEditField.setColorFilter(android.graphics.Color.RED)
+                holder.btnEditField.setColorFilter(Color.RED)
 
                 holder.etFieldName.isEnabled = false
                 holder.etFieldName.setBackgroundResource(0)
 
                 holder.layoutCrop.isEnabled = true
-                holder.layoutCrop.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
+                holder.layoutCrop.endIconMode = TextInputLayout.END_ICON_NONE
                 holder.spinnerCrop.setAdapter(null)
 
                 holder.btnEditField.setOnClickListener {
@@ -316,33 +353,37 @@ class ManageFieldsActivity : AppCompatActivity() {
 
                 if (isEditing) {
                     holder.btnEditField.setImageResource(R.drawable.round_check_24)
-
+                    holder.etFieldName.setText(translatedName)
                     holder.etFieldName.isEnabled = true
                     holder.etFieldName.setBackgroundResource(androidx.appcompat.R.drawable.abc_edit_text_material)
                     holder.etFieldName.requestFocus()
 
                     holder.layoutCrop.isEnabled = true
-                    holder.layoutCrop.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_DROPDOWN_MENU
+                    holder.layoutCrop.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
                     holder.spinnerCrop.setAdapter(ArrayAdapter(this@ManageFieldsActivity, android.R.layout.simple_dropdown_item_1line, translatedCropOptions))
 
                     holder.btnEditField.setOnClickListener {
                         val selectedCropUi = holder.spinnerCrop.text.toString()
                         val selectedCrop = cropOptions.find { t(it) == selectedCropUi } ?: "Not Selected"
 
-                        val newName = holder.etFieldName.text.toString().takeIf { it.isNotBlank() } ?: defaultName
+                        val newNameNative = holder.etFieldName.text.toString().takeIf { it.isNotBlank() } ?: translatedName
 
-                        updateFieldInDatabase(field.id!!, newName, field.soil_type, selectedCrop, holder.adapterPosition) {
-                            editingRows.remove(field.id)
+                        Toast.makeText(this@ManageFieldsActivity, t("Translating & Saving..."), Toast.LENGTH_SHORT).show()
+
+                        translateToEnglish(newNameNative, langCode) { englishName ->
+                            updateFieldInDatabase(field.id!!, englishName, field.soil_type, selectedCrop, holder.adapterPosition) {
+                                editingRows.remove(field.id)
+                            }
                         }
                     }
                 } else {
                     holder.btnEditField.setImageResource(R.drawable.round_edit_24)
-
+                    holder.etFieldName.setText(translatedName)
                     holder.etFieldName.isEnabled = false
                     holder.etFieldName.setBackgroundResource(0)
 
                     holder.layoutCrop.isEnabled = true
-                    holder.layoutCrop.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
+                    holder.layoutCrop.endIconMode = TextInputLayout.END_ICON_NONE
                     holder.spinnerCrop.setAdapter(null)
 
                     holder.btnEditField.setOnClickListener {
@@ -352,9 +393,15 @@ class ManageFieldsActivity : AppCompatActivity() {
                 }
             }
 
-            holder.btnAction.text = t("GENERATE SOIL REPORT")
+            holder.btnAction.text = t("VIEW SOIL REPORT")
+
             holder.btnAction.setOnClickListener {
-                Toast.makeText(this@ManageFieldsActivity, t("Generating report..."), Toast.LENGTH_SHORT).show()
+                val intent = Intent(this@ManageFieldsActivity, SoilReportActivity::class.java).apply {
+                    putExtra("FARM_NAME", field.name ?: "My Farm")
+                    putExtra("FARM_SIZE", field.land_size)
+                    putExtra("FARM_COORDINATES", field.coordinates)
+                }
+                startActivity(intent)
             }
         }
         override fun getItemCount() = fields.size

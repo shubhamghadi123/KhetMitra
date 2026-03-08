@@ -217,7 +217,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             farm.land_size
         }
 
-        // 3. Build the final translated message
         val message = "${t("Area")}: $translatedArea\n${t("Soil")}: ${t(farm.soil_type)}"
 
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())

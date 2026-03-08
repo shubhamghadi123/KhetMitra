@@ -307,9 +307,10 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                     withContext(Dispatchers.Main) {
                         val translatedMessage = "${t("Farm saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
                         Toast.makeText(safeContext, translatedMessage, Toast.LENGTH_LONG).show()
-                        val intent = android.content.Intent(safeContext, ManageFieldsActivity::class.java)
-                        safeContext.startActivity(intent)
                         dismiss()
+                        val intent = android.content.Intent(safeContext, ManageFieldsActivity::class.java)
+                        intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        safeContext.startActivity(intent)
                         activity?.finish()
                     }
                 } else {
