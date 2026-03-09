@@ -27,7 +27,8 @@ data class FarmEntry(
     val land_size: String,
     val soil_type: String,
     val coordinates: String,
-    val crop: String? = "Not Selected"
+    val crop: String? = "Not Selected",
+    val poly_id: String? = null
 )
 
 @Serializable

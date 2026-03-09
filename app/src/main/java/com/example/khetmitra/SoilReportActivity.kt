@@ -19,9 +19,6 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class SoilReportActivity : AppCompatActivity() {
 
@@ -35,11 +32,8 @@ class SoilReportActivity : AppCompatActivity() {
     private lateinit var tvSurfaceTemp: TextView
     private lateinit var tvDepthTemp: TextView
     private lateinit var tvSowingAdvice: TextView
-
     private lateinit var toggleGroupImagery: MaterialButtonToggleGroup
     private lateinit var ivSatelliteImage: ImageView
-    private lateinit var tvSatelliteDate: TextView
-
     private var ndviUrl: String? = null
     private var trueColorUrl: String? = null
 
@@ -69,27 +63,43 @@ class SoilReportActivity : AppCompatActivity() {
         tvSowingAdvice = findViewById(R.id.tvSowingAdvice)
         toggleGroupImagery = findViewById(R.id.toggleGroupImagery)
         ivSatelliteImage = findViewById(R.id.ivSatelliteImage)
-        tvSatelliteDate = findViewById(R.id.tvSatelliteDate)
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
+
+        val toggleGroupImagery = findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupImagery)
+
+        toggleGroupImagery.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                when (checkedId) {
+                    R.id.btnNdvi -> {
+                        loadSatelliteImage(ndviUrl)
+                    }
+                    R.id.btnTrueColor -> {
+                        loadSatelliteImage(trueColorUrl)
+                    }
+                }
+            }
+        }
 
         val farmName = intent.getStringExtra("FARM_NAME") ?: "My Farm"
         val farmSize = intent.getStringExtra("FARM_SIZE") ?: ""
         val coordinatesJson = intent.getStringExtra("FARM_COORDINATES") ?: "[]"
 
-        tvFarmSubtitle.text = "$farmName • $farmSize"
+        val translatedFarmName = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
+        val translatedSize = farmSize.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
 
-        toggleGroupImagery.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) {
-                val urlToLoad = if (checkedId == R.id.btnNdvi) ndviUrl else trueColorUrl
-                loadSatelliteImage(urlToLoad)
-            }
-        }
+        val finalSubtitle = "${d(translatedFarmName)} • ${d(translatedSize)}"
+
+        tvFarmSubtitle.text = finalSubtitle
+
         if (langCode != TranslateLanguage.ENGLISH) {
             findViewById<View>(android.R.id.content).post {
-                TranslationHelper.translateViewHierarchy(findViewById(android.R.id.content), langCode) {}
+                TranslationHelper.translateViewHierarchy(findViewById(android.R.id.content), langCode) {
+                    tvFarmSubtitle.text = finalSubtitle
+                }
             }
         }
+
         fetchAgroData(farmName, coordinatesJson)
     }
 
@@ -127,7 +137,6 @@ class SoilReportActivity : AppCompatActivity() {
                 val apiKey = BuildConfig.AGRO_API_KEY
                 var polyId = ""
 
-                // 1. FIRST ATTEMPT: Try to create the polygon
                 var polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
 
                 if (polyResponse.isSuccessful && polyResponse.body() != null) {
@@ -136,7 +145,6 @@ class SoilReportActivity : AppCompatActivity() {
                     val errorStr = polyResponse.errorBody()?.string() ?: ""
 
                     if (errorStr.contains("duplicated")) {
-                        // TRICK 1: ALREADY EXISTS! Extract the ID from the error message using Regex
                         val match = "'([a-z0-9]+)'".toRegex().find(errorStr)
                         if (match != null) {
                             polyId = match.groupValues[1]
@@ -144,7 +152,6 @@ class SoilReportActivity : AppCompatActivity() {
                             throw Exception("Duplicated, but couldn't extract ID.")
                         }
                     } else if (errorStr.contains("Area of the polygon")) {
-                        // TRICK 2: SMART EXPANSION FOR SMALL FARMS
                         var sumLon = 0.0
                         var sumLat = 0.0
                         for (p in polygonPoints) {
@@ -169,13 +176,11 @@ class SoilReportActivity : AppCompatActivity() {
                             geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
                         )
 
-                        // Try creating the expanded box
                         polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
 
                         if (polyResponse.isSuccessful && polyResponse.body() != null) {
                             polyId = polyResponse.body()!!.id
                         } else {
-                            // Check if our expanded box was ALSO already created from a previous test!
                             val secondError = polyResponse.errorBody()?.string() ?: ""
                             if (secondError.contains("duplicated")) {
                                 val match2 = "'([a-z0-9]+)'".toRegex().find(secondError)
@@ -196,12 +201,8 @@ class SoilReportActivity : AppCompatActivity() {
                     throw Exception("Failed to create boundary. Code: ${polyResponse.code()}")
                 }
 
-                // --- AT THIS POINT, WE GUARANTEE WE HAVE A VALID POLY_ID! ---
-
-                // Get Soil Data
                 val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
 
-                // Get Satellite Images (Look back 30 days)
                 val endTime = System.currentTimeMillis() / 1000
                 val startTime = endTime - (30 * 24 * 60 * 60)
                 val imageResponse = AgroRetrofitClient.api.getSatelliteImages(polyId, startTime, endTime, apiKey)
@@ -216,10 +217,6 @@ class SoilReportActivity : AppCompatActivity() {
                         if (latestImage != null) {
                             ndviUrl = latestImage.image.ndvi
                             trueColorUrl = latestImage.image.truecolor
-
-                            val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(latestImage.dt * 1000))
-                            tvSatelliteDate.text = "${t("Captured")}: $dateStr"
-
                             loadSatelliteImage(ndviUrl)
                         }
                     }
@@ -247,8 +244,8 @@ class SoilReportActivity : AppCompatActivity() {
         val surfaceCelsius = (soilData.t0 - 273.15).toInt()
         val depthCelsius = (soilData.t10 - 273.15).toInt()
 
-        tvSurfaceTemp.text = "${d(surfaceCelsius)}°C"
-        tvDepthTemp.text = "${d(depthCelsius)}°C"
+        tvSurfaceTemp.text = "${d(surfaceCelsius)}${t("°C")}"
+        tvDepthTemp.text = "${d(depthCelsius)}${t("°C")}"
 
         if (moisturePercent < 20) {
             tvIrrigationAlert.text = t("Alert: Moisture is critically low. Immediate irrigation is highly recommended.")

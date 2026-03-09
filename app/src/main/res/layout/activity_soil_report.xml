@@ -119,7 +119,7 @@
                         <ImageView
                             android:layout_width="28dp"
                             android:layout_height="28dp"
-                            android:src="@drawable/round_water_drop_24"
+                            android:src="@android:drawable/ic_menu_sort_by_size"
                             app:tint="#2196F3" />
 
                         <TextView
@@ -331,6 +331,39 @@
                             android:text="Real Photo" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="12dp"
+                        android:layout_marginBottom="12dp"
+                        app:cardBackgroundColor="#FFF3E0"
+                        app:cardCornerRadius="8dp"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="top">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@android:drawable/ic_dialog_info"
+                                app:tint="#E65100"/>
+
+                            <TextView
+                                android:id="@+id/tvNdviTip"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:textColor="#E65100"
+                                android:textSize="12sp"
+                                android:text="Smart Tip: Yellow or Red colors are normal for empty fields, freshly plowed soil, or very young seedlings. Dark Green appears when crops are fully grown." />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                     <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="250dp"
@@ -342,59 +375,97 @@
                             android:layout_height="match_parent"
                             android:scaleType="centerCrop" />
 
-                        <TextView
-                            android:id="@+id/tvSatelliteDate"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="bottom|end"
-                            android:layout_margin="8dp"
-                            android:background="#99000000"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="6dp"
-                            android:textColor="@android:color/white"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            app:cardCornerRadius="4dp"
-                            tools:text="Captured: Feb 27, 2026" />
                     </FrameLayout>
 
                     <LinearLayout
                         android:id="@+id/layoutNdviLegend"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="12dp"
+                        android:gravity="center">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:drawablePadding="6dp"
-                            android:text="Stressed"
-                            android:textSize="13sp"
+                            android:text="पीक आरोग्य की (एनडीव्हीआय विश्लेषण)"
                             android:textStyle="bold"
-                            app:drawableStartCompat="@android:drawable/presence_busy" />
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:drawablePadding="6dp"
-                            android:text="Fair"
-                            android:textSize="13sp"
-                            android:textStyle="bold"
-                            app:drawableStartCompat="@android:drawable/presence_away" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal"
+                            android:weightSum="10">
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#006400" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#228B22" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#7CFC00" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#ADFF2F" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFFFE0" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFD700" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFA500" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FF4500" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#DC143C" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#8B0000" />
+                        </LinearLayout>
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:drawablePadding="6dp"
-                            android:text="Healthy"
-                            android:textSize="13sp"
-                            android:textStyle="bold"
-                            app:drawableStartCompat="@android:drawable/presence_online" />
+                            android:layout_marginTop="2dp"
+                            android:orientation="horizontal"
+                            android:weightSum="10">
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="1.0" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.9" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.8" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.7" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.6" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.5" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.4" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.3" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.2" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="0.1" android:textColor="?attr/colorOnSurfaceVariant" android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="निरोगी"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="#006400"
+                                android:textStyle="bold" />
+
+                            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="मध्यम"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="#FFA500"
+                                android:textStyle="bold" />
+
+                            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="तनाव / माती"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="#DC143C"
+                                android:textStyle="bold" />
+                        </LinearLayout>
                     </LinearLayout>
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
