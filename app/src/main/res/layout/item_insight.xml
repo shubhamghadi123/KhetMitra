@@ -1,62 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
+<com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="6dp"
-    android:layout_marginEnd="4dp"
-    android:layout_marginStart="4dp"
-    app:cardBackgroundColor="@color/white"
+    android:layout_marginHorizontal="4dp"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="#FFFFFF"
     app:cardCornerRadius="24dp"
-    app:cardElevation="4dp"
-    app:cardPreventCornerOverlap="false">
+    app:cardElevation="0dp"
+    app:strokeColor="#E8EDE0"
+    app:strokeWidth="1.5dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="20dp">
+        android:padding="16dp">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginEnd="16dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/cardIconContainer"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <TextView
-                android:id="@+id/tvInsightTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Rainfall Alert"
-                android:textColor="#333333"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                tools:ignore="HardcodedText"/>
-
-            <TextView
-                android:id="@+id/tvInsightDesc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:lineSpacingExtra="4dp"
-                android:text="Heavy rain is expected tomorrow. Delay spraying pesticides."
-                android:textColor="#555555"
-                android:textSize="14sp"
-                tools:ignore="HardcodedText"/>
-        </LinearLayout>
-
-        <androidx.cardview.widget.CardView
+        <!-- Icon image (right side) -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardIconContainer"
             android:layout_width="80dp"
             android:layout_height="80dp"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="20dp"
             app:cardElevation="0dp"
+            app:strokeWidth="0dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
@@ -68,7 +37,68 @@
                 android:scaleType="centerCrop"
                 android:src="@drawable/rain_image"
                 tools:ignore="ContentDescription" />
-        </androidx.cardview.widget.CardView>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Text content (left side) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginEnd="14dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/cardIconContainer"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Tag chip -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardInsightTag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardBackgroundColor="#F0FDF4"
+                app:cardCornerRadius="50dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#22C55E33"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:id="@+id/tvInsightTag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="3dp"
+                    android:text="🌧️ Rain"
+                    android:textColor="#22C55E"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tvInsightTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Rainfall Alert"
+                android:textColor="#111111"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/tvInsightDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:text="Heavy rain is expected tomorrow. Delay spraying pesticides."
+                android:textColor="#666666"
+                android:textSize="13sp"
+                tools:ignore="HardcodedText" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

@@ -81,7 +81,8 @@ data class HourlyModel(
 data class InsightModel(
     val title: String,
     val description: String,
-    val imageRes: Int
+    val imageRes: Int,
+    val tag: String = ""
 )
 
 data class ChatMessage(

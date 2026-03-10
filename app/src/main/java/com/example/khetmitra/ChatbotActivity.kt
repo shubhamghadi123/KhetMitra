@@ -159,6 +159,17 @@ class ChatbotActivity : AppCompatActivity() {
         btnMicCard.setOnClickListener {
             Toast.makeText(this, t("Voice typing coming soon..."), Toast.LENGTH_SHORT).show()
         }
+
+        val autoOpenCamera = intent.getBooleanExtra("AUTO_OPEN_CAMERA", false)
+        if (autoOpenCamera) {
+            window.decorView.post {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    openSystemCamera()
+                } else {
+                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+        }
     }
 
     private fun handleUriImage(uri: Uri) {

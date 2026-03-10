@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.util.Log
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,6 +70,7 @@ class MainActivity : BaseActivity() {
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
         val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
+        val btnScanCrop = findViewById<View>(R.id.btnScanCrop)
 
         val navView = findViewById<NavigationView>(R.id.navView)
         val logoutItem = navView.menu.findItem(R.id.nav_logout)
@@ -89,6 +91,13 @@ class MainActivity : BaseActivity() {
                 .addToBackStack(null)
                 .commit()
         }
+
+        val scanCropClickListener = View.OnClickListener {
+            val intent = Intent(this, ChatbotActivity::class.java)
+            intent.putExtra("AUTO_OPEN_CAMERA", true)
+            startActivity(intent)
+        }
+        btnScanCrop.setOnClickListener(scanCropClickListener)
 
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {

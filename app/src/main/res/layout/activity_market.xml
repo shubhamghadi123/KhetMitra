@@ -1,396 +1,518 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
-    android:fillViewport="true">
+    android:background="#F4F7F0">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- ── HEADER ─────────────────────────────────────────────── -->
+    <View
+        android:id="@+id/headerBg"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingBottom="40dp">
+        android:layout_height="100dp"
+        android:background="#1A3C2E"
+        app:layout_constraintTop_toTopOf="parent" />
 
-        <View
-            android:id="@+id/headerBg"
-            android:layout_width="match_parent"
-            android:layout_height="100dp"
-            android:background="#E0E0E0"
-            app:layout_constraintTop_toTopOf="parent" />
+    <!-- Decorative blob -->
+    <View
+        android:layout_width="110dp"
+        android:layout_height="110dp"
+        android:background="@drawable/bg_circle_glow_green"
+        android:alpha="0.15"
+        android:layout_marginEnd="-35dp"
+        android:layout_marginTop="-35dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Back button -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btnBack"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="42dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        app:cardBackgroundColor="#2D6A4F"
+        app:cardCornerRadius="13dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#52B788"
+        app:strokeWidth="1dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="20dp"
-            android:layout_marginTop="45dp"
-            android:background="@drawable/bg_circle_border"
-            android:elevation="4dp"
-            android:padding="8dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
             android:src="@drawable/round_arrow_back_24"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="#333333"
-            tools:ignore="ContentDescription" />
+            app:tint="#FFFFFF" />
 
-        <TextView
-            android:id="@+id/tvHeaderTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="@string/market_title"
-            android:textColor="#333333"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@id/btnBack"
-            app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintTop_toTopOf="@id/btnBack" />
+    </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardSelectState"
+    <!-- Header title + subtitle -->
+    <TextView
+        android:id="@+id/tvHeaderTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="20dp"
+        android:text="Market Prices"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@id/tvHeaderSub"
+        app:layout_constraintStart_toEndOf="@id/btnBack"
+        app:layout_constraintTop_toTopOf="@id/btnBack"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <TextView
+        android:id="@+id/tvHeaderSub"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="20dp"
+        android:text="Live APMC rates"
+        android:textColor="#A8D5B5"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@id/btnBack"
+        app:layout_constraintStart_toEndOf="@id/btnBack"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
+
+    <!-- ── SCROLL CONTENT ─────────────────────────────────────── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="40dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/headerBg">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="24dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/headerBg">
+            android:orientation="vertical">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <!-- Intro text -->
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="16dp">
+                android:layout_marginBottom="20dp"
+                android:text="Select your region and crop to get the latest APMC market prices."
+                android:textColor="#555555"
+                android:textSize="13sp"
+                android:lineSpacingExtra="3dp" />
 
-                <View
-                    android:id="@+id/iconState"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:background="@drawable/bg_spinner_rounded"
-                    android:backgroundTint="#D9D9D9"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvStateLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:text="State"
-                    android:textColor="#333333"
-                    android:textSize="12sp"
-                    app:layout_constraintStart_toEndOf="@id/iconState"
-                    app:layout_constraintTop_toTopOf="@id/iconState"
-                    tools:ignore="HardcodedText"/>
-
-                <Spinner
-                    android:id="@+id/spinnerState"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:background="@null"
-                    app:layout_constraintBottom_toBottomOf="@id/iconState"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iconState"
-                    app:layout_constraintTop_toBottomOf="@id/tvStateLabel" />
-
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/arrow_down"
-                    app:layout_constraintBottom_toBottomOf="@+id/iconState"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@+id/iconState"
-                    app:tint="#000000" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardSelectMarket"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/cardSelectState">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <!-- ── DROPDOWNS CARD ──────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="16dp">
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#E8EDE0"
+                app:strokeWidth="1.5dp">
 
-                <View
-                    android:id="@+id/iconMarket"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:background="@drawable/bg_spinner_rounded"
-                    android:backgroundTint="#D9D9D9"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvMarketLabel"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:text="Nearby Market"
-                    android:textColor="#333333"
-                    android:textSize="12sp"
-                    app:layout_constraintStart_toEndOf="@id/iconMarket"
-                    app:layout_constraintTop_toTopOf="@id/iconMarket"
-                    tools:ignore="HardcodedText"/>
+                    android:orientation="vertical"
+                    android:padding="18dp">
 
-                <Spinner
-                    android:id="@+id/spinnerMarket"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:background="@null"
-                    app:layout_constraintBottom_toBottomOf="@id/iconMarket"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iconMarket"
-                    app:layout_constraintTop_toBottomOf="@id/tvMarketLabel" />
-
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/arrow_down"
-                    app:layout_constraintBottom_toBottomOf="@+id/iconMarket"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@+id/iconMarket"
-                    app:tint="#000000" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardSelectCrop"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/cardSelectMarket">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="16dp">
-
-                <View
-                    android:id="@+id/iconCrop"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:background="@drawable/bg_spinner_rounded"
-                    android:backgroundTint="#D9D9D9"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvCropLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:text="Crop"
-                    android:textColor="#333333"
-                    android:textSize="12sp"
-                    app:layout_constraintStart_toEndOf="@id/iconCrop"
-                    app:layout_constraintTop_toTopOf="@id/iconCrop"
-                    tools:ignore="HardcodedText"/>
-
-                <Spinner
-                    android:id="@+id/spinnerCrop"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:background="@null"
-                    app:layout_constraintBottom_toBottomOf="@id/iconCrop"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iconCrop"
-                    app:layout_constraintTop_toBottomOf="@id/tvCropLabel" />
-
-                <ImageView
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/arrow_down"
-                    app:layout_constraintBottom_toBottomOf="@+id/iconCrop"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@+id/iconCrop"
-                    app:tint="#000000" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardPrice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/cardSelectCrop">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="20dp">
-
-                <TextView
-                    android:id="@+id/tvPriceLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Today's Price"
-                    android:textColor="#000000"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    tools:ignore="HardcodedText"/>
-
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/iconPriceCircle"
-                    android:layout_width="70dp"
-                    android:layout_height="70dp"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="#D9D9D9"
-                    app:cardCornerRadius="35dp"
-                    app:cardElevation="0dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tvPriceLabel">
-
+                    <!-- Section label -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="₹"
-                        android:textColor="#000000"
-                        android:textSize="32sp"
+                        android:layout_marginBottom="14dp"
+                        android:text="Select Location &amp; Crop"
+                        android:textColor="#1A3C2E"
+                        android:textSize="13sp"
                         android:textStyle="bold"
-                        tools:ignore="HardcodedText"/>
+                        android:letterSpacing="0.05" />
 
-                </androidx.cardview.widget.CardView>
+                    <!-- State -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:hint="State"
+                        app:boxCornerRadiusBottomEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeWidthFocused="1.5dp"
+                        app:hintTextColor="#52B788"
+                        app:startIconDrawable="@drawable/round_location_on_24"
+                        app:startIconTint="#52B788">
 
-                <TextView
-                    android:id="@+id/tvPriceValue"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:text="₹ 2,500"
-                    android:textColor="#000000"
-                    android:textSize="36sp"
-                    android:textStyle="bold"
-                    app:layout_constraintStart_toEndOf="@id/iconPriceCircle"
-                    app:layout_constraintTop_toTopOf="@id/iconPriceCircle"
-                    tools:ignore="HardcodedText"/>
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:padding="14dp"
+                            android:textColor="#111111"
+                            android:textSize="15sp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="per quintal"
-                    android:textColor="#333333"
-                    android:textSize="14sp"
-                    app:layout_constraintStart_toStartOf="@id/tvPriceValue"
-                    app:layout_constraintTop_toBottomOf="@id/tvPriceValue"
-                    tools:ignore="HardcodedText"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    <!-- District -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:hint="District"
+                        app:boxCornerRadiusBottomEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeWidthFocused="1.5dp"
+                        app:hintTextColor="#52B788"
+                        app:startIconDrawable="@drawable/round_location_on_24"
+                        app:startIconTint="#52B788">
 
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownDistrict"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:padding="14dp"
+                            android:textColor="#111111"
+                            android:textSize="15sp" />
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardPrediction"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#000000"
-            app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/cardPrice">
+                    </com.google.android.material.textfield.TextInputLayout>
 
-            <LinearLayout
+                    <!-- Market -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:hint="Market (Mandi)"
+                        app:boxCornerRadiusBottomEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeWidthFocused="1.5dp"
+                        app:hintTextColor="#52B788"
+                        app:startIconDrawable="@drawable/round_store_24"
+                        app:startIconTint="#52B788">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownMarket"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:padding="14dp"
+                            android:textColor="#111111"
+                            android:textSize="15sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Crop -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:hint="Commodity (Crop)"
+                        app:boxCornerRadiusBottomEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeWidthFocused="1.5dp"
+                        app:hintTextColor="#52B788"
+                        app:startIconTint="#52B788">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownCrop"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:padding="14dp"
+                            android:textColor="#111111"
+                            android:textSize="15sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── TODAY'S PRICE CARD ──────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardPrice"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="24dp">
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="#1A3C2E"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Future Price Prediction"
-                    android:textColor="#000000"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    tools:ignore="HardcodedText"/>
+                    android:padding="20dp">
 
-                <ImageView
-                    android:id="@+id/trending_up"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/round_trending_up_24"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="10dp"/>
+                    <!-- Blob decoration -->
+                    <View
+                        android:layout_width="90dp"
+                        android:layout_height="90dp"
+                        android:background="@drawable/bg_circle_glow_green"
+                        android:alpha="0.18"
+                        android:layout_marginEnd="-25dp"
+                        android:layout_marginTop="-25dp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
-                <ImageView
-                    android:id="@+id/trending_down"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/round_trending_down_24"
-                    android:layout_gravity="center"
-                    android:visibility="gone"
-                    android:layout_marginTop="10dp"/>
+                    <!-- Rupee icon tile -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/iconPriceCircle"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        app:cardBackgroundColor="#2D6A4F"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#52B788"
+                        app:strokeWidth="1dp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="₹"
+                            android:textColor="#52B788"
+                            android:textSize="26sp"
+                            android:textStyle="bold" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Label -->
+                    <TextView
+                        android:id="@+id/tvPriceLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="8dp"
+                        android:text="Today's Average Price"
+                        android:textColor="#A8D5B5"
+                        android:textSize="12sp"
+                        android:fontFamily="sans-serif-medium"
+                        app:layout_constraintStart_toEndOf="@id/iconPriceCircle"
+                        app:layout_constraintTop_toTopOf="@id/iconPriceCircle"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <!-- Price value -->
+                    <TextView
+                        android:id="@+id/tvPriceValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginTop="2dp"
+                        android:text="₹ 2,500"
+                        android:textColor="#FFFFFF"
+                        android:textSize="30sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toEndOf="@id/iconPriceCircle"
+                        app:layout_constraintTop_toBottomOf="@id/tvPriceLabel" />
+
+                    <!-- Per quintal -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_marginBottom="4dp"
+                        android:text="/ quintal"
+                        android:textColor="#A8D5B5"
+                        android:textSize="13sp"
+                        app:layout_constraintBottom_toBottomOf="@id/tvPriceValue"
+                        app:layout_constraintStart_toEndOf="@id/tvPriceValue" />
+
+                    <!-- Min / Max row -->
+                    <LinearLayout
+                        android:id="@+id/layoutMinMax"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/iconPriceCircle">
+
+                        <!-- Min chip -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            app:cardBackgroundColor="#2D6A4F"
+                            app:cardCornerRadius="14dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Min Price"
+                                    android:textColor="#A8D5B5"
+                                    android:textSize="11sp"
+                                    tools:ignore="HardcodedText" />
+
+                                <TextView
+                                    android:id="@+id/tvMinPrice"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="₹ 2,100"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold"
+                                    tools:ignore="HardcodedText" />
+
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Max chip -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            app:cardBackgroundColor="#2D6A4F"
+                            app:cardCornerRadius="14dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Max Price"
+                                    android:textColor="#A8D5B5"
+                                    android:textSize="11sp"
+                                    tools:ignore="HardcodedText" />
+
+                                <TextView
+                                    android:id="@+id/tvMaxPrice"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="₹ 2,900"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold"
+                                    tools:ignore="HardcodedText" />
+
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </LinearLayout>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── PRICE TRENDS CARD ───────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGraph"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#E8EDE0"
+                app:strokeWidth="1.5dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="0dp"
-                    android:text="Price will go UP"
-                    android:textColor="#000000"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    tools:ignore="HardcodedText"/>
+                    android:orientation="vertical"
+                    android:padding="18dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center"
-                    android:text="In the next month, the price is projected\nto increase by ₹125"
-                    android:textColor="#333333"
-                    android:textSize="14sp"
-                    tools:ignore="HardcodedText"/>
+                    <!-- Title row + toggle -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp">
 
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📈  Price Trends"
+                            android:textColor="#1A3C2E"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</ScrollView>
+                        <com.google.android.material.button.MaterialButtonToggleGroup
+                            android:id="@+id/toggleGroup"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            app:checkedButton="@id/btnWeekly"
+                            app:singleSelection="true"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnWeekly"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:text="1W"
+                                android:textColor="#1A3C2E"
+                                android:textSize="12sp"
+                                app:strokeColor="#52B788"
+                                app:cornerRadius="10dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnMonthly"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:text="1Y"
+                                android:textColor="#1A3C2E"
+                                android:textSize="12sp"
+                                app:strokeColor="#52B788"
+                                app:cornerRadius="10dp" />
+
+                        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/lineChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,5 +1,6 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
+
 val localProperties = Properties()
 val localPropertiesFile = File(rootDir, "local.properties")
 
@@ -30,6 +31,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
         maven {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
             authentication {

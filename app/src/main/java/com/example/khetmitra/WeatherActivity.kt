@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -25,7 +26,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.core.graphics.toColorInt
 
 class WeatherActivity : BaseActivity() {
 
@@ -38,7 +38,7 @@ class WeatherActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_weather)
 
-        findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<android.view.View>(R.id.btnBack).setOnClickListener { finish() }
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         loadingOverlay = findViewById(R.id.loadingOverlay)
@@ -261,20 +261,23 @@ class WeatherActivity : BaseActivity() {
     @SuppressLint("SetTextI18n")
     private fun updateAqiPill(tvAqi: TextView, aqiIndex: Int, t: (String) -> String) {
         val (status, colorHex) = when (aqiIndex) {
-            1 -> Pair("Good", "#4CAF50")
-            2 -> Pair("Moderate", "#FFC107")
-            3 -> Pair("Sensitive", "#FF9800")
-            4 -> Pair("Unhealthy", "#FF5252")
-            5 -> Pair("Very Bad", "#9C27B0")
+            1    -> Pair("Good",      "#4CAF50")
+            2    -> Pair("Moderate",  "#FFC107")
+            3    -> Pair("Sensitive", "#FF9800")
+            4    -> Pair("Unhealthy", "#FF5252")
+            5    -> Pair("Very Bad",  "#9C27B0")
             else -> Pair("Hazardous", "#B71C1C")
         }
 
         tvAqi.text = "${t("AQI")}: ${t(status)}"
 
-        try {
-            tvAqi.background.setTint(colorHex.toColorInt())
-        } catch (e: Exception) {
-            e.printStackTrace()
+        // tvAqi lives inside a MaterialCardView (cardAqi). Tint that card instead.
+        val cardAqi = tvAqi.parent as? com.google.android.material.card.MaterialCardView
+        if (cardAqi != null) {
+            cardAqi.setCardBackgroundColor(colorHex.toColorInt())
+        } else {
+            // Fallback: if for some reason the parent isn't a card, try the old way
+            try { tvAqi.background?.setTint(colorHex.toColorInt()) } catch (_: Exception) {}
         }
     }
 
@@ -709,10 +712,9 @@ class WeatherActivity : BaseActivity() {
 
         val windSymbol = if (isMph) t("m/h") else t("km/h")
 
-        val todayRain = data.daily.precipitation_probability_max.firstOrNull() ?: 0
-        val windSpeedMetric = data.current.wind_speed_10m
+        val todayRain        = data.daily.precipitation_probability_max.firstOrNull() ?: 0
+        val windSpeedMetric  = data.current.wind_speed_10m
         val windSpeedDisplay = convertWind(windSpeedMetric, isMph)
-
         val currentSoilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
 
         var hasAlert = false
@@ -720,19 +722,21 @@ class WeatherActivity : BaseActivity() {
         // 1. Rain Alert
         if (todayRain > 50) {
             insightList.add(InsightModel(
-                t("Rainfall Alert"),
-                "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying pesticides")}.",
-                R.drawable.rain_image
+                title       = t("Rainfall Alert"),
+                description = "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying pesticides")}.",
+                imageRes    = R.drawable.rain_image,
+                tag         = "rain"
             ))
             hasAlert = true
         }
 
-        // 2. Wind Alert (Checks the metric 15km/h, but displays selected unit)
+        // 2. Wind Alert
         if (windSpeedMetric > 15) {
             insightList.add(InsightModel(
-                t("Spraying Alert"),
-                "${t("Wind is too strong")} (${d(windSpeedDisplay)} $windSymbol). ${t("Avoid spraying pesticides")}.",
-                R.drawable.wind_warning_image
+                title       = t("Spraying Alert"),
+                description = "${t("Wind is too strong")} (${d(windSpeedDisplay)} $windSymbol). ${t("Avoid spraying pesticides")}.",
+                imageRes    = R.drawable.wind_warning_image,
+                tag         = "wind"
             ))
             hasAlert = true
         }
@@ -740,9 +744,10 @@ class WeatherActivity : BaseActivity() {
         // 3. Wet Soil Alert
         if (currentSoilMoisture > 0.35) {
             insightList.add(InsightModel(
-                t("Soil Status"),
-                "${t("Soil is likely wet")}. ${t("Avoid heavy machinery")}.",
-                R.drawable.wetsoil_image
+                title       = t("Soil Status"),
+                description = "${t("Soil is likely wet")}. ${t("Avoid heavy machinery")}.",
+                imageRes    = R.drawable.wetsoil_image,
+                tag         = "soil"
             ))
             hasAlert = true
         }
@@ -750,13 +755,14 @@ class WeatherActivity : BaseActivity() {
         // 4. All Clear
         if (!hasAlert) {
             insightList.add(InsightModel(
-                t("Today's Activity"),
-                "${t("Conditions are clear")}. ${t("Good time for irrigation")}.",
-                R.drawable.spraying_image
+                title       = t("Today's Activity"),
+                description = "${t("Conditions are clear")}. ${t("Good time for irrigation")}.",
+                imageRes    = R.drawable.spraying_image,
+                tag         = "irrigation"
             ))
         }
 
-        // FUTURE FORECAST
+        // 5. Future Forecast
         var heavyRainDay: String? = null
         val lookaheadDays = 14
 
@@ -767,53 +773,74 @@ class WeatherActivity : BaseActivity() {
         }
 
         if (heavyRainDay != null) {
-            val translatedDay = t(heavyRainDay)
-
             insightList.add(InsightModel(
-                t("Upcoming Weather"),
-                "${t("Heavy rain expected on")} $translatedDay. ${t("Plan drainage")}.",
-                R.drawable.rain_image
+                title       = t("Upcoming Weather"),
+                description = "${t("Heavy rain expected on")} ${t(heavyRainDay!!)}. ${t("Plan drainage")}.",
+                imageRes    = R.drawable.rain_image,
+                tag         = "rain"
             ))
         } else {
             insightList.add(InsightModel(
-                t("Upcoming Weather"),
-                "${t("No rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Perfect time to irrigate")}.",
-                R.drawable.irrigation_image
+                title       = t("Upcoming Weather"),
+                description = "${t("No rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Perfect time to irrigate")}.",
+                imageRes    = R.drawable.irrigation_image,
+                tag         = "irrigation"
             ))
         }
 
-        // MONTHLY ADVICE
-        val calendar = java.util.Calendar.getInstance()
+        // 6 & 7. Monthly / Next-month advice
+        val calendar          = java.util.Calendar.getInstance()
         val currentMonthIndex = calendar.get(java.util.Calendar.MONTH)
 
         fun getSeasonalTip(monthIndex: Int): String {
             return when (monthIndex % 12) {
-                0 -> "Monitor wheat for frost. Apply irrigation if needed."
-                1 -> "Temperature rising. Watch for aphids on mustard crops."
-                2 -> "Harvest rabi crops. Prepare land for summer vegetables."
-                3 -> "Sowing of summer crops (Zaid). Maintain soil moisture."
-                4 -> "Deep ploughing to kill pests. Prepare for Kharif season."
-                5 -> "Monsoon arrival. Start sowing paddy and cotton."
-                6 -> "Active monsoon. Ensure drainage in waterlogged fields."
-                7 -> "Weeding is crucial now. Monitor for pest attacks."
-                8 -> "Late monsoon rains. Plan harvesting of early varieties."
-                9 -> "Post-harvest soil prep. Sowing of early rabi crops."
+                0  -> "Monitor wheat for frost. Apply irrigation if needed."
+                1  -> "Temperature rising. Watch for aphids on mustard crops."
+                2  -> "Harvest rabi crops. Prepare land for summer vegetables."
+                3  -> "Sowing of summer crops (Zaid). Maintain soil moisture."
+                4  -> "Deep ploughing to kill pests. Prepare for Kharif season."
+                5  -> "Monsoon arrival. Start sowing paddy and cotton."
+                6  -> "Active monsoon. Ensure drainage in waterlogged fields."
+                7  -> "Weeding is crucial now. Monitor for pest attacks."
+                8  -> "Late monsoon rains. Plan harvesting of early varieties."
+                9  -> "Post-harvest soil prep. Sowing of early rabi crops."
                 10 -> "Main sowing month for Wheat and Gram. Irrigate pre-sowing."
                 11 -> "Protect crops from cold waves. Mulching recommended."
                 else -> "Maintain general field hygiene."
             }
         }
 
+        // Pick a tag that best matches the seasonal advice
+        fun seasonalTag(monthIndex: Int): String {
+            return when (monthIndex % 12) {
+                0  -> "advisory"    // frost / irrigation watch
+                1  -> "pest"        // aphids
+                2  -> "harvest"     // rabi harvest
+                3  -> "planting"    // Zaid sowing
+                4  -> "soil"        // deep ploughing
+                5  -> "planting"    // kharif sowing
+                6  -> "advisory"    // drainage / monsoon
+                7  -> "pest"        // weeding / pest attacks
+                8  -> "harvest"     // early variety harvest
+                9  -> "soil"        // post-harvest soil prep
+                10 -> "planting"    // wheat/gram sowing
+                11 -> "advisory"    // cold wave protection
+                else -> "advisory"
+            }
+        }
+
         insightList.add(InsightModel(
-            t("This Month's Advice"),
-            t(getSeasonalTip(currentMonthIndex)),
-            R.drawable.soilirrigation_image
+            title       = t("This Month's Advice"),
+            description = t(getSeasonalTip(currentMonthIndex)),
+            imageRes    = R.drawable.soilirrigation_image,
+            tag         = seasonalTag(currentMonthIndex)
         ))
 
         insightList.add(InsightModel(
-            t("Next Month's Plan"),
-            t(getSeasonalTip(currentMonthIndex + 1)),
-            R.drawable.soilmoisture_image
+            title       = t("Next Month's Plan"),
+            description = t(getSeasonalTip(currentMonthIndex + 1)),
+            imageRes    = R.drawable.soilmoisture_image,
+            tag         = seasonalTag(currentMonthIndex + 1)
         ))
 
         val recyclerInsights = findViewById<RecyclerView>(R.id.recyclerInsights)

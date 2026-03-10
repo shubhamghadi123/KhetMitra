@@ -116,6 +116,8 @@ dependencies {
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("io.noties.markwon:core:4.6.2")
 
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
     kapt("com.github.bumptech.glide:compiler:5.0.5")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
