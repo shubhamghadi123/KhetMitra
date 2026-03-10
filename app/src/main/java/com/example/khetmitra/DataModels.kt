@@ -2,12 +2,17 @@ package com.example.khetmitra
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.graphics.toColorInt
 
-// DASHBOARD MODEL (Fixes Unresolved Reference)
+// DASHBOARD MODEL
 data class DataModels(
     val title: String,
     val subtitle: String,
-    val iconDrawable: Int
+    val iconRes: Int,
+    val tag: String = "",
+    val bgColor: Int = "#F4F7F0".toColorInt(),
+    val accentColor: Int = "#22C55E".toColorInt(),
+    val emoji: String = ""
 )
 
 // --- OPEN-METEO API MODELS ---
@@ -85,7 +90,8 @@ data class ChatMessage(
     val imageBitmap: Bitmap? = null,
     val fileUri: Uri? = null,
     val isImage: Boolean = true,
-    val fileName: String = ""
+    val fileName: String = "",
+    val isLoading: Boolean = false
 )
 
 data class SoilType(

@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin") version "2.0.1"
 }
 
 android {
@@ -111,6 +112,9 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:gotrue-kt:2.4.0")
     implementation("io.ktor:ktor-client-android:2.3.8")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    implementation("io.noties.markwon:core:4.6.2")
 
     kapt("com.github.bumptech.glide:compiler:5.0.5")
     testImplementation(libs.junit)

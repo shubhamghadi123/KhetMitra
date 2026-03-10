@@ -4,19 +4,23 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.location.Location
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.core.view.GravityCompat
 import androidx.core.view.get
 import androidx.core.view.size
 import androidx.drawerlayout.widget.DrawerLayout
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -44,21 +48,41 @@ class MainActivity : BaseActivity() {
     // Default to Mumbai coordinates if GPS fails
     private val DEFAULT_CITY = "19.07,72.87"
 
+    private data class CardTheme(
+        val bgColor: Int,
+        val accentColor: Int,
+        val emoji: String,
+        val tag: String
+    )
+
+    private val cardThemes = listOf(
+        CardTheme("#FFF7ED".toColorInt(), "#F97316".toColorInt(), "🌤️", "Live"),       // Weather
+        CardTheme("#F0FDF4".toColorInt(), "#22C55E".toColorInt(), "📋", "Today"),      // Plans
+        CardTheme("#F0F9FF".toColorInt(), "#0EA5E9".toColorInt(), "💬", "New"),        // Chat
+        CardTheme("#FAF5FF".toColorInt(), "#A855F7".toColorInt(), "📈", "Updated"),    // Market
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val navView = findViewById<NavigationView>(R.id.navView)
         val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
         val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
+
+        val navView = findViewById<NavigationView>(R.id.navView)
+        val logoutItem = navView.menu.findItem(R.id.nav_logout)
+        val logoutColor = ColorStateList.valueOf("#EF4444".toColorInt())
+        val logoutTitle = SpannableString(logoutItem.title)
+        logoutTitle.setSpan(ForegroundColorSpan("#EF4444".toColorInt()), 0, logoutTitle.length, 0)
+        logoutItem.title = logoutTitle
+        logoutItem.iconTintList = logoutColor
 
         profileCard.setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
 
         val shouldOpenMap = intent.getBooleanExtra("OPEN_MAP_FRAGMENT", false)
-
         if (shouldOpenMap) {
             supportFragmentManager.beginTransaction()
                 .replace(android.R.id.content, FieldMeasurementFragment())
@@ -68,22 +92,14 @@ class MainActivity : BaseActivity() {
 
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.nav_profile -> {
-                    startActivity(Intent(this, ProfileActivity::class.java))
-                }
-                R.id.nav_manage_fields -> {
-                    startActivity(Intent(this, ManageFieldsActivity::class.java))
-                }
-                R.id.nav_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                }
-                R.id.nav_help -> {
-                }
+                R.id.nav_profile -> startActivity(Intent(this, ProfileActivity::class.java))
+                R.id.nav_manage_fields -> startActivity(Intent(this, ManageFieldsActivity::class.java))
+                R.id.nav_settings -> startActivity(Intent(this, SettingsActivity::class.java))
+                R.id.nav_help -> { /* TODO */ }
                 R.id.nav_logout -> {
                     kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                         try {
                             SupabaseManager.client.auth.signOut()
-
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivity, t("Logged out successfully"), Toast.LENGTH_SHORT).show()
                                 val intent = Intent(this@MainActivity, LoginActivity::class.java)
@@ -93,7 +109,6 @@ class MainActivity : BaseActivity() {
                             }
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
-
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivity, t("Error logging out: ") + e.message, Toast.LENGTH_LONG).show()
                             }
@@ -121,22 +136,77 @@ class MainActivity : BaseActivity() {
         fetchAndDisplayFarmerName()
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = GridLayoutManager(this, 2)
         val spacingInPixels = (5 * resources.displayMetrics.density).toInt()
         recyclerView.addItemDecoration(VerticalSpacingItemDecoration(spacingInPixels))
 
         adapter = DashboardAdapter(dashboardItems) { selectedItem ->
             val title = selectedItem.title
-            if (title == t("Weather") || title == "Weather") {
-                startActivity(Intent(this, WeatherActivity::class.java))
-            } else if (title == t("Market") || title == "Market") {
-                startActivity(Intent(this, MarketActivity::class.java))
-            } else if (title == t("Chat") || title == "Chat") {
-                startActivity(Intent(this, ChatbotActivity::class.java))
+            when {
+                title == t("Weather") || title == "Weather" ->
+                    startActivity(Intent(this, WeatherActivity::class.java))
+                title == t("Market") || title == "Market" ->
+                    startActivity(Intent(this, MarketActivity::class.java))
+                title == t("Chat") || title == "Chat" ->
+                    startActivity(Intent(this, ChatbotActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
+    }
+
+    private fun setupInitialData() {
+        dashboardItems.clear()
+
+        val weatherSubtitle = "${t("Loading")}..."
+        val plansSubtitle = "${d("3")} ${t("tasks for today")}"
+        val chatSubtitle = "${d("2")} ${t("new messages")}"
+        val marketSubtitle = "${t("Up by")} ${d("10")}%"
+
+        dashboardItems.add(
+            DataModels(
+                title = t("Weather"),
+                subtitle = weatherSubtitle,
+                iconRes = R.drawable.ic_weather,
+                tag = t("Live"),
+                bgColor = cardThemes[0].bgColor,
+                accentColor = cardThemes[0].accentColor,
+                emoji = cardThemes[0].emoji
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title = t("Plans"),
+                subtitle = plansSubtitle,
+                iconRes = R.drawable.ic_plans,
+                tag = t("Today"),
+                bgColor = cardThemes[1].bgColor,
+                accentColor = cardThemes[1].accentColor,
+                emoji = cardThemes[1].emoji
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title = t("Chat"),
+                subtitle = chatSubtitle,
+                iconRes = R.drawable.ic_chat,
+                tag = t("New"),
+                bgColor = cardThemes[2].bgColor,
+                accentColor = cardThemes[2].accentColor,
+                emoji = cardThemes[2].emoji
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title = t("Market"),
+                subtitle = marketSubtitle,
+                iconRes = R.drawable.ic_market,
+                tag = t("Updated"),
+                bgColor = cardThemes[3].bgColor,
+                accentColor = cardThemes[3].accentColor,
+                emoji = cardThemes[3].emoji
+            )
+        )
     }
 
     @SuppressLint("SetTextI18n")
@@ -184,7 +254,6 @@ class MainActivity : BaseActivity() {
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Debug DB Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -206,19 +275,13 @@ class MainActivity : BaseActivity() {
         val menu = navView.menu
         for (i in 0 until menu.size) {
             val item = menu[i]
-
-            if (item.title != null) {
-                item.title = t(item.title.toString())
-            }
-
+            if (item.title != null) item.title = t(item.title.toString())
             if (item.hasSubMenu()) {
                 val subMenu = item.subMenu
                 if (subMenu != null) {
                     for (j in 0 until subMenu.size) {
                         val subItem = subMenu[j]
-                        if (subItem.title != null) {
-                            subItem.title = t(subItem.title.toString())
-                        }
+                        if (subItem.title != null) subItem.title = t(subItem.title.toString())
                     }
                 }
             }
@@ -230,7 +293,7 @@ class MainActivity : BaseActivity() {
         checkLocationPermissionAndFetch()
     }
 
-    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
+    @Deprecated("Use OnBackPressedDispatcher instead")
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
@@ -252,20 +315,14 @@ class MainActivity : BaseActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        if (isGranted) {
-            getUserLocation()
-        } else {
-            fetchWeather(DEFAULT_CITY)
-        }
+        if (isGranted) getUserLocation() else fetchWeather(DEFAULT_CITY)
     }
 
     private fun getUserLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
-                val latLon = "${location.latitude},${location.longitude}"
-                fetchWeather(latLon)
+                fetchWeather("${location.latitude},${location.longitude}")
             } else {
                 fetchWeather(DEFAULT_CITY)
             }
@@ -283,32 +340,13 @@ class MainActivity : BaseActivity() {
         return TranslationHelper.convertDigits(num, currentLangCode)
     }
 
-    private fun setupInitialData() {
-        dashboardItems.clear()
-
-        val weatherSubtitle = "${t("Loading")}..."
-        val plansSubtitle = "${d("3")} ${t("tasks for today")}"
-        val chatSubtitle = "${d("2")} ${t("new messages")}"
-        val marketSubtitle = "${t("Up by")} ${d("10")}%"
-
-        // Default icon before loading
-        dashboardItems.add(DataModels(t("Weather"), weatherSubtitle, R.drawable.ic_weather))
-        dashboardItems.add(DataModels(t("Plans"), plansSubtitle, R.drawable.ic_plans))
-        dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
-        dashboardItems.add(DataModels(t("Market"), marketSubtitle, R.drawable.ic_market))
-    }
-
     private fun isFahrenheit(prefs: android.content.SharedPreferences): Boolean {
         val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)") ?: "Celsius (°C)"
         return tempUnitPref.contains("Fahrenheit")
     }
 
     private fun convertTemp(celsius: Double, isFahrenheit: Boolean): Int {
-        return if (isFahrenheit) {
-            ((celsius * 9 / 5) + 32).toInt()
-        } else {
-            celsius.toInt()
-        }
+        return if (isFahrenheit) ((celsius * 9 / 5) + 32).toInt() else celsius.toInt()
     }
 
     private fun fetchWeather(query: String) {
@@ -334,17 +372,13 @@ class MainActivity : BaseActivity() {
             override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!
-
                     val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
                     val useFahrenheit = isFahrenheit(prefs)
                     val tempSymbol = if (useFahrenheit) t("°F") else t("°C")
-
                     val currentTempRaw = data.current.temperature_2m
                     val tempText = convertTemp(currentTempRaw, useFahrenheit).toString()
-
                     val weatherCode = data.current.weathercode
                     val isDay = data.current.is_day
-
                     val rawCondition = getConditionText(weatherCode)
                     val iconRes = getIconForCondition(rawCondition, isDay)
                     val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
@@ -388,9 +422,12 @@ class MainActivity : BaseActivity() {
 
     private fun updateWeatherCard(condition: String, temp: String, unitSymbol: String, iconRes: Int) {
         val newSubtitle = "$condition, ${d(temp)}$unitSymbol"
-
         if (dashboardItems.isNotEmpty()) {
-            dashboardItems[0] = DataModels(t("Weather"), newSubtitle, iconRes)
+            val existing = dashboardItems[0]
+            dashboardItems[0] = existing.copy(
+                subtitle = newSubtitle,
+                iconRes = iconRes
+            )
             adapter.notifyItemChanged(0)
         }
     }
@@ -400,59 +437,39 @@ class MainActivity : BaseActivity() {
             callback(text)
             return
         }
-
         val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH)
             .setTargetLanguage(currentLangCode)
             .build()
         val client = com.google.mlkit.nl.translate.Translation.getClient(options)
-
         client.downloadModelIfNeeded().addOnSuccessListener {
             client.translate(text).addOnSuccessListener { result ->
                 callback(result)
-            }.addOnFailureListener {
-                callback(text)
-            }
-        }.addOnFailureListener {
-            callback(text)
-        }
+            }.addOnFailureListener { callback(text) }
+        }.addOnFailureListener { callback(text) }
     }
 
     private fun getIconForCondition(conditionRaw: String, isDay: Int = 1): Int {
         val text = conditionRaw.lowercase()
         return when {
-            // Clear / Sunny
             text.contains("clear") || text.contains("sunny") -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-
-            // Clouds
             text.contains("partly") -> if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
             text.contains("cloudy") -> R.raw.cloudy
             text.contains("overcast") -> R.raw.overcast
-
-            // Atmosphere
             text.contains("mist") -> R.raw.mist
             text.contains("fog") -> R.raw.fog
             text.contains("haze") -> R.raw.haze
             text.contains("dust") -> R.raw.dust
-
-            // Rain / Drizzle
             text.contains("drizzle") -> R.raw.drizzle
             text.contains("sleet") -> R.raw.sleet
-
-            // Thunderstorms
             text.contains("thunder") && text.contains("rain") -> R.raw.thunderstorms_rain
             text.contains("hail") -> R.raw.hail
             text.contains("thunder") -> R.raw.thunderstorms
-
-            // Rain / Snow
             text.contains("rain") -> R.raw.rain
             text.contains("snow") -> R.raw.snow
-
-            // Extreme
             text.contains("tornado") -> R.raw.tornado
             text.contains("hurricane") -> R.raw.hurricane
             text.contains("wind") -> R.raw.wind
-
             else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
         }
     }
