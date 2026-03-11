@@ -17,7 +17,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.vision.common.InputImage
@@ -108,13 +107,17 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             SoilType(7, t("Saline & Alkaline Soil"), R.drawable.soil_saline, "#A8A8A8"),
             SoilType(8, t("Peaty & Marshy Soil"), R.drawable.soil_peaty, "#2B1E18")
         )
-
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvSoilTypes)
         val tvLocalMatchDesc = view.findViewById<TextView>(R.id.tvLocalMatchDesc)
-        val btnLocalSoilMatch = view.findViewById<MaterialButton>(R.id.btnLocalSoilMatch)
-        val btnNotSure = view.findViewById<MaterialButton>(R.id.btnNotSure)
+
+        val btnLocalSoilMatchCard = view.findViewById<View>(R.id.btnLocalSoilMatch)
+        val btnLocalSoilMatchText = (btnLocalSoilMatchCard as android.view.ViewGroup).getChildAt(0) as TextView
+
+        val btnNotSure = view.findViewById<TextView>(R.id.btnNotSure)
+
         val cardScanSHC = view.findViewById<MaterialCardView>(R.id.cardScanSHC)
-        val btnSaveProfileMain = view.findViewById<MaterialButton>(R.id.btnSaveProfileMain)
+
+        val btnSaveProfileMain = view.findViewById<View>(R.id.btnSaveProfileMain)
 
         var recommendedSoilData = Pair("Black / Regur Soil", "Black / Dark Brown")
 
@@ -154,13 +157,13 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         val colorHint = recommendedSoilData.second
 
         tvLocalMatchDesc?.text = ""
-        btnLocalSoilMatch?.text = ""
+        btnLocalSoilMatchText?.text = ""
 
         val setupUI = {
             tvLocalMatchDesc?.text = "${t("Most farms near you have")} ${t(soilName)}. ${t("Is your soil")} ${t(colorHint)}?"
-            btnLocalSoilMatch?.text = "${t("Yes, it's")} ${t(soilName)}"
+            btnLocalSoilMatchText.text = "${t("Yes, it's")} ${t(soilName)}"
 
-            btnLocalSoilMatch?.setOnClickListener {
+            btnLocalSoilMatchCard.setOnClickListener {
                 selectedSoil = soilName
                 saveFinalFarmData(soilName)
             }

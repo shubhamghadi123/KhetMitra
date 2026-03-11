@@ -203,23 +203,76 @@ class SoilReportActivity : AppCompatActivity() {
 
                 val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
 
+                var airTempCelsius: Double? = null
+                var airHumidity: Double? = null
+                var currentCondition: String? = null
+
+                try {
+                    val weatherResponse = AgroRetrofitClient.api.getCurrentWeather(polyId, apiKey)
+                    if (weatherResponse.isSuccessful && weatherResponse.body() != null) {
+                        airTempCelsius = weatherResponse.body()!!.main.temp - 273.15
+                        airHumidity = weatherResponse.body()!!.main.humidity
+                        currentCondition = weatherResponse.body()!!.weather.firstOrNull()?.main ?: "Unknown"
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AgroAPI", "Weather failed: ${e.message}")
+                }
+
                 val endTime = System.currentTimeMillis() / 1000
                 val startTime = endTime - (30 * 24 * 60 * 60)
                 val imageResponse = AgroRetrofitClient.api.getSatelliteImages(polyId, startTime, endTime, apiKey)
 
+                // --- 2. EXTRACT SATELLITE & NDVI SCORE ---
+                var finalNdviScore: Double? = null
+
+                if (imageResponse.isSuccessful && !imageResponse.body().isNullOrEmpty()) {
+                    val latestImage = imageResponse.body()!!.maxByOrNull { it.dt }
+                    if (latestImage != null) {
+                        ndviUrl = latestImage.image.ndvi
+                        trueColorUrl = latestImage.image.truecolor
+
+                        // NEW: Fetch the actual NDVI number!
+                        val statUrl = latestImage.stats?.ndvi
+                        if (statUrl != null) {
+                            try {
+                                // AgroMonitoring sometimes returns HTTP, we must force HTTPS for Android security
+                                val secureStatUrl = statUrl.replace("http://", "https://")
+                                val statResponse = AgroRetrofitClient.api.getNdviStats(secureStatUrl)
+                                if (statResponse.isSuccessful && statResponse.body() != null) {
+                                    finalNdviScore = statResponse.body()!!.mean
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("AgroAPI", "NDVI Stat fetch failed: ${e.message}")
+                            }
+                        }
+                    }
+                }
+
+                // --- 3. SAVE EVERYTHING TO SUPABASE ---
+                if (soilResponse.isSuccessful && soilResponse.body() != null) {
+                    val soilBody = soilResponse.body()!!
+                    val soilTempCelsius = soilBody.t10 - 273.15
+
+                    saveAgromonitoringData(
+                        fieldName = farmName,
+                        polyId = polyId,
+                        temp = airTempCelsius,
+                        hum = airHumidity,
+                        condition = currentCondition,
+                        soilMoist = soilBody.moisture,
+                        soilTemp = soilTempCelsius,
+                        ndviScore = finalNdviScore // BOOM! We now have the real number!
+                    )
+                }
+
+                // --- 4. UPDATE UI ---
                 withContext(Dispatchers.Main) {
                     if (soilResponse.isSuccessful && soilResponse.body() != null) {
                         updateSoilUI(soilResponse.body()!!)
                     }
 
-                    if (imageResponse.isSuccessful && !imageResponse.body().isNullOrEmpty()) {
-                        val latestImage = imageResponse.body()!!.maxByOrNull { it.dt }
-                        if (latestImage != null) {
-                            ndviUrl = latestImage.image.ndvi
-                            trueColorUrl = latestImage.image.truecolor
-                            loadSatelliteImage(ndviUrl)
-                        }
-                    }
+                    // load the image we extracted earlier
+                    loadSatelliteImage(ndviUrl)
 
                     layoutLoading.visibility = View.GONE
                     layoutContent.visibility = View.VISIBLE
@@ -272,7 +325,6 @@ class SoilReportActivity : AppCompatActivity() {
 
     private fun loadSatelliteImage(url: String?) {
         if (!url.isNullOrEmpty()) {
-            // Force AgroMonitoring's image URLs to be secure so Android doesn't block them!
             val secureUrl = url.replace("http://", "https://")
 
             Glide.with(this)

@@ -92,7 +92,8 @@ data class ChatMessage(
     val fileUri: Uri? = null,
     val isImage: Boolean = true,
     val fileName: String = "",
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val imageUrl: String? = null
 )
 
 data class SoilType(

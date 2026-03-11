@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Looper
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -21,7 +22,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.gson.Gson
 import com.google.maps.android.SphericalUtil
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -71,8 +72,14 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private var lastCalculatedAreaAcres: Double = 0.0
 
     private lateinit var tvCalculatedArea: TextView
-    private lateinit var btnWalkBoundary: MaterialButton
-    private lateinit var btnNextStep: MaterialButton
+
+    private lateinit var cardWalkBoundary: MaterialCardView
+    private lateinit var cardNextStep: MaterialCardView
+    private lateinit var cardClearMap: MaterialCardView
+    private lateinit var cardUndo: MaterialCardView
+
+    private lateinit var tvWalkLabel: TextView
+    private lateinit var ivWalkIcon: ImageView
 
     private var langCode: String = TranslateLanguage.ENGLISH
 
@@ -85,31 +92,56 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         return TranslationHelper.convertDigits(num.toString(), langCode)
     }
 
+    private var nextStepEnabled = false
+        set(value) {
+            field = value
+            cardNextStep.alpha = if (value) 1f else 0.4f
+            cardNextStep.isClickable = value
+            cardNextStep.isFocusable = value
+        }
+
+    private fun setWalkingState(walking: Boolean) {
+        if (walking) {
+            tvWalkLabel.text = t("Stop Walking")
+            cardWalkBoundary.setCardBackgroundColor(Color.RED)
+            ivWalkIcon.setColorFilter(Color.WHITE)
+        } else {
+            tvWalkLabel.text = t("Start Walking")
+            cardWalkBoundary.setCardBackgroundColor("#1A3C2E".toColorInt())
+            ivWalkIcon.clearColorFilter()
+            ivWalkIcon.setColorFilter("#52B788".toColorInt())
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
-        mapView = view.findViewById(R.id.mapView)
+        mapView          = view.findViewById(R.id.mapView)
         tvCalculatedArea = view.findViewById(R.id.tvCalculatedArea)
-        btnWalkBoundary = view.findViewById(R.id.btnWalkBoundary)
-        btnNextStep = view.findViewById(R.id.btnNextStep)
-        val btnClearMap = view.findViewById<MaterialButton>(R.id.btnClearMap)
-        val btnUndo = view.findViewById<MaterialButton>(R.id.btnUndo)
-        val overlay = view.findViewById<View>(R.id.mapInstructionsOverlay)
 
+        cardWalkBoundary = view.findViewById(R.id.btnWalkBoundary)
+        cardNextStep     = view.findViewById(R.id.btnNextStep)
+        cardClearMap     = view.findViewById(R.id.btnClearMap)
+        cardUndo         = view.findViewById(R.id.btnUndo)
+
+        tvWalkLabel = cardWalkBoundary.findViewById(R.id.tvWalkLabel)
+        ivWalkIcon  = cardWalkBoundary.findViewById(R.id.ivWalkIcon)
+
+        view.findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+
+        val overlay = view.findViewById<View>(R.id.mapInstructionsOverlay)
         overlay.visibility = View.VISIBLE
         startInstructionAnimation(overlay)
-
         overlay.setOnClickListener {
-            overlay.animate()
-                .alpha(0f)
-                .setDuration(300)
-                .withEndAction {
-                    overlay.visibility = View.GONE
-                    overlay.isClickable = false
-                }
+            overlay.animate().alpha(0f).setDuration(300).withEndAction {
+                overlay.visibility = View.GONE
+                overlay.isClickable = false
+            }
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
@@ -122,9 +154,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
             pointAnnotationManager.addClickListener { annotation ->
                 val farmData = savedFarmsDataMap[annotation.id]
-                if (farmData != null) {
-                    showFarmDetailsDialog(farmData)
-                }
+                if (farmData != null) showFarmDetailsDialog(farmData)
                 true
             }
 
@@ -176,18 +206,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             }
         }
 
-        btnWalkBoundary.setOnClickListener { if (isTracking) stopTracking() else startTracking() }
+        cardWalkBoundary.setOnClickListener { if (isTracking) stopTracking() else startTracking() }
+        cardClearMap.setOnClickListener    { resetMap() }
+        cardUndo.setOnClickListener        { undoLastPoint() }
 
-        btnClearMap.setOnClickListener { resetMap() }
-        btnUndo?.setOnClickListener { undoLastPoint() }
-
-        btnNextStep.setOnClickListener {
+        cardNextStep.setOnClickListener {
             val fieldLat = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].latitude else 0.0
             val fieldLng = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].longitude else 0.0
-
             val coordinatesList = boundaryPoints.map { mapOf("lat" to it.latitude, "lng" to it.longitude) }
             val coordinatesJson = Gson().toJson(coordinatesList)
-
             val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres, fieldLat, fieldLng, coordinatesJson)
             soilSheet.show(parentFragmentManager, "SoilSheet")
         }
@@ -206,25 +233,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
     private fun showFarmDetailsDialog(farm: FetchedFarm) {
         val translatedTitle = t("Saved Farm Details")
-
         val areaParts = farm.land_size.split(" ")
-
         val translatedArea = if (areaParts.size == 2) {
-            val numberStr = areaParts[0]
-            val unitStr = areaParts[1]
-            "${d(numberStr)} ${t(unitStr)}"
-        } else {
-            farm.land_size
-        }
-
+            "${d(areaParts[0])} ${t(areaParts[1])}"
+        } else farm.land_size
         val message = "${t("Area")}: $translatedArea\n${t("Soil")}: ${t(farm.soil_type)}"
-
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle(translatedTitle)
             .setMessage(message)
-            .setPositiveButton(t("OK")) { dialog, _ ->
-                dialog.dismiss()
-            }
+            .setPositiveButton(t("OK")) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -255,46 +272,30 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         try {
             val type = object : com.google.gson.reflect.TypeToken<List<Map<String, Double>>>() {}.type
             val latLngList: List<Map<String, Double>>? = Gson().fromJson(farm.coordinates, type)
-
             if (latLngList != null && latLngList.size >= 3) {
-                val points = latLngList.map {
-                    Point.fromLngLat(it["lng"]!!, it["lat"]!!)
-                }.toMutableList()
-
+                val points = latLngList.map { Point.fromLngLat(it["lng"]!!, it["lat"]!!) }.toMutableList()
                 points.add(points.first())
                 val polygon = Polygon.fromLngLats(listOf(points))
-
-                val polygonOptions = PolygonAnnotationOptions()
-                    .withGeometry(polygon)
-                    .withFillColor("#442196F3".toColorInt())
-                    .withFillOutlineColor("#2196F3")
-
-                polygonAnnotationManager.create(polygonOptions)
-
-                var sumLat = 0.0
-                var sumLng = 0.0
-                latLngList.forEach {
-                    sumLat += it["lat"]!!
-                    sumLng += it["lng"]!!
-                }
-                val centerLat = sumLat / latLngList.size
-                val centerLng = sumLng / latLngList.size
-
-                val textOptions = PointAnnotationOptions()
-                    .withPoint(Point.fromLngLat(centerLng, centerLat))
-                    .withTextField(d(farmNumber))
-                    .withTextSize(12.0)
-                    .withTextColor("#FFFFFF")
-                    .withTextHaloColor("#000000")
-                    .withTextHaloWidth(1.0)
-
-                val textAnnotation = pointAnnotationManager.create(textOptions)
-
+                polygonAnnotationManager.create(
+                    PolygonAnnotationOptions()
+                        .withGeometry(polygon)
+                        .withFillColor("#442196F3".toColorInt())
+                        .withFillOutlineColor("#2196F3")
+                )
+                var sumLat = 0.0; var sumLng = 0.0
+                latLngList.forEach { sumLat += it["lat"]!!; sumLng += it["lng"]!! }
+                val textAnnotation = pointAnnotationManager.create(
+                    PointAnnotationOptions()
+                        .withPoint(Point.fromLngLat(sumLng / latLngList.size, sumLat / latLngList.size))
+                        .withTextField(d(farmNumber))
+                        .withTextSize(12.0)
+                        .withTextColor("#FFFFFF")
+                        .withTextHaloColor("#000000")
+                        .withTextHaloWidth(1.0)
+                )
                 savedFarmsDataMap[textAnnotation.id] = farm
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
 
     private fun startInstructionAnimation(view: View) {
@@ -302,19 +303,14 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         lottieIcon.renderMode = com.airbnb.lottie.RenderMode.HARDWARE
         lottieIcon.setCacheComposition(true)
         lottieIcon.setMinAndMaxFrame(1, 433)
-
         lottieIcon.repeatCount = com.airbnb.lottie.LottieDrawable.INFINITE
-        lottieIcon.repeatMode = com.airbnb.lottie.LottieDrawable.RESTART
-
+        lottieIcon.repeatMode  = com.airbnb.lottie.LottieDrawable.RESTART
         lottieIcon.addAnimatorListener(object : android.animation.Animator.AnimatorListener {
-            override fun onAnimationRepeat(animation: android.animation.Animator) {
-                lottieIcon.frame = 1
-            }
-            override fun onAnimationStart(animation: android.animation.Animator) {}
-            override fun onAnimationEnd(animation: android.animation.Animator) {}
-            override fun onAnimationCancel(animation: android.animation.Animator) {}
+            override fun onAnimationRepeat(a: android.animation.Animator) { lottieIcon.frame = 1 }
+            override fun onAnimationStart(a: android.animation.Animator)  {}
+            override fun onAnimationEnd(a: android.animation.Animator)    {}
+            override fun onAnimationCancel(a: android.animation.Animator) {}
         })
-
         lottieIcon.playAnimation()
     }
 
@@ -328,11 +324,8 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             if (location != null) {
                 moveCamera(location.latitude, location.longitude)
             } else {
-                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-                    .setMaxUpdates(1)
-                    .build()
-
-                fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+                val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).setMaxUpdates(1).build()
+                fusedLocationClient.requestLocationUpdates(req, object : LocationCallback() {
                     override fun onLocationResult(result: LocationResult) {
                         result.lastLocation?.let { moveCamera(it.latitude, it.longitude) }
                     }
@@ -342,20 +335,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     }
 
     private fun moveCamera(lat: Double, lng: Double) {
-        val cameraOptions = CameraOptions.Builder()
-            .center(Point.fromLngLat(lng, lat))
-            .zoom(16.0)
-            .build()
-        mapView.mapboxMap.setCamera(cameraOptions)
+        mapView.mapboxMap.setCamera(
+            CameraOptions.Builder().center(Point.fromLngLat(lng, lat)).zoom(16.0).build()
+        )
     }
 
     private fun addPoint(lat: Double, lng: Double, isManual: Boolean) {
         boundaryPoints.add(LatLng(lat, lng))
         val currentIndex = boundaryPoints.size - 1
-
-        if (isManual) {
-            createCircleAtPoint(lat, lng, currentIndex)
-        }
+        if (isManual) createCircleAtPoint(lat, lng, currentIndex)
         updatePolygon()
         calculateArea()
     }
@@ -378,31 +366,26 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     @SuppressLint("SetTextI18n")
     private fun undoLastPoint() {
         if (boundaryPoints.isEmpty()) return
-
         boundaryPoints.removeAt(boundaryPoints.size - 1)
-
         if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
         circleIdToIndex.clear()
-
         boundaryPoints.forEachIndexed { index, latLng ->
-            val circleOptions = CircleAnnotationOptions()
-                .withPoint(Point.fromLngLat(latLng.longitude, latLng.latitude))
-                .withCircleRadius(8.0)
-                .withCircleColor("#FFEE58")
-                .withCircleStrokeWidth(2.0)
-                .withCircleStrokeColor("#ffffff")
-                .withDraggable(true)
-
-            val annotation = circleAnnotationManager.create(circleOptions)
+            val annotation = circleAnnotationManager.create(
+                CircleAnnotationOptions()
+                    .withPoint(Point.fromLngLat(latLng.longitude, latLng.latitude))
+                    .withCircleRadius(8.0)
+                    .withCircleColor("#FFEE58")
+                    .withCircleStrokeWidth(2.0)
+                    .withCircleStrokeColor("#ffffff")
+                    .withDraggable(true)
+            )
             circleIdToIndex[annotation.id] = index
         }
-
         updatePolygon()
         calculateArea()
-
         if (boundaryPoints.size < 3) {
             tvCalculatedArea.text = "${d("0.00")} ${t("Acres")}"
-            btnNextStep.isEnabled = false
+            nextStepEnabled = false
         }
     }
 
@@ -411,18 +394,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             polygonAnnotationManager.delete(it)
             activePolygonAnnotation = null
         }
-
         if (boundaryPoints.size >= 3) {
             val points = boundaryPoints.map { Point.fromLngLat(it.longitude, it.latitude) }.toMutableList()
             points.add(points.first())
-            val polygon = Polygon.fromLngLats(listOf(points))
-
-            val polygonOptions = PolygonAnnotationOptions()
-                .withGeometry(polygon)
-                .withFillColor("#4400FF00".toColorInt())
-                .withFillOutlineColor("#00FF00")
-
-            activePolygonAnnotation = polygonAnnotationManager.create(polygonOptions)
+            activePolygonAnnotation = polygonAnnotationManager.create(
+                PolygonAnnotationOptions()
+                    .withGeometry(Polygon.fromLngLats(listOf(points)))
+                    .withFillColor("#4400FF00".toColorInt())
+                    .withFillOutlineColor("#00FF00")
+            )
         }
     }
 
@@ -432,14 +412,12 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val areaMeters = SphericalUtil.computeArea(boundaryPoints)
             lastCalculatedAreaAcres = areaMeters * 0.000247105
             val areaGuntas = lastCalculatedAreaAcres * 40
-            if (lastCalculatedAreaAcres < 1.0) {
-                val formattedGuntas = String.format(Locale.US, "%.2f", areaGuntas)
-                tvCalculatedArea.text = "${d(formattedGuntas)} ${t("Guntas")}"
+            tvCalculatedArea.text = if (lastCalculatedAreaAcres < 1.0) {
+                "${d(String.format(Locale.US, "%.2f", areaGuntas))} ${t("Guntas")}"
             } else {
-                val formattedAcres = String.format(Locale.US, "%.2f", lastCalculatedAreaAcres)
-                tvCalculatedArea.text = "${d(formattedAcres)} ${t("Acres")}"
+                "${d(String.format(Locale.US, "%.2f", lastCalculatedAreaAcres))} ${t("Acres")}"
             }
-            btnNextStep.isEnabled = true
+            nextStepEnabled = true
         }
     }
 
@@ -448,7 +426,9 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             override fun onLocationResult(res: LocationResult) {
                 for (loc in res.locations) {
                     addPoint(loc.latitude, loc.longitude, false)
-                    mapView.mapboxMap.setCamera(CameraOptions.Builder().center(Point.fromLngLat(loc.longitude, loc.latitude)).build())
+                    mapView.mapboxMap.setCamera(
+                        CameraOptions.Builder().center(Point.fromLngLat(loc.longitude, loc.latitude)).build()
+                    )
                 }
             }
         }
@@ -483,20 +463,9 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     }
 
     private fun perpendicularDistance(pt: LatLng, lineStart: LatLng, lineEnd: LatLng): Double {
-        val x0 = pt.longitude
-        val y0 = pt.latitude
-        val x1 = lineStart.longitude
-        val y1 = lineStart.latitude
-        val x2 = lineEnd.longitude
-        val y2 = lineEnd.latitude
-
-        val area = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
-        val bottom = hypot(y2 - y1, x2 - x1)
-
-        if (bottom == 0.0) return 0.0
-
-        val distDegrees = area / bottom
-        return distDegrees * 111320.0
+        val area   = abs((lineEnd.latitude - lineStart.latitude) * pt.longitude - (lineEnd.longitude - lineStart.longitude) * pt.latitude + lineEnd.longitude * lineStart.latitude - lineEnd.latitude * lineStart.longitude)
+        val bottom = hypot(lineEnd.latitude - lineStart.latitude, lineEnd.longitude - lineStart.longitude)
+        return if (bottom == 0.0) 0.0 else (area / bottom) * 111320.0
     }
 
     private fun startTracking() {
@@ -505,33 +474,28 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             return
         }
         isTracking = true
-        btnWalkBoundary.text = t("Stop Walking")
-        btnWalkBoundary.setBackgroundColor(Color.RED)
+        setWalkingState(true)
         resetMap()
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).setMinUpdateDistanceMeters(2f).build()
-        fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+        fusedLocationClient.requestLocationUpdates(
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).setMinUpdateDistanceMeters(2f).build(),
+            locationCallback, Looper.getMainLooper()
+        )
     }
 
     private fun stopTracking() {
         isTracking = false
-        btnWalkBoundary.text = t("Start Walking")
-        btnWalkBoundary.setBackgroundColor("#2E7D32".toColorInt())
+        setWalkingState(false)
         fusedLocationClient.removeLocationUpdates(locationCallback)
-
         if (boundaryPoints.isNotEmpty()) {
-            val simplifiedPoints = simplifyPath(boundaryPoints, 2.5)
-
+            val simplified = simplifyPath(boundaryPoints, 2.5)
             boundaryPoints.clear()
-            boundaryPoints.addAll(simplifiedPoints)
-
+            boundaryPoints.addAll(simplified)
             circleAnnotationManager.deleteAll()
             circleIdToIndex.clear()
-
             boundaryPoints.forEachIndexed { index, latLng ->
                 createCircleAtPoint(latLng.latitude, latLng.longitude, index)
             }
         }
-
         updatePolygon()
         calculateArea()
     }
@@ -540,18 +504,12 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private fun resetMap() {
         boundaryPoints.clear()
         circleIdToIndex.clear()
-
         if (::polygonAnnotationManager.isInitialized) {
-            activePolygonAnnotation?.let {
-                polygonAnnotationManager.delete(it)
-                activePolygonAnnotation = null
-            }
+            activePolygonAnnotation?.let { polygonAnnotationManager.delete(it); activePolygonAnnotation = null }
         }
-
         if (::circleAnnotationManager.isInitialized) circleAnnotationManager.deleteAll()
-
         tvCalculatedArea.text = "${d("0.00")} ${t("Acres")}"
-        btnNextStep.isEnabled = false
+        nextStepEnabled = false
     }
 
     @SuppressLint("Lifecycle")

@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,12 +26,16 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.ai.client.generativeai.Chat
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.mlkit.nl.translate.TranslateLanguage
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
 import io.noties.markwon.Markwon
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -44,16 +49,21 @@ class ChatbotActivity : AppCompatActivity() {
     private lateinit var btnSendCard: View
     private lateinit var previewCard: CardView
     private lateinit var ivSelectedPreview: ImageView
+
+    // Attachment State
     private var selectedImageBitmap: Bitmap? = null
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String = ""
     private var selectedFileBytes: ByteArray? = null
     private var selectedFileMimeType: String = ""
 
+    // AI & Formatting
     private lateinit var generativeModel: GenerativeModel
+    private lateinit var activeChat: Chat // NEW: Maintains conversation history
     private lateinit var markwon: Markwon
     private var currentLangCode: String = TranslateLanguage.ENGLISH
 
+    // Translation Helper
     private fun t(text: String): String {
         if (currentLangCode == TranslateLanguage.ENGLISH) return text
         return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
@@ -73,6 +83,7 @@ class ChatbotActivity : AppCompatActivity() {
         }
     }
 
+    // Launchers
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
@@ -101,22 +112,12 @@ class ChatbotActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chatbot)
 
+        // Init Formatting & Lang
         markwon = Markwon.create(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
-        val requestedLanguage = getLanguageName(currentLangCode)
 
-        generativeModel = GenerativeModel(
-            modelName = "gemini-2.5-flash",
-            apiKey = BuildConfig.GEMINI_API_KEY,
-            systemInstruction = content {
-                text("You are KhetMitra AI, an expert agricultural assistant. " +
-                        "You MUST always provide your final response in fluent $requestedLanguage. " +
-                        "Provide concise, practical advice for farmers regarding crop diseases, pests, and soil health. " +
-                        "Use Markdown formatting like bolding and bullet points to make it easy to read.")
-            }
-        )
-
+        // View Binding
         etInput = findViewById(R.id.etMessageInput)
         recyclerChat = findViewById(R.id.recyclerChat)
         previewCard = findViewById(R.id.previewCard)
@@ -129,17 +130,23 @@ class ChatbotActivity : AppCompatActivity() {
         btnSendCard = findViewById(R.id.btnSend)
         btnSendCard.visibility = View.GONE
 
+        // Assuming you added btnSync to your XML header
+        val btnSync = findViewById<ImageView>(R.id.btnSync)
+
         findViewById<TextView>(R.id.tvHeaderTitle)?.text = t("Chat")
-        etInput.hint = t("Ask anything...")
+
         chatAdapter = ChatAdapter(chatList, markwon)
         recyclerChat.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         recyclerChat.adapter = chatAdapter
 
-        addMessage(t("Namaste! I am your KhetMitra AI. Ask me anything."), isUser = false)
+        // INITIALIZE SMART AI
+        initializeSmartChatbot()
 
+        // Listeners
         btnPlus.setOnClickListener { showAttachmentOptions() }
         btnRemoveImage.setOnClickListener { clearPreview() }
         btnBack.setOnClickListener { finish() }
+        btnSync?.setOnClickListener { syncLatestFarmData() }
 
         etInput.addTextChangedListener(object : TextWatcher {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -160,6 +167,7 @@ class ChatbotActivity : AppCompatActivity() {
             Toast.makeText(this, t("Voice typing coming soon..."), Toast.LENGTH_SHORT).show()
         }
 
+        // Handle auto-open camera
         val autoOpenCamera = intent.getBooleanExtra("AUTO_OPEN_CAMERA", false)
         if (autoOpenCamera) {
             window.decorView.post {
@@ -171,6 +179,177 @@ class ChatbotActivity : AppCompatActivity() {
             }
         }
     }
+
+    // ==========================================
+    // DATA & AI INITIALIZATION (SUPABASE)
+    // ==========================================
+
+    private fun buildCombinedFarmContext(farms: List<FarmEntry>, monitoringData: List<FieldMonitoring>): String {
+        if (farms.isEmpty()) return "The user has not mapped any farms yet. Instruct them to use the 'Map My Field' button on the dashboard."
+
+        val contextBuilder = StringBuilder()
+        contextBuilder.append("The user manages ${farms.size} farm(s). Here is the data:\n\n")
+
+        for ((index, farm) in farms.withIndex()) {
+            val farmName = farm.name ?: "Farm ${index + 1}"
+            val crop = if (farm.crop.isNullOrBlank() || farm.crop == "Not Selected") "Unknown" else farm.crop
+            val liveData = monitoringData.find { it.polygon_id == farm.poly_id }
+
+            contextBuilder.append("Farm ${index + 1}: '$farmName'\n")
+            contextBuilder.append("- Size: ${farm.land_size}\n")
+            contextBuilder.append("- Soil Type: ${farm.soil_type}\n")
+            contextBuilder.append("- Crop: $crop\n")
+
+            if (liveData != null) {
+                contextBuilder.append("  [LIVE SATELLITE DATA FOUND]\n")
+                liveData.weather_condition?.let { contextBuilder.append("  - Weather: $it\n") }
+                liveData.temperature?.let { contextBuilder.append("  - Air Temp: $it°C\n") }
+                liveData.soil_moisture?.let { contextBuilder.append("  - Soil Moisture: $it\n") }
+                liveData.ndvi_score?.let { contextBuilder.append("  - Health Score (NDVI): $it\n") }
+            } else {
+                contextBuilder.append("  [LIVE DATA IS MISSING]\n")
+                contextBuilder.append("  *CRITICAL INSTRUCTION: Live soil data for this farm has not been generated yet. If the user asks about current soil health, politely instruct them to go to 'Manage Field' and click 'View Soil Report' to generate data.*\n")
+            }
+            contextBuilder.append("\n")
+        }
+        return contextBuilder.toString()
+    }
+
+    private fun initializeSmartChatbot() {
+        etInput.hint = t("Loading farm data...")
+        etInput.isEnabled = false
+        btnMicCard.isEnabled = false
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val user = SupabaseManager.client.auth.currentUserOrNull()
+                val currentFarmerId = user?.id ?: ""
+                Log.d("KhetMitra", "Fetching data for Farmer: $currentFarmerId")
+
+                // Fetch concurrently
+                val farmsDeferred = async {
+                    SupabaseManager.client.postgrest["farms"]
+                        .select { filter { eq("farmer_id", currentFarmerId) } }.decodeList<FarmEntry>()
+                }
+                val monitoringDeferred = async {
+                    SupabaseManager.client.postgrest["field_monitoring"]
+                        .select { filter { eq("user_id", currentFarmerId) } }.decodeList<FieldMonitoring>()
+                }
+
+                val userFarms = farmsDeferred.await()
+                val monitoringData = monitoringDeferred.await()
+
+                val combinedContext = buildCombinedFarmContext(userFarms, monitoringData)
+                val requestedLanguage = getLanguageName(currentLangCode)
+
+                val fullInstruction = """
+                    You are KhetMitra AI, an expert agricultural assistant.
+                    You MUST always respond in fluent $requestedLanguage.
+                    Use Markdown formatting.
+                    
+                    $combinedContext
+                    
+                    CRITICAL RULES:
+                    1. Prioritize LIVE SATELLITE DATA when answering questions.
+                    2. If they ask a general question, clarify WHICH farm they mean.
+                    3. Do not mention raw database terms to the user.
+                """.trimIndent()
+
+                generativeModel = GenerativeModel(
+                    modelName = "gemini-2.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY,
+                    systemInstruction = content { text(fullInstruction) }
+                )
+
+                // Initialize conversation history
+                activeChat = generativeModel.startChat()
+
+                withContext(Dispatchers.Main) {
+                    etInput.hint = t("Ask anything...")
+                    etInput.isEnabled = true
+                    btnMicCard.isEnabled = true
+
+                    val greeting = if (userFarms.isNotEmpty()) {
+                        t("Namaste! I have loaded your farm data. How can I help you today?")
+                    } else {
+                        t("Namaste! I am KhetMitra AI. You haven't mapped any farms yet, but you can still ask me anything!")
+                    }
+                    addMessage(greeting, false)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    etInput.hint = t("Ask anything...")
+                    etInput.isEnabled = true
+                    btnMicCard.isEnabled = true
+
+                    generativeModel = GenerativeModel(
+                        modelName = "gemini-2.5-flash",
+                        apiKey = BuildConfig.GEMINI_API_KEY,
+                        systemInstruction = content { text("You are KhetMitra AI. Always reply in ${getLanguageName(currentLangCode)}.") }
+                    )
+                    activeChat = generativeModel.startChat()
+                    addMessage(t("Namaste! I am KhetMitra AI. How can I help?"), false)
+                }
+            }
+        }
+    }
+
+    private fun syncLatestFarmData() {
+        Toast.makeText(this, t("Syncing latest soil data..."), Toast.LENGTH_SHORT).show()
+        val btnSync = findViewById<ImageView>(R.id.btnSync)
+        btnSync?.animate()?.rotationBy(360f)?.setDuration(1000)?.start()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val user = SupabaseManager.client.auth.currentUserOrNull()
+                val currentFarmerId = user?.id ?: return@launch
+
+                val farmsDeferred = async {
+                    SupabaseManager.client.postgrest["farms"].select { filter { eq("farmer_id", currentFarmerId) } }.decodeList<FarmEntry>()
+                }
+                val monitoringDeferred = async {
+                    SupabaseManager.client.postgrest["field_monitoring"].select { filter { eq("user_id", currentFarmerId) } }.decodeList<FieldMonitoring>()
+                }
+
+                val combinedContext = buildCombinedFarmContext(farmsDeferred.await(), monitoringDeferred.await())
+                val requestedLanguage = getLanguageName(currentLangCode)
+
+                val fullInstruction = """
+                    You are KhetMitra AI, an expert agricultural assistant.
+                    You MUST always respond in fluent $requestedLanguage.
+                    Use Markdown formatting.
+                    
+                    $combinedContext
+                    
+                    CRITICAL RULES:
+                    1. Prioritize LIVE SATELLITE DATA when answering questions.
+                    2. If they ask a general question, clarify WHICH farm they mean.
+                """.trimIndent()
+
+                // Overwrite the model, but start a NEW chat session with the fresh context
+                generativeModel = GenerativeModel(
+                    modelName = "gemini-2.5-flash",
+                    apiKey = BuildConfig.GEMINI_API_KEY,
+                    systemInstruction = content { text(fullInstruction) }
+                )
+
+                // Note: Syncing wipes short-term memory (chat history) but updates long-term memory (database)
+                activeChat = generativeModel.startChat()
+
+                withContext(Dispatchers.Main) {
+                    addMessage(t("✅ System: I have synced your latest soil reports!"), false)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ChatbotActivity, t("Sync failed."), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // CHAT & ATTACHMENT LOGIC
+    // ==========================================
 
     private fun handleUriImage(uri: Uri) {
         try {
@@ -196,7 +375,6 @@ class ChatbotActivity : AppCompatActivity() {
             }
 
             selectedFileMimeType = contentResolver.getType(uri) ?: "application/pdf"
-
             val inputStream = contentResolver.openInputStream(uri)
             selectedFileBytes = inputStream?.readBytes()
             inputStream?.close()
@@ -213,7 +391,6 @@ class ChatbotActivity : AppCompatActivity() {
         ivSelectedPreview.setImageBitmap(bitmap)
         ivSelectedPreview.scaleType = ImageView.ScaleType.CENTER_CROP
         previewCard.visibility = View.VISIBLE
-
         btnMicCard.visibility = View.GONE
         btnSendCard.visibility = View.VISIBLE
     }
@@ -221,9 +398,7 @@ class ChatbotActivity : AppCompatActivity() {
     private fun prepareFilePreview() {
         ivSelectedPreview.setImageResource(R.drawable.round_file_present_24)
         ivSelectedPreview.scaleType = ImageView.ScaleType.CENTER_INSIDE
-
         previewCard.visibility = View.VISIBLE
-
         btnMicCard.visibility = View.GONE
         btnSendCard.visibility = View.VISIBLE
     }
@@ -234,7 +409,6 @@ class ChatbotActivity : AppCompatActivity() {
         selectedFileBytes = null
         selectedFileName = ""
         selectedFileMimeType = ""
-
         previewCard.visibility = View.GONE
         ivSelectedPreview.scaleType = ImageView.ScaleType.CENTER_CROP
 
@@ -276,20 +450,21 @@ class ChatbotActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                // SEND TO ACTIVE CHAT (Memory!)
                 val response = if (bitmap != null) {
                     val inputContent = content {
                         image(bitmap)
                         text(query.ifEmpty { t("Analyze this agricultural image and provide details.") })
                     }
-                    generativeModel.generateContent(inputContent)
+                    activeChat.sendMessage(inputContent)
                 } else if (fileBytes != null) {
                     val inputContent = content {
                         blob(mimeType, fileBytes)
                         text(query.ifEmpty { t("Analyze this document and summarize it simply for a farmer.") })
                     }
-                    generativeModel.generateContent(inputContent)
+                    activeChat.sendMessage(inputContent)
                 } else {
-                    generativeModel.generateContent(query)
+                    activeChat.sendMessage(query)
                 }
 
                 val aiText = response.text ?: t("I'm sorry, I couldn't process that.")
@@ -300,7 +475,6 @@ class ChatbotActivity : AppCompatActivity() {
                         chatList.removeAt(loadingIndex)
                         chatAdapter.notifyItemRemoved(loadingIndex)
                     }
-
                     addMessage(aiText, isUser = false)
                 }
             } catch (e: Exception) {
@@ -324,16 +498,7 @@ class ChatbotActivity : AppCompatActivity() {
         isImage: Boolean = true,
         fileName: String = ""
     ) {
-        chatList.add(
-            ChatMessage(
-                message = text,
-                isUser = isUser,
-                imageBitmap = bitmap,
-                fileUri = fileUri,
-                isImage = isImage,
-                fileName = fileName
-            )
-        )
+        chatList.add(ChatMessage(text, isUser, bitmap, fileUri, isImage, fileName))
         chatAdapter.notifyItemInserted(chatList.size - 1)
         recyclerChat.scrollToPosition(chatList.size - 1)
     }
@@ -345,7 +510,6 @@ class ChatbotActivity : AppCompatActivity() {
         if (currentLangCode != TranslateLanguage.ENGLISH) {
             TranslationHelper.translateViewHierarchy(view, currentLangCode) {}
         }
-
         bottomSheetDialog.setContentView(view)
 
         view.findViewById<View>(R.id.optionCamera).setOnClickListener {
@@ -366,7 +530,6 @@ class ChatbotActivity : AppCompatActivity() {
             bottomSheetDialog.dismiss()
             pickFileLauncher.launch("application/pdf")
         }
-
         bottomSheetDialog.show()
     }
 
@@ -375,6 +538,9 @@ class ChatbotActivity : AppCompatActivity() {
         takePictureLauncher.launch(intent)
     }
 
+    // ==========================================
+    // ADAPTER
+    // ==========================================
     inner class ChatAdapter(
         private val messages: List<ChatMessage>,
         private val markwon: Markwon
@@ -418,14 +584,12 @@ class ChatbotActivity : AppCompatActivity() {
                         holder.tvFileName.text = msg.fileName
                     }
                 }
-
                 if (msg.message.isNotEmpty()) {
                     holder.cardUserMessage.visibility = View.VISIBLE
                     holder.tvUser.text = msg.message
                 }
             } else {
                 holder.layoutBotMessage.visibility = View.VISIBLE
-
                 if (msg.isLoading) {
                     holder.pbBotLoading.visibility = View.VISIBLE
                     holder.tvBot.text = msg.message
@@ -435,7 +599,6 @@ class ChatbotActivity : AppCompatActivity() {
                 }
             }
         }
-
         override fun getItemCount(): Int = messages.size
     }
 }

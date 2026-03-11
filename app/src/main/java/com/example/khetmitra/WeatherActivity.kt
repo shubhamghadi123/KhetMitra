@@ -271,12 +271,10 @@ class WeatherActivity : BaseActivity() {
 
         tvAqi.text = "${t("AQI")}: ${t(status)}"
 
-        // tvAqi lives inside a MaterialCardView (cardAqi). Tint that card instead.
         val cardAqi = tvAqi.parent as? com.google.android.material.card.MaterialCardView
         if (cardAqi != null) {
             cardAqi.setCardBackgroundColor(colorHex.toColorInt())
         } else {
-            // Fallback: if for some reason the parent isn't a card, try the old way
             try { tvAqi.background?.setTint(colorHex.toColorInt()) } catch (_: Exception) {}
         }
     }

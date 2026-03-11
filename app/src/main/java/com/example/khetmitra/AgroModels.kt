@@ -33,7 +33,8 @@ data class SoilDataResponse(
 data class SatelliteImageResponse(
     val dt: Long,
     val type: String,
-    val image: ImageUrls
+    val image: ImageUrls,
+    val stats: StatUrls? = null
 )
 
 data class ImageUrls(
@@ -46,4 +47,29 @@ data class SavedCoordinate(
     val longitude: Double? = null,
     val lat: Double? = null,
     val lng: Double? = null
+)
+
+data class AgroWeatherResponse(
+    val weather: List<WeatherItem>,
+    val main: MainWeather
+)
+
+data class WeatherItem(
+    val main: String,
+    val description: String
+)
+
+data class MainWeather(
+    val temp: Double,
+    val humidity: Double
+)
+
+data class StatUrls(
+    val ndvi: String?
+)
+
+data class NdviStatResponse(
+    val mean: Double,
+    val max: Double,
+    val min: Double
 )

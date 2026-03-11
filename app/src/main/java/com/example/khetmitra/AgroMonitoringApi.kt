@@ -5,6 +5,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface AgroMonitoringApi {
 
@@ -27,4 +28,13 @@ interface AgroMonitoringApi {
         @Query("end") end: Long,
         @Query("appid") apiKey: String
     ): Response<List<SatelliteImageResponse>>
+
+    @GET("weather")
+    suspend fun getCurrentWeather(
+        @Query("polyid") polyId: String,
+        @Query("appid") apiKey: String
+    ): Response<AgroWeatherResponse>
+
+    @GET
+    suspend fun getNdviStats(@Url url: String): Response<NdviStatResponse>
 }

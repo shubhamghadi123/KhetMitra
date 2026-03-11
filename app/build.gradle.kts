@@ -115,6 +115,8 @@ dependencies {
 
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.coil-kt:coil:2.4.0")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.5.0")
 
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 

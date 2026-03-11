@@ -37,3 +37,25 @@ data class FetchedFarm(
     val land_size: String,
     val soil_type: String
 )
+
+@Serializable
+data class FieldMonitoring(
+    val user_id: String,
+    val polygon_id: String? = null,
+    val field_name: String,
+    val temperature: Double? = null,
+    val humidity: Double? = null,
+    val weather_condition: String? = null,
+    val soil_moisture: Double? = null,
+    val soil_temperature: Double? = null,
+    val ndvi_score: Double? = null
+)
+
+@Serializable
+data class ChatHistoryEntry(
+    val user_id: String,
+    val message: String,
+    val is_user: Boolean,
+    val image_url: String? = null,
+    val created_at: String? = null
+)
