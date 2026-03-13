@@ -20,7 +20,6 @@ suspend fun saveAgromonitoringData(
             val user = SupabaseManager.client.auth.currentUserOrNull()
             if (user != null && polyId != null) {
 
-                // 1. Check if a row for this farm already exists
                 val existingRows = SupabaseManager.client.postgrest["field_monitoring"]
                     .select {
                         filter {
@@ -30,7 +29,6 @@ suspend fun saveAgromonitoringData(
                     }.decodeList<FieldMonitoring>()
 
                 if (existingRows.isNotEmpty()) {
-                    // 2. THE ROW EXISTS! Just update the numbers safely
                     SupabaseManager.client.postgrest["field_monitoring"].update(
                         {
                             if (temp != null) set("temperature", temp)
@@ -49,7 +47,6 @@ suspend fun saveAgromonitoringData(
                         }
                     }
                 } else {
-                    // 3. THE ROW DOES NOT EXIST! Insert a brand new row
                     val monitoringData = FieldMonitoring(
                         user_id = user.id,
                         polygon_id = polyId,

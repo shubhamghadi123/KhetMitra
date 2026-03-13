@@ -1,5 +1,6 @@
 package com.example.khetmitra
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -28,7 +29,7 @@ data class FarmEntry(
     val soil_type: String,
     val coordinates: String,
     val crop: String? = "Not Selected",
-    val poly_id: String? = null
+    val polygon_id: String? = null
 )
 
 @Serializable
@@ -49,6 +50,62 @@ data class FieldMonitoring(
     val soil_moisture: Double? = null,
     val soil_temperature: Double? = null,
     val ndvi_score: Double? = null
+)
+
+@Serializable
+data class StateRow(
+    val id: Int,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("state_name") val stateName: String,
+    val status: Int
+)
+
+@Serializable
+data class DistrictRow(
+    val id: Int,
+    @SerialName("district_id") val districtId: Int,
+    @SerialName("district_name") val districtName: String,
+    @SerialName("state_id") val stateId: Int,
+    val status: Int
+)
+
+@Serializable
+data class MarketRow(
+    val id: Int,
+    @SerialName("market_id") val marketId: Int,
+    @SerialName("market_name") val marketName: String,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("district_id") val districtId: Int,
+    val status: Int
+)
+
+@Serializable
+data class CropRow(
+    val id: Int,
+    @SerialName("crop_id") val cropId: Int,
+    @SerialName("crop_name") val cropName: String,
+    @SerialName("crop_group_id") val cropGroupId: Int,
+    val status: Int
+)
+
+@Serializable
+data class CropPriceRow(
+    val id: Int,
+    @SerialName("crop_id") val cropId: Int,
+    @SerialName("crop_name") val cropName: String,
+    @SerialName("crop_group_id") val cropGroupId: Int,
+    @SerialName("crop_group_name") val cropGroupName: String,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("state_name") val stateName: String,
+    @SerialName("district_id") val districtId: Int,
+    @SerialName("district_name") val districtName: String,
+    @SerialName("market_id") val marketId: Int,
+    @SerialName("market_name") val marketName: String,
+    @SerialName("min_price") val minPrice: Float,
+    @SerialName("max_price") val maxPrice: Float,
+    @SerialName("modal_price") val modalPrice: Float,
+    @SerialName("price_unit") val priceUnit: String,
+    @SerialName("price_date") val priceDate: String  // "YYYY-MM-DD"
 )
 
 @Serializable

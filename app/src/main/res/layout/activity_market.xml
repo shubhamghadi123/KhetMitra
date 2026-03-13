@@ -330,8 +330,8 @@
                         app:layout_constraintStart_toEndOf="@id/iconPriceCircle"
                         app:layout_constraintTop_toBottomOf="@id/tvPriceLabel" />
 
-                    <!-- Per quintal -->
                     <TextView
+                        android:id="@+id/tvPriceUnit"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
@@ -504,6 +504,17 @@
                         </com.google.android.material.button.MaterialButtonToggleGroup>
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <TextView
+                        android:id="@+id/tvNoData"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        android:text="No price data available\nfor this selection"
+                        android:textColor="#999999"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="4dp" />
 
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/lineChart"

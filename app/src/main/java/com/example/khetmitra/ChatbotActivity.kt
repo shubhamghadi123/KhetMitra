@@ -12,9 +12,7 @@ import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -50,20 +48,17 @@ class ChatbotActivity : AppCompatActivity() {
     private lateinit var previewCard: CardView
     private lateinit var ivSelectedPreview: ImageView
 
-    // Attachment State
     private var selectedImageBitmap: Bitmap? = null
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String = ""
     private var selectedFileBytes: ByteArray? = null
     private var selectedFileMimeType: String = ""
 
-    // AI & Formatting
     private lateinit var generativeModel: GenerativeModel
-    private lateinit var activeChat: Chat // NEW: Maintains conversation history
+    private lateinit var activeChat: Chat
     private lateinit var markwon: Markwon
     private var currentLangCode: String = TranslateLanguage.ENGLISH
 
-    // Translation Helper
     private fun t(text: String): String {
         if (currentLangCode == TranslateLanguage.ENGLISH) return text
         return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
@@ -83,7 +78,6 @@ class ChatbotActivity : AppCompatActivity() {
         }
     }
 
-    // Launchers
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
@@ -112,12 +106,10 @@ class ChatbotActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chatbot)
 
-        // Init Formatting & Lang
         markwon = Markwon.create(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
-        // View Binding
         etInput = findViewById(R.id.etMessageInput)
         recyclerChat = findViewById(R.id.recyclerChat)
         previewCard = findViewById(R.id.previewCard)
@@ -130,7 +122,6 @@ class ChatbotActivity : AppCompatActivity() {
         btnSendCard = findViewById(R.id.btnSend)
         btnSendCard.visibility = View.GONE
 
-        // Assuming you added btnSync to your XML header
         val btnSync = findViewById<ImageView>(R.id.btnSync)
 
         findViewById<TextView>(R.id.tvHeaderTitle)?.text = t("Chat")
@@ -139,10 +130,8 @@ class ChatbotActivity : AppCompatActivity() {
         recyclerChat.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         recyclerChat.adapter = chatAdapter
 
-        // INITIALIZE SMART AI
         initializeSmartChatbot()
 
-        // Listeners
         btnPlus.setOnClickListener { showAttachmentOptions() }
         btnRemoveImage.setOnClickListener { clearPreview() }
         btnBack.setOnClickListener { finish() }
@@ -167,7 +156,6 @@ class ChatbotActivity : AppCompatActivity() {
             Toast.makeText(this, t("Voice typing coming soon..."), Toast.LENGTH_SHORT).show()
         }
 
-        // Handle auto-open camera
         val autoOpenCamera = intent.getBooleanExtra("AUTO_OPEN_CAMERA", false)
         if (autoOpenCamera) {
             window.decorView.post {
@@ -180,10 +168,6 @@ class ChatbotActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // DATA & AI INITIALIZATION (SUPABASE)
-    // ==========================================
-
     private fun buildCombinedFarmContext(farms: List<FarmEntry>, monitoringData: List<FieldMonitoring>): String {
         if (farms.isEmpty()) return "The user has not mapped any farms yet. Instruct them to use the 'Map My Field' button on the dashboard."
 
@@ -193,7 +177,7 @@ class ChatbotActivity : AppCompatActivity() {
         for ((index, farm) in farms.withIndex()) {
             val farmName = farm.name ?: "Farm ${index + 1}"
             val crop = if (farm.crop.isNullOrBlank() || farm.crop == "Not Selected") "Unknown" else farm.crop
-            val liveData = monitoringData.find { it.polygon_id == farm.poly_id }
+            val liveData = monitoringData.find { it.polygon_id == farm.polygon_id }
 
             contextBuilder.append("Farm ${index + 1}: '$farmName'\n")
             contextBuilder.append("- Size: ${farm.land_size}\n")
@@ -226,7 +210,6 @@ class ChatbotActivity : AppCompatActivity() {
                 val currentFarmerId = user?.id ?: ""
                 Log.d("KhetMitra", "Fetching data for Farmer: $currentFarmerId")
 
-                // Fetch concurrently
                 val farmsDeferred = async {
                     SupabaseManager.client.postgrest["farms"]
                         .select { filter { eq("farmer_id", currentFarmerId) } }.decodeList<FarmEntry>()
@@ -261,7 +244,6 @@ class ChatbotActivity : AppCompatActivity() {
                     systemInstruction = content { text(fullInstruction) }
                 )
 
-                // Initialize conversation history
                 activeChat = generativeModel.startChat()
 
                 withContext(Dispatchers.Main) {
@@ -326,14 +308,12 @@ class ChatbotActivity : AppCompatActivity() {
                     2. If they ask a general question, clarify WHICH farm they mean.
                 """.trimIndent()
 
-                // Overwrite the model, but start a NEW chat session with the fresh context
                 generativeModel = GenerativeModel(
                     modelName = "gemini-2.5-flash",
                     apiKey = BuildConfig.GEMINI_API_KEY,
                     systemInstruction = content { text(fullInstruction) }
                 )
 
-                // Note: Syncing wipes short-term memory (chat history) but updates long-term memory (database)
                 activeChat = generativeModel.startChat()
 
                 withContext(Dispatchers.Main) {
@@ -346,10 +326,6 @@ class ChatbotActivity : AppCompatActivity() {
             }
         }
     }
-
-    // ==========================================
-    // CHAT & ATTACHMENT LOGIC
-    // ==========================================
 
     private fun handleUriImage(uri: Uri) {
         try {
@@ -536,69 +512,5 @@ class ChatbotActivity : AppCompatActivity() {
     private fun openSystemCamera() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         takePictureLauncher.launch(intent)
-    }
-
-    // ==========================================
-    // ADAPTER
-    // ==========================================
-    inner class ChatAdapter(
-        private val messages: List<ChatMessage>,
-        private val markwon: Markwon
-    ) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
-
-        inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val layoutBotMessage: View = itemView.findViewById(R.id.layoutBotMessage)
-            val pbBotLoading: View = itemView.findViewById(R.id.pbBotLoading)
-            val tvBot: TextView = itemView.findViewById(R.id.tvBotMessage)
-            val cardUserMessage: View = itemView.findViewById(R.id.cardUserMessage)
-            val tvUser: TextView = itemView.findViewById(R.id.tvUserMessage)
-            val cardUserImage: View = itemView.findViewById(R.id.cardUserImage)
-            val ivUserImage: ImageView = itemView.findViewById(R.id.ivUserImage)
-            val cardUserFile: View = itemView.findViewById(R.id.cardUserFile)
-            val tvFileName: TextView = itemView.findViewById(R.id.tvFileName)
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_chat_message, parent, false)
-            return ChatViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-            val msg = messages[position]
-
-            holder.layoutBotMessage.visibility = View.GONE
-            holder.cardUserMessage.visibility = View.GONE
-            holder.cardUserImage.visibility = View.GONE
-            holder.cardUserFile.visibility = View.GONE
-
-            if (msg.isUser) {
-                if (msg.imageBitmap != null) {
-                    holder.cardUserImage.visibility = View.VISIBLE
-                    holder.ivUserImage.setImageBitmap(msg.imageBitmap)
-                } else if (msg.fileUri != null) {
-                    if (msg.isImage) {
-                        holder.cardUserImage.visibility = View.VISIBLE
-                        holder.ivUserImage.setImageURI(msg.fileUri)
-                    } else {
-                        holder.cardUserFile.visibility = View.VISIBLE
-                        holder.tvFileName.text = msg.fileName
-                    }
-                }
-                if (msg.message.isNotEmpty()) {
-                    holder.cardUserMessage.visibility = View.VISIBLE
-                    holder.tvUser.text = msg.message
-                }
-            } else {
-                holder.layoutBotMessage.visibility = View.VISIBLE
-                if (msg.isLoading) {
-                    holder.pbBotLoading.visibility = View.VISIBLE
-                    holder.tvBot.text = msg.message
-                } else {
-                    holder.pbBotLoading.visibility = View.GONE
-                    markwon.setMarkdown(holder.tvBot, msg.message)
-                }
-            }
-        }
-        override fun getItemCount(): Int = messages.size
     }
 }
