@@ -6,24 +6,34 @@
     android:id="@+id/cardLanguage"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
+    android:layout_margin="6dp"
     android:clickable="true"
     android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
     app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:strokeColor="#E0E0E0"
-    app:strokeWidth="2dp">
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#E8EDE0"
+    app:strokeWidth="1.5dp">
 
-    <TextView
-        android:id="@+id/tvLanguageName"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:gravity="center"
-        android:paddingVertical="15dp"
-        android:textColor="#333333"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        tools:text="English" />
+        android:paddingVertical="18dp"
+        android:paddingHorizontal="12dp">
+
+        <TextView
+            android:id="@+id/tvLanguageName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="#1A3C2E"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            tools:text="English" />
+
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

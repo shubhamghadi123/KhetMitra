@@ -1,7 +1,6 @@
 package com.example.khetmitra
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -41,12 +40,10 @@ class LanguageSelectionActivity : AppCompatActivity() {
 
         val adapter = LanguageAdapter(languages) { position ->
             val selectedLanguageCode = codes[position]
-
             prefs.edit {
                 putString("Language", selectedLanguageCode)
                 putBoolean("IsLanguageSet", true)
             }
-
             startActivity(Intent(this@LanguageSelectionActivity, LoginActivity::class.java))
             finish()
         }
@@ -71,14 +68,18 @@ class LanguageSelectionActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: LanguageViewHolder, position: Int) {
             holder.tvLanguageName.text = languageList[position]
 
-            holder.cardLanguage.strokeColor = "#E0E0E0".toColorInt()
-            holder.cardLanguage.strokeWidth = 2
-            holder.cardLanguage.setCardBackgroundColor(Color.WHITE)
+            holder.cardLanguage.strokeColor = "#E8EDE0".toColorInt()
+            holder.cardLanguage.strokeWidth = 4
+            holder.cardLanguage.setCardBackgroundColor("#FFFFFF".toColorInt())
+            holder.tvLanguageName.setTextColor("#1A3C2E".toColorInt())
 
             holder.cardLanguage.setOnClickListener {
-                holder.cardLanguage.setCardBackgroundColor("#E8F5E9".toColorInt())
-                holder.cardLanguage.strokeColor = "#4CAF50".toColorInt()
+                holder.cardLanguage.setCardBackgroundColor("#F0FAF5".toColorInt())
+                holder.cardLanguage.strokeColor = "#52B788".toColorInt()
+                holder.cardLanguage.strokeWidth = 6
+                holder.tvLanguageName.setTextColor("#1A3C2E".toColorInt())
 
+                @Suppress("DEPRECATION")
                 onLanguageSelected(holder.adapterPosition)
             }
         }

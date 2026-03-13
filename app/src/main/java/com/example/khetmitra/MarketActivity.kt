@@ -1,8 +1,8 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.location.Geocoder
 import android.location.Location
 import android.os.Bundle
@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
@@ -269,7 +270,8 @@ class MarketActivity : AppCompatActivity() {
             allCrops = SupabaseManager.client
                 .postgrest["crops"]
                 .select {
-                    filter { eq("status", 1) }
+                    filter { eq("status", 1)}
+                    filter { eq("crop_group_id", 1)}
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
@@ -289,6 +291,7 @@ class MarketActivity : AppCompatActivity() {
 
     // ─── Price ───────────────────────────────────────────────────────────────
 
+    @SuppressLint("SetTextI18n")
     private fun refreshPriceData() {
         if (selectedMarketId == -1 || selectedCropId == -1) return
         lifecycleScope.launch {
@@ -407,12 +410,12 @@ class MarketActivity : AppCompatActivity() {
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
-            textColor = Color.parseColor("#555555")
+            textColor = "#555555".toColorInt()
         }
         lineChart.axisLeft.apply {
             setDrawGridLines(true)
-            gridColor = Color.parseColor("#E8EDE0")
-            textColor = Color.parseColor("#555555")
+            gridColor = "#E8EDE0".toColorInt()
+            textColor = "#555555".toColorInt()
         }
         lineChart.axisRight.isEnabled = false
     }
@@ -425,14 +428,14 @@ class MarketActivity : AppCompatActivity() {
         }
         val dataSet = LineDataSet(entries, "Price").apply {
             mode = LineDataSet.Mode.CUBIC_BEZIER
-            color = Color.parseColor("#52B788")
+            color = "#52B788".toColorInt()
             lineWidth = 3f
             setDrawCircles(true)
-            setCircleColor(Color.parseColor("#2D6A4F"))
+            setCircleColor("#2D6A4F".toColorInt())
             circleRadius = 4f
             setDrawValues(false)
             setDrawFilled(true)
-            fillColor = Color.parseColor("#A8D5B5")
+            fillColor = "#A8D5B5".toColorInt()
             fillAlpha = 60
         }
         lineChart.data = LineData(dataSet)
@@ -462,13 +465,13 @@ class MarketActivity : AppCompatActivity() {
             val p = date.split("-")
             val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
             "${p[2].toInt()} ${m[p[1].toInt()]}"
-        } catch (e: Exception) { date }
+        } catch (_: Exception) { date }
     }
 
     private fun formatMonthShort(date: String): String {
         return try {
             val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
             m[date.split("-")[1].toInt()]
-        } catch (e: Exception) { date }
+        } catch (_: Exception) { date }
     }
 }

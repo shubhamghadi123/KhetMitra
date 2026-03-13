@@ -11,13 +11,12 @@ data class FarmerProfile(
     val phone_number: String,
     val email: String,
     val gov_farmer_id: String? = null,
+    val gender: String,
+    val profile_photo_url: String? = null,
     val date_of_birth: String,
     val state_location: String,
-    val annual_income_range: String,
     val district: String,
-    val land_size: String? = null,
-    val soil_type: String? = null,
-    val crops: String? = null
+    val annual_income_range: String? = null
 )
 
 @Serializable
@@ -105,14 +104,23 @@ data class CropPriceRow(
     @SerialName("max_price") val maxPrice: Float,
     @SerialName("modal_price") val modalPrice: Float,
     @SerialName("price_unit") val priceUnit: String,
-    @SerialName("price_date") val priceDate: String  // "YYYY-MM-DD"
+    @SerialName("price_date") val priceDate: String
 )
 
 @Serializable
-data class ChatHistoryEntry(
-    val user_id: String,
-    val message: String,
-    val is_user: Boolean,
-    val image_url: String? = null,
-    val created_at: String? = null
+data class ChatSession(
+    val id: String = "",
+    @SerialName("farmer_id") val farmerId: String = "",
+    val title: String = "New Chat",
+    @SerialName("updated_at") val updatedAt: String = ""
+)
+
+@Serializable
+data class ChatMessageEntity(
+    val id: String = "",
+    @SerialName("session_id") val sessionId: String = "",
+    val role: String = "",
+    val text: String = "",
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("file_name") val fileName: String? = null
 )
