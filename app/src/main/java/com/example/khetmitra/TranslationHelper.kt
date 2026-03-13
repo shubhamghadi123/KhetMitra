@@ -19,7 +19,7 @@ object TranslationHelper {
 
     fun initTranslations(context: Context) {
         try {
-            val jsonString = context.assets.open("manual_corrections.json").bufferedReader().use { it.readText() }
+            val jsonString = context.assets.open("manual_translations.json").bufferedReader().use { it.readText() }
             val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
             loadedCorrections = Gson().fromJson(jsonString, type)
         } catch (e: IOException) {

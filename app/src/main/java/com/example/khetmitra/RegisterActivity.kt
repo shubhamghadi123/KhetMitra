@@ -1,7 +1,6 @@
 package com.example.khetmitra
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +13,7 @@ import android.util.Patterns
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -27,29 +27,45 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Calendar
 import java.util.Locale
 
 class RegisterActivity : AppCompatActivity() {
     private var selectedGender: String = ""
     private var photoUri: Uri? = null
+    private var stateList: List<StateRow> = emptyList()
+    private var districtList: List<DistrictRow> = emptyList()
+    private val currentYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+    private var locationAutoSelectDone = false
+    private var currentLangCode = TranslateLanguage.ENGLISH
     private lateinit var ivProfilePhoto: ShapeableImageView
     private lateinit var btnRegister: MaterialCardView
-    private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
-    private var currentLangCode = TranslateLanguage.ENGLISH
+    private lateinit var progressRegister: ProgressBar
+    private lateinit var tvBtnRegisterLabel: TextView
     private lateinit var spinnerState: Spinner
     private lateinit var spinnerDistrict: Spinner
     private lateinit var spinnerIncome: Spinner
-    private var stateList: List<StateRow> = emptyList()
-    private var districtList: List<DistrictRow> = emptyList()
+    private lateinit var spinnerYear: Spinner
+    private lateinit var tilFirstName: TextInputLayout
+    private lateinit var tilLastName: TextInputLayout
+    private lateinit var tilPhone: TextInputLayout
+    private lateinit var tilPassword: TextInputLayout
+    private lateinit var tilEmail: TextInputLayout
+    private lateinit var tilFarmerId: TextInputLayout
+    private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
 
     private val englishIncomes = arrayOf(
         "Below ₹50,000", "₹50,000 - ₹1,00,000", "₹1,00,000 - ₹3,00,000", "Above ₹3,00,000"
@@ -57,22 +73,19 @@ class RegisterActivity : AppCompatActivity() {
 
     private val requestLocationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted -> if (isGranted) fetchLocationAndAutoSelectState() }
+    ) { isGranted ->
+        if (isGranted && stateList.isNotEmpty()) fetchLocationAndAutoSelectState()
+    }
 
     private val galleryLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            photoUri = it
-            ivProfilePhoto.setImageURI(it)
-        }
+        uri?.let { photoUri = it; ivProfilePhoto.setImageURI(it) }
     }
 
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
-    ) { success: Boolean ->
-        if (success) ivProfilePhoto.setImageURI(photoUri)
-    }
+    ) { success -> if (success) ivProfilePhoto.setImageURI(photoUri) }
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -91,21 +104,16 @@ class RegisterActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
-
         TranslationHelper.initTranslations(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
-        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
+            ?: TranslateLanguage.ENGLISH
+        bindViews()
 
         if (currentLangCode != TranslateLanguage.ENGLISH) {
             translateScreenInstant(findViewById(android.R.id.content))
             translateHints()
         }
-
-        btnRegister     = findViewById(R.id.btnRegister)
-        spinnerState    = findViewById(R.id.spinnerState)
-        spinnerDistrict = findViewById(R.id.spinnerDistrict)
-        spinnerIncome   = findViewById(R.id.spinnerIncome)
-
         setupProfilePhoto()
         setupTextFieldColors()
         setupGenderSelection()
@@ -117,19 +125,33 @@ class RegisterActivity : AppCompatActivity() {
             .getFusedLocationProviderClient(this)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED) {
-            fetchLocationAndAutoSelectState()
-        } else {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             requestLocationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
         btnRegister.setOnClickListener { registerFarmer() }
+        findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
+    }
+
+    private fun bindViews() {
+        btnRegister        = findViewById(R.id.btnRegister)
+        progressRegister   = findViewById(R.id.progressRegister)
+        tvBtnRegisterLabel = btnRegister.findViewById(R.id.tvBtnRegisterLabel)
+        spinnerState       = findViewById(R.id.spinnerState)
+        spinnerDistrict    = findViewById(R.id.spinnerDistrict)
+        spinnerIncome      = findViewById(R.id.spinnerIncome)
+        spinnerYear        = findViewById(R.id.spinnerYear)
+        tilFirstName = findViewById(R.id.tilFirstName)
+        tilLastName  = findViewById(R.id.tilLastName)
+        tilPhone     = findViewById(R.id.tilPhone)
+        tilPassword  = findViewById(R.id.tilPassword)
+        tilEmail     = findViewById(R.id.tilEmail)
+        tilFarmerId  = findViewById(R.id.tilFarmerId)
     }
 
     private fun setupProfilePhoto() {
         ivProfilePhoto = findViewById(R.id.ivProfilePhoto)
         val btnPickPhoto = findViewById<MaterialCardView>(R.id.btnPickPhoto)
-
         btnPickPhoto.setOnClickListener { showPhotoPickerDialog() }
         ivProfilePhoto.setOnClickListener { showPhotoPickerDialog() }
     }
@@ -141,7 +163,8 @@ class RegisterActivity : AppCompatActivity() {
                 when (which) {
                     0 -> {
                         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                            == PackageManager.PERMISSION_GRANTED) launchCamera()
+                            == PackageManager.PERMISSION_GRANTED
+                        ) launchCamera()
                         else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                     1 -> galleryLauncher.launch("image/*")
@@ -158,37 +181,21 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun setupTextFieldColors() {
-        val greenColor = "#52B788".toColorInt()
-        val defaultGrey = "#E8EDE0".toColorInt()
-        val bgColor = "#FFFFFF".toColorInt()
+        val greenColor   = "#52B788".toColorInt()
+        val defaultGrey  = "#E8EDE0".toColorInt()
+        val bgColor      = "#FFFFFF".toColorInt()
+        val blackColor   = "#000000".toColorInt()
 
-        val strokeColorStateList = ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_focused),
-                intArrayOf()
-            ),
-            intArrayOf(
-                greenColor,
-                defaultGrey
-            )
+        val strokeStateList = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(greenColor, defaultGrey)
         )
-
-        val textInputIds = listOf(
-            R.id.etFirstName, R.id.etLastName, R.id.etPhone,
-            R.id.etPassword, R.id.etEmail, R.id.etFarmerId
-        )
-
-        textInputIds.forEach { id ->
-            val editText = findViewById<TextInputEditText>(id)
-            val textInputLayout = editText?.parent?.parent as? com.google.android.material.textfield.TextInputLayout
-
-            textInputLayout?.let { til ->
-                val blackColor = "#000000".toColorInt()
+        listOf(tilFirstName, tilLastName, tilPhone, tilPassword, tilEmail, tilFarmerId)
+            .forEach { til ->
                 til.setBoxBackgroundColor(bgColor)
-                til.setBoxStrokeColorStateList(strokeColorStateList)
+                til.setBoxStrokeColorStateList(strokeStateList)
                 til.defaultHintTextColor = ColorStateList.valueOf(blackColor)
             }
-        }
     }
 
     private fun setupGenderSelection() {
@@ -200,13 +207,13 @@ class RegisterActivity : AppCompatActivity() {
         val tvOther    = findViewById<TextView>(R.id.tvOtherLabel)
 
         val cards = listOf(
-            Triple(cardMale,   tvMale,   "male"),
+            Triple(cardMale, tvMale, "male"),
             Triple(cardFemale, tvFemale, "female"),
-            Triple(cardOther,  tvOther,  "other")
+            Triple(cardOther, tvOther, "other")
         )
 
         val defaultStrokePx = (1.5f * resources.displayMetrics.density).toInt()
-        val activeStrokePx = (2f * resources.displayMetrics.density).toInt()
+        val activeStrokePx  = (2f   * resources.displayMetrics.density).toInt()
 
         cards.forEach { (card, label, gender) ->
             card.setOnClickListener {
@@ -216,7 +223,6 @@ class RegisterActivity : AppCompatActivity() {
                     c.setCardBackgroundColor("#FFFFFF".toColorInt())
                     l.setTextColor("#1A3C2E".toColorInt())
                 }
-
                 card.strokeColor = "#52B788".toColorInt()
                 card.strokeWidth = activeStrokePx
                 card.setCardBackgroundColor("#F0FAF5".toColorInt())
@@ -224,6 +230,31 @@ class RegisterActivity : AppCompatActivity() {
                 selectedGender = gender
             }
         }
+    }
+
+    private fun setupDateSpinners() {
+        findViewById<Spinner>(R.id.spinnerDay).adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            (1..31).map { d(it.toString()) }.toTypedArray()
+        )
+        findViewById<Spinner>(R.id.spinnerMonth).adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            arrayOf(
+                t("Jan"), t("Feb"), t("Mar"), t("Apr"), t("May"), t("Jun"),
+                t("Jul"), t("Aug"), t("Sep"), t("Oct"), t("Nov"), t("Dec")
+            )
+        )
+        spinnerYear.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            (1940..currentYear).map { d(it.toString()) }.reversed().toTypedArray()
+        )
+    }
+
+    private fun setupIncomeSpinner() {
+        spinnerIncome.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            englishIncomes.map { d(t(it)) }.toTypedArray()
+        )
     }
 
     private fun loadStatesFromSupabase() {
@@ -236,12 +267,16 @@ class RegisterActivity : AppCompatActivity() {
                     }
                     .decodeList<StateRow>()
 
+                val translatedStates = result.map { state ->
+                    async { translateDynamicText(state.stateName) }
+                }.awaitAll()
+
                 withContext(Dispatchers.Main) {
                     stateList = result
                     spinnerState.adapter = ArrayAdapter(
                         this@RegisterActivity,
                         android.R.layout.simple_spinner_dropdown_item,
-                        result.map { t(it.stateName) }
+                        translatedStates
                     )
                     spinnerState.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -249,7 +284,12 @@ class RegisterActivity : AppCompatActivity() {
                         }
                         override fun onNothingSelected(parent: AdapterView<*>?) {}
                     }
-                    fetchLocationAndAutoSelectState()
+                    if (ContextCompat.checkSelfPermission(
+                            this@RegisterActivity, Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        fetchLocationAndAutoSelectState()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("RegisterActivity", "Failed to load states: ${e.message}")
@@ -273,12 +313,16 @@ class RegisterActivity : AppCompatActivity() {
                     }
                     .decodeList<DistrictRow>()
 
+                val translatedDistricts = result.map { district ->
+                    async { translateDynamicText(district.districtName) }
+                }.awaitAll()
+
                 withContext(Dispatchers.Main) {
                     districtList = result
                     spinnerDistrict.adapter = ArrayAdapter(
                         this@RegisterActivity,
                         android.R.layout.simple_spinner_dropdown_item,
-                        result.map { t(it.districtName) }
+                        translatedDistricts
                     )
                 }
             } catch (e: Exception) {
@@ -290,10 +334,13 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun fetchLocationAndAutoSelectState() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) return
+        if (locationAutoSelectDone) return
         if (stateList.isEmpty()) return
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) return
 
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
@@ -304,7 +351,10 @@ class RegisterActivity : AppCompatActivity() {
                         if (!addresses.isNullOrEmpty()) {
                             val detectedState = addresses[0].adminArea
                             if (detectedState != null) {
-                                withContext(Dispatchers.Main) { selectStateInSpinner(detectedState) }
+                                withContext(Dispatchers.Main) {
+                                    selectStateInSpinner(detectedState)
+                                    locationAutoSelectDone = true
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -323,39 +373,16 @@ class RegisterActivity : AppCompatActivity() {
         if (index >= 0) spinnerState.setSelection(index)
     }
 
-    private fun setupDateSpinners() {
-        findViewById<Spinner>(R.id.spinnerDay).adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            (1..31).map { d(it.toString()) }.toTypedArray()
-        )
-        findViewById<Spinner>(R.id.spinnerMonth).adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            arrayOf(t("Jan"), t("Feb"), t("Mar"), t("Apr"), t("May"), t("Jun"),
-                t("Jul"), t("Aug"), t("Sep"), t("Oct"), t("Nov"), t("Dec"))
-        )
-        findViewById<Spinner>(R.id.spinnerYear).adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            (1940..2026).map { d(it.toString()) }.reversed().toTypedArray()
-        )
-    }
-
-    private fun setupIncomeSpinner() {
-        spinnerIncome.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            englishIncomes.map { d(t(it)) }.toTypedArray()
-        )
-    }
-
     private fun translateHints() {
         if (currentLangCode == TranslateLanguage.ENGLISH) return
         mapOf(
-            R.id.etFirstName to "First Name", R.id.etLastName to "Last Name",
-            R.id.etPhone to "Phone Number",   R.id.etPassword to "Password",
-            R.id.etEmail to "Email",          R.id.etFarmerId to "Government Farmer ID"
-        ).forEach { (id, hint) ->
-            val et = findViewById<TextInputEditText>(id)
-            (et?.parent?.parent as? com.google.android.material.textfield.TextInputLayout)?.hint = t(hint)
-        }
+            tilFirstName to "First Name",
+            tilLastName  to "Last Name",
+            tilPhone     to "Phone Number",
+            tilPassword  to "Password",
+            tilEmail     to "Email",
+            tilFarmerId  to "Government Farmer ID"
+        ).forEach { (til, hint) -> til.hint = t(hint) }
     }
 
     private fun translateScreenInstant(view: View) {
@@ -369,7 +396,26 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetTextI18n")
+    private suspend fun translateDynamicText(text: String): String =
+        suspendCancellableCoroutine { continuation ->
+            if (currentLangCode == TranslateLanguage.ENGLISH) {
+                continuation.resumeWith(Result.success(text))
+                return@suspendCancellableCoroutine
+            }
+            val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(currentLangCode)
+                .build()
+            val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+            client.downloadModelIfNeeded().addOnSuccessListener {
+                client.translate(text)
+                    .addOnSuccessListener { result -> continuation.resumeWith(Result.success(result)) }
+                    .addOnFailureListener { continuation.resumeWith(Result.success(text)) }
+            }.addOnFailureListener {
+                continuation.resumeWith(Result.success(text))
+            }
+        }
+
     private fun registerFarmer() {
         val firstName = findViewById<TextInputEditText>(R.id.etFirstName).text.toString().trim()
         val lastName  = findViewById<TextInputEditText>(R.id.etLastName).text.toString().trim()
@@ -377,41 +423,59 @@ class RegisterActivity : AppCompatActivity() {
         val email     = findViewById<TextInputEditText>(R.id.etEmail).text.toString().trim()
         val password  = findViewById<TextInputEditText>(R.id.etPassword).text.toString()
         val farmerId  = findViewById<TextInputEditText>(R.id.etFarmerId).text.toString().trim()
-
-        val dayEnglish  = (findViewById<Spinner>(R.id.spinnerDay).selectedItemPosition + 1).toString()
-        val monthIndex  = findViewById<Spinner>(R.id.spinnerMonth).selectedItemPosition
-        val yearEnglish = (2026 - findViewById<Spinner>(R.id.spinnerYear).selectedItemPosition).toString()
-
-        val statePos    = spinnerState.selectedItemPosition
-        val districtPos = spinnerDistrict.selectedItemPosition
-        val incomePos   = spinnerIncome.selectedItemPosition
-
-        val stateEnglish    = if (statePos in stateList.indices) stateList[statePos].stateName else "Unknown"
+        val dayEnglish   = (findViewById<Spinner>(R.id.spinnerDay).selectedItemPosition + 1).toString()
+        val monthIndex   = findViewById<Spinner>(R.id.spinnerMonth).selectedItemPosition
+        val yearEnglish  = (currentYear - spinnerYear.selectedItemPosition).toString()
+        val statePos     = spinnerState.selectedItemPosition
+        val districtPos  = spinnerDistrict.selectedItemPosition
+        val incomePos    = spinnerIncome.selectedItemPosition
+        val stateEnglish    = if (statePos    in stateList.indices)    stateList[statePos].stateName       else "Unknown"
         val districtEnglish = if (districtPos in districtList.indices) districtList[districtPos].districtName else "Unknown"
-        val incomeEnglish   = if (incomePos >= 0) englishIncomes[incomePos] else "Unknown"
+        val incomeEnglish   = if (incomePos   >= 0)                    englishIncomes[incomePos]           else "Unknown"
+        var hasError = false
 
-        if (firstName.isEmpty() || lastName.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, t("Please fill all required fields"), Toast.LENGTH_SHORT).show(); return
-        }
-        if (phone.length < 10) {
-            Toast.makeText(this, t("Please enter a valid 10-digit phone number"), Toast.LENGTH_SHORT).show(); return
-        }
-        if (password.length <= 6) {
-            Toast.makeText(this, t("Password must be more than 6 characters long"), Toast.LENGTH_SHORT).show(); return
-        }
-        if (!password.any { it.isLetter() } || !password.any { it.isDigit() }) {
-            Toast.makeText(this, t("Password must include both letters and numbers"), Toast.LENGTH_SHORT).show(); return
-        }
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(this, t("Please enter a valid email format"), Toast.LENGTH_SHORT).show(); return
+        fun TextInputLayout.require(value: String, msg: String): Boolean {
+            return if (value.isEmpty()) { error = t(msg); hasError = true; false }
+            else { error = null; true }
         }
 
-        val tvBtnLabel = btnRegister.findViewById<TextView>(R.id.tvBtnRegisterLabel)
-        btnRegister.isClickable = false
-        tvBtnLabel.text = t("Registering...")
-        btnRegister.setCardBackgroundColor("#2D6A4F".toColorInt())
+        tilFirstName.require(firstName, "First name is required")
+        tilLastName.require(lastName, "Last name is required")
+        tilEmail.require(email, "Email is required")
+        tilPassword.require(password, "Password is required")
+        tilPhone.require(phone, "Phone number is required")
 
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        if (phone.isNotEmpty() && phone.length < 10) {
+            tilPhone.error = t("Enter a valid 10-digit phone number"); hasError = true
+        }
+        if (password.isNotEmpty()) {
+            when {
+                password.length <= 6 -> {
+                    tilPassword.error = t("Password must be more than 6 characters"); hasError = true
+                }
+                !password.any { it.isLetter() } || !password.any { it.isDigit() } -> {
+                    tilPassword.error = t("Password must include letters and numbers"); hasError = true
+                }
+                else -> tilPassword.error = null
+            }
+        }
+        if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.error = t("Enter a valid email address"); hasError = true
+        }
+
+        if (selectedGender.isEmpty()) {
+            Toast.makeText(this, t("Please select a gender"), Toast.LENGTH_SHORT).show()
+            hasError = true
+        }
+
+        if (districtList.isEmpty()) {
+            Toast.makeText(this, t("Please wait for districts to load"), Toast.LENGTH_SHORT).show()
+            hasError = true
+        }
+
+        if (hasError) return
+        setLoadingState(true)
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 SupabaseManager.client.auth.signUpWith(
                     io.github.jan.supabase.gotrue.providers.builtin.Email
@@ -424,6 +488,7 @@ class RegisterActivity : AppCompatActivity() {
                 if (user != null) {
                     try {
                         SupabaseManager.client.auth.updateUser {
+                            @Suppress("SetTextI18n")
                             this.phone = if (phone.startsWith("+")) phone else "+91$phone"
                         }
                     } catch (e: Exception) {
@@ -449,18 +514,18 @@ class RegisterActivity : AppCompatActivity() {
 
                     SupabaseManager.client.postgrest["farmers"].insert(
                         FarmerProfile(
-                            id = user.id,
-                            first_name = firstName,
-                            last_name = lastName,
-                            phone_number = phone,
-                            email = email,
-                            gov_farmer_id = farmerId.ifEmpty { null },
-                            date_of_birth = formatDob(dayEnglish, monthIndex, yearEnglish),
-                            state_location = stateEnglish,
-                            district = districtEnglish,
+                            id                  = user.id,
+                            first_name          = firstName,
+                            last_name           = lastName,
+                            phone_number        = phone,
+                            email               = email,
+                            gov_farmer_id       = farmerId.ifEmpty { null },
+                            date_of_birth       = formatDob(dayEnglish, monthIndex, yearEnglish),
+                            state_location      = stateEnglish,
+                            district            = districtEnglish,
                             annual_income_range = incomeEnglish,
-                            gender = selectedGender,
-                            profile_photo_url = photoUrl
+                            gender              = selectedGender,
+                            profile_photo_url   = photoUrl
                         )
                     )
 
@@ -471,23 +536,26 @@ class RegisterActivity : AppCompatActivity() {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        btnRegister.isClickable = true
-                        tvBtnLabel.text = t("Complete Registration")
-                        btnRegister.setCardBackgroundColor("#52B788".toColorInt())
-                        Toast.makeText(this@RegisterActivity, t("Login blocked. Check Supabase settings."), Toast.LENGTH_LONG).show()
+                        setLoadingState(false)
+                        Toast.makeText(
+                            this@RegisterActivity,
+                            t("Login blocked. Check Supabase settings."),
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 withContext(Dispatchers.Main) {
-                    btnRegister.isClickable = true
-                    tvBtnLabel.text = t("Complete Registration")
-                    btnRegister.setCardBackgroundColor("#52B788".toColorInt())
+                    setLoadingState(false)
                     val err = e.message?.lowercase() ?: ""
                     if (err.contains("already registered") || err.contains("already exists") ||
-                        (err.contains("in use") && !err.contains("email"))) {
-                        startActivity(Intent(this@RegisterActivity, LoginActivity::class.java)
-                            .putExtra("REGISTERED_PHONE", phone))
+                        (err.contains("in use") && !err.contains("email"))
+                    ) {
+                        startActivity(
+                            Intent(this@RegisterActivity, LoginActivity::class.java)
+                                .putExtra("REGISTERED_PHONE", phone)
+                        )
                         finish()
                     } else {
                         Log.e("SupabaseError", "Registration Error: ", e)
@@ -496,6 +564,15 @@ class RegisterActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun setLoadingState(loading: Boolean) {
+        btnRegister.isClickable = !loading
+        progressRegister.visibility = if (loading) View.VISIBLE else View.GONE
+        tvBtnRegisterLabel.text = if (loading) t("Registering...") else t("Complete Registration")
+        btnRegister.setCardBackgroundColor(
+            if (loading) "#2D6A4F".toColorInt() else "#52B788".toColorInt()
+        )
     }
 
     private fun formatDob(day: String, monthIndex: Int, year: String) =
