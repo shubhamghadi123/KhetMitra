@@ -48,8 +48,7 @@
             android:layout_gravity="center"
             android:src="@drawable/round_arrow_back_24"
             app:tint="#FFFFFF"
-            tools:ignore="ContentDescription" />
-
+            android:importantForAccessibility="no" />
     </com.google.android.material.card.MaterialCardView>
 
     <TextView
@@ -96,15 +95,13 @@
         app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
-
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:layout_gravity="center"
             android:src="@drawable/round_edit_24"
             app:tint="#FFFFFF"
-            tools:ignore="ContentDescription" />
-
+            android:importantForAccessibility="no" />
     </com.google.android.material.card.MaterialCardView>
 
     <androidx.core.widget.NestedScrollView
@@ -168,8 +165,7 @@
                             android:layout_gravity="center"
                             android:src="@drawable/round_photo_camera_24"
                             app:tint="#FFFFFF"
-                            tools:ignore="ContentDescription" />
-
+                            android:importantForAccessibility="no" />
                     </com.google.android.material.card.MaterialCardView>
                 </FrameLayout>
             </LinearLayout>
@@ -190,15 +186,31 @@
                     android:orientation="vertical"
                     android:padding="18dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
-                        android:text="👤  Registration Details"
-                        android:textColor="#1A3C2E"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.05" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginBottom="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" 👤  "
+                            android:textColor="#1A3C2E"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Registration Details"
+                            android:textColor="#1A3C2E"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.05" />
+                    </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -207,6 +219,7 @@
                         android:baselineAligned="false">
 
                         <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/tilFirstName"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -217,19 +230,19 @@
                             app:boxCornerRadiusTopEnd="14dp"
                             app:boxCornerRadiusBottomStart="14dp"
                             app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#52B788"
+                            app:boxStrokeColor="#E8EDE0"
                             app:boxStrokeWidthFocused="1.5dp"
                             app:hintTextColor="#52B788">
+
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etFirstName"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:padding="14dp"
-                                android:textSize="15sp"
                                 android:inputType="textPersonName" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/tilLastName"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -239,21 +252,20 @@
                             app:boxCornerRadiusTopEnd="14dp"
                             app:boxCornerRadiusBottomStart="14dp"
                             app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#52B788"
+                            app:boxStrokeColor="#E8EDE0"
                             app:boxStrokeWidthFocused="1.5dp"
                             app:hintTextColor="#52B788">
+
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etLastName"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:padding="14dp"
-                                android:textSize="15sp"
                                 android:inputType="textPersonName" />
                         </com.google.android.material.textfield.TextInputLayout>
-
                     </LinearLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilPhone"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -263,20 +275,23 @@
                         app:boxCornerRadiusTopEnd="14dp"
                         app:boxCornerRadiusBottomStart="14dp"
                         app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeColor="#E8EDE0"
                         app:boxStrokeWidthFocused="1.5dp"
                         app:hintTextColor="#52B788"
+                        app:startIconDrawable="@drawable/ic_phone"
+                        app:startIconTint="#52B788"
                         app:prefixText="+91 ">
+
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPhone"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:padding="14dp"
-                            android:textSize="15sp"
-                            android:inputType="phone" />
+                            android:inputType="number"
+                            android:maxLength="10" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilEmail"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -286,19 +301,21 @@
                         app:boxCornerRadiusTopEnd="14dp"
                         app:boxCornerRadiusBottomStart="14dp"
                         app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeColor="#E8EDE0"
                         app:boxStrokeWidthFocused="1.5dp"
-                        app:hintTextColor="#52B788">
+                        app:hintTextColor="#52B788"
+                        app:startIconDrawable="@drawable/ic_email"
+                        app:startIconTint="#52B788">
+
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etEmail"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:padding="14dp"
-                            android:textSize="15sp"
                             android:inputType="textEmailAddress" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilFarmerId"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -308,198 +325,193 @@
                         app:boxCornerRadiusTopEnd="14dp"
                         app:boxCornerRadiusBottomStart="14dp"
                         app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#52B788"
+                        app:boxStrokeColor="#E8EDE0"
                         app:boxStrokeWidthFocused="1.5dp"
-                        app:hintTextColor="#52B788">
+                        app:hintTextColor="#52B788"
+                        app:helperText="Enter PM-Kisan ID or State Farmer ID">
+
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etFarmerId"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:padding="14dp"
-                            android:textSize="15sp"
                             android:inputType="textCapCharacters" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
                         android:baselineAligned="false"
-                        android:orientation="horizontal">
+                        android:layout_marginTop="12dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:hint="State"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#52B788"
-                            app:boxStrokeWidthFocused="1.5dp"
-                            app:hintTextColor="#52B788">
-                            <AutoCompleteTextView
-                                android:id="@+id/dropdownState"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:padding="14dp"
-                                android:textSize="15sp"
-                                tools:ignore="LabelFor" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                            android:orientation="vertical"
+                            android:layout_marginEnd="8dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="State"
+                                android:textSize="12sp"
+                                android:textColor="#888888"
+                                android:layout_marginBottom="4dp" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="1.5dp"
+                                app:strokeColor="#E8EDE0"
+                                app:cardBackgroundColor="#FFFFFF">
+
+                                <Spinner
+                                    android:id="@+id/spinnerState"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingStart="8dp"
+                                    tools:ignore="RtlSymmetry" />
+                            </com.google.android.material.card.MaterialCardView>
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:hint="District"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#52B788"
-                            app:boxStrokeWidthFocused="1.5dp"
-                            app:hintTextColor="#52B788">
-                            <AutoCompleteTextView
-                                android:id="@+id/dropdownDistrict"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:padding="14dp"
-                                android:textSize="15sp"
-                                tools:ignore="LabelFor" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                            android:orientation="vertical">
 
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="District"
+                                android:textSize="12sp"
+                                android:textColor="#888888"
+                                android:layout_marginBottom="4dp" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                app:cardCornerRadius="14dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="1.5dp"
+                                app:strokeColor="#E8EDE0"
+                                app:cardBackgroundColor="#FFFFFF">
+
+                                <Spinner
+                                    android:id="@+id/spinnerDistrict"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingStart="8dp"
+                                    tools:ignore="RtlSymmetry" />
+                            </com.google.android.material.card.MaterialCardView>
+                        </LinearLayout>
                     </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:hint="Annual Income"
+                        android:text="Annual Income"
                         android:layout_marginTop="12dp"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#52B788"
-                        app:boxStrokeWidthFocused="1.5dp"
-                        app:hintTextColor="#52B788"
-                        tools:ignore="HardcodedText">
-                        <AutoCompleteTextView
-                            android:id="@+id/dropdownIncome"
+                        android:layout_marginBottom="4dp"
+                        android:textSize="12sp"
+                        android:textColor="#888888" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1.5dp"
+                        app:strokeColor="#E8EDE0"
+                        app:cardBackgroundColor="#FFFFFF">
+
+                        <Spinner
+                            android:id="@+id/spinnerIncome"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:padding="14dp"
-                            android:textSize="15sp"
-                            tools:ignore="LabelFor" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                            android:layout_height="match_parent"
+                            android:paddingStart="8dp"
+                            tools:ignore="RtlSymmetry" />
+                    </com.google.android.material.card.MaterialCardView>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Date of Birth"
                         android:layout_marginTop="12dp"
-                        android:layout_marginBottom="8dp"
-                        android:textSize="13sp"
-                        android:textColor="#888888"
-                        tools:ignore="HardcodedText"/>
+                        android:layout_marginBottom="4dp"
+                        android:textSize="12sp"
+                        android:textColor="#888888" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:baselineAligned="false"
                         android:orientation="horizontal">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:layout_marginEnd="6dp"
-                            android:hint="Day"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#E8EDE0"
-                            app:boxStrokeWidthFocused="1.5dp"
-                            app:hintTextColor="#52B788"
-                            tools:ignore="HardcodedText">
-                            <AutoCompleteTextView
-                                android:id="@+id/dropdownDay"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:padding="14dp"
-                                android:textSize="15sp"
-                                tools:ignore="LabelFor" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                            app:cardCornerRadius="14dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1.5dp"
+                            app:strokeColor="#E8EDE0"
+                            app:cardBackgroundColor="#FFFFFF">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            <Spinner
+                                android:id="@+id/spinnerDay"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="48dp"
                             android:layout_weight="1.5"
                             android:layout_marginEnd="6dp"
-                            android:hint="Month"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#E8EDE0"
-                            app:boxStrokeWidthFocused="1.5dp"
-                            app:hintTextColor="#52B788"
-                            tools:ignore="HardcodedText">
-                            <AutoCompleteTextView
-                                android:id="@+id/dropdownMonth"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:padding="14dp"
-                                android:textSize="15sp"
-                                tools:ignore="LabelFor" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                            app:cardCornerRadius="14dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1.5dp"
+                            app:strokeColor="#E8EDE0"
+                            app:cardBackgroundColor="#FFFFFF">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            <Spinner
+                                android:id="@+id/spinnerMonth"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp"/>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="48dp"
                             android:layout_weight="1.2"
-                            android:hint="Year"
-                            app:boxCornerRadiusTopStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxStrokeColor="#E8EDE0"
-                            app:boxStrokeWidthFocused="1.5dp"
-                            app:hintTextColor="#52B788"
-                            tools:ignore="HardcodedText">
-                            <AutoCompleteTextView
-                                android:id="@+id/dropdownYear"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:padding="14dp"
-                                android:textSize="15sp"
-                                tools:ignore="LabelFor" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                            app:cardCornerRadius="14dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1.5dp"
+                            app:strokeColor="#E8EDE0"
+                            app:cardBackgroundColor="#FFFFFF">
 
+                            <Spinner
+                                android:id="@+id/spinnerYear"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:layout_marginStart="10dp"/>
+                        </com.google.android.material.card.MaterialCardView>
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:layout_marginBottom="10dp"
+                        android:layout_marginBottom="8dp"
                         android:text="Gender"
                         android:textColor="#888888"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -520,15 +532,28 @@
                             app:cardElevation="0dp"
                             app:strokeColor="#E8EDE0"
                             app:strokeWidth="1.5dp">
-                            <TextView
-                                android:id="@+id/tvMaleLabel"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="👨 Male"
-                                android:textColor="#1A3C2E"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:orientation="horizontal"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="👨"
+                                    android:textSize="16sp"
+                                    android:layout_marginEnd="6dp" />
+
+                                <TextView
+                                    android:id="@+id/tvMaleLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Male"
+                                    android:textColor="#1A3C2E"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
                         <com.google.android.material.card.MaterialCardView
@@ -545,15 +570,28 @@
                             app:cardElevation="0dp"
                             app:strokeColor="#E8EDE0"
                             app:strokeWidth="1.5dp">
-                            <TextView
-                                android:id="@+id/tvFemaleLabel"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="👩 Female"
-                                android:textColor="#1A3C2E"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:orientation="horizontal"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="👩"
+                                    android:textSize="16sp"
+                                    android:layout_marginEnd="6dp" />
+
+                                <TextView
+                                    android:id="@+id/tvFemaleLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Female"
+                                    android:textColor="#1A3C2E"
+                                    android:textSize="13sp"/>
+                            </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
                         <com.google.android.material.card.MaterialCardView
@@ -569,19 +607,30 @@
                             app:cardElevation="0dp"
                             app:strokeColor="#E8EDE0"
                             app:strokeWidth="1.5dp">
-                            <TextView
-                                android:id="@+id/tvOtherLabel"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="🧑 Other"
-                                android:textColor="#1A3C2E"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:orientation="horizontal"
+                                android:gravity="center">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="🧑"
+                                    android:textSize="16sp"
+                                    android:layout_marginEnd="6dp" />
+
+                                <TextView
+                                    android:id="@+id/tvOtherLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Other"
+                                    android:textColor="#1A3C2E"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
-
                     </LinearLayout>
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -589,6 +638,8 @@
                 android:id="@+id/btnSaveProfile"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="24dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?attr/selectableItemBackground"
@@ -603,7 +654,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:paddingVertical="18dp">
+                    android:paddingVertical="18dp"
+                    android:orientation="horizontal">
+
+                    <ProgressBar
+                        android:id="@+id/progressSave"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginEnd="10dp"
+                        android:indeterminateTint="#FFFFFF"
+                        android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/tvBtnSaveLabel"
@@ -613,11 +673,8 @@
                         android:textColor="#FFFFFF"
                         android:textSize="16sp"
                         android:textStyle="bold" />
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

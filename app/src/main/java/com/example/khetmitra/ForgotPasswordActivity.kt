@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.util.Patterns
 import android.view.View
@@ -36,21 +37,21 @@ class ForgotPasswordActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_forgot_password)
-
         TranslationHelper.initTranslations(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
-
         btnSendOTP    = findViewById(R.id.btnSendOTP)
         tvBtnSendLabel = btnSendOTP.findViewById(R.id.tvBtnSendLabel)
         progressBar   = btnSendOTP.findViewById(R.id.progressBar)
         tilResetEmail = findViewById(R.id.tilResetEmail)
         etResetEmail  = findViewById(R.id.etResetEmail)
+        setupTextFieldColors()
 
         if (currentLangCode != TranslateLanguage.ENGLISH) {
             translateScreenInstant(findViewById(android.R.id.content))
             translateHints()
         }
+
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<TextView>(R.id.tvBackToLogin).setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
@@ -69,6 +70,23 @@ class ForgotPasswordActivity : AppCompatActivity() {
             tilResetEmail.error = null
             sendResetEmail(email)
         }
+    }
+
+    private fun setupTextFieldColors() {
+        val greenColor  = "#52B788".toColorInt()
+        val defaultGrey = "#E8EDE0".toColorInt()
+        val bgColor     = "#FFFFFF".toColorInt()
+        val strokeStateList = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_focused),
+                intArrayOf(-android.R.attr.state_enabled),
+                intArrayOf() // Default state
+            ),
+            intArrayOf(greenColor, defaultGrey, greenColor)
+        )
+        tilResetEmail.setBoxBackgroundColor(bgColor)
+        tilResetEmail.setBoxStrokeColorStateList(strokeStateList)
+        tilResetEmail.boxStrokeColor = greenColor
     }
 
     private fun translateScreenInstant(view: View) {

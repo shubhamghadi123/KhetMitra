@@ -7,7 +7,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F4F7F0"
-    tools:openDrawer="start">
+    tools:openDrawer="start"
+    tools:ignore="HardcodedText">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -21,7 +22,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Header Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -38,7 +38,6 @@
                     android:layout_height="wrap_content"
                     android:padding="20dp">
 
-                    <!-- Avatar with gradient background -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/profileCard"
                         android:layout_width="64dp"
@@ -47,13 +46,11 @@
                         android:focusable="true"
                         android:foreground="?attr/selectableItemBackground"
                         app:cardBackgroundColor="#A8E6CF"
-                        app:cardCornerRadius="18dp"
+                        app:cardCornerRadius="32dp"
                         app:cardElevation="0dp"
                         app:strokeColor="#22C55E"
                         app:strokeWidth="1.5dp"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent">
+                        tools:ignore="MissingConstraints">
 
                         <TextView
                             android:layout_width="match_parent"
@@ -62,6 +59,12 @@
                             android:text="🧑‍🌾"
                             android:textSize="30sp" />
 
+                        <ImageView
+                            android:id="@+id/ivMainProfilePhoto"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:importantForAccessibility="no"
+                            android:scaleType="centerCrop" />
                     </com.google.android.material.card.MaterialCardView>
 
                     <TextView
@@ -115,9 +118,9 @@
                                 android:layout_width="22dp"
                                 android:layout_height="22dp"
                                 android:layout_gravity="center"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_notification"
                                 app:tint="#F97316" />
-
                         </com.google.android.material.card.MaterialCardView>
 
                         <View
@@ -127,9 +130,7 @@
                             android:layout_marginTop="6dp"
                             android:layout_marginEnd="6dp"
                             android:background="@drawable/bg_notification_dot" />
-
                     </FrameLayout>
-
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -189,7 +190,7 @@
                         android:id="@+id/btnStartMapping"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🗺️  Map My Field"
+                        android:text="Map My Field"
                         android:textColor="#FFFFFF"
                         android:textSize="15sp"
                         android:textStyle="bold"
@@ -199,7 +200,6 @@
                         app:strokeWidth="0dp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
-
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -261,7 +261,7 @@
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📸  Scan My Crop"
+                        android:text="Scan My Crop"
                         android:textColor="#F97316"
                         android:textSize="15sp"
                         android:textStyle="bold"
@@ -272,7 +272,6 @@
                         app:strokeWidth="1.5dp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
-
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -283,7 +282,6 @@
                 android:layout_marginHorizontal="14dp"
                 android:layout_marginTop="4dp"
                 android:nestedScrollingEnabled="false" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
@@ -300,5 +298,4 @@
         app:itemBackground="@drawable/nav_item_background"
         app:itemHorizontalPadding="16dp"
         app:itemIconPadding="12dp" />
-
 </androidx.drawerlayout.widget.DrawerLayout>

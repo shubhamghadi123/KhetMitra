@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -22,7 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ResetPasswordVerifyActivity : AppCompatActivity() {
-
     private lateinit var btnConfirmReset: MaterialCardView
     private lateinit var tvBtnConfirmLabel: TextView
     private lateinit var progressBar: ProgressBar
@@ -58,6 +58,7 @@ class ResetPasswordVerifyActivity : AppCompatActivity() {
         etOtpCode          = findViewById(R.id.etOtpCode)
         etNewPassword      = findViewById(R.id.etNewPassword)
 
+        setupTextFieldColors()
         if (currentLangCode != TranslateLanguage.ENGLISH) {
             translateScreenInstant(findViewById(android.R.id.content))
             translateHintsAndHelpers()
@@ -80,7 +81,6 @@ class ResetPasswordVerifyActivity : AppCompatActivity() {
             } else {
                 tilOtpCode.error = null
             }
-
             when {
                 newPassword.length <= 6 -> {
                     tilNewPassword.error = d(t("Password must be more than 6 characters"))
@@ -94,6 +94,25 @@ class ResetPasswordVerifyActivity : AppCompatActivity() {
             }
             if (hasError) return@setOnClickListener
             performPasswordReset(userEmail, otp, newPassword)
+        }
+    }
+
+    private fun setupTextFieldColors() {
+        val greenColor  = "#52B788".toColorInt()
+        val defaultGrey = "#E8EDE0".toColorInt()
+        val bgColor     = "#FFFFFF".toColorInt()
+        val strokeStateList = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_focused),
+                intArrayOf(-android.R.attr.state_enabled),
+                intArrayOf() // Default state
+            ),
+            intArrayOf(greenColor, defaultGrey, greenColor)
+        )
+        listOf(tilOtpCode, tilNewPassword).forEach { til ->
+            til.setBoxBackgroundColor(bgColor)
+            til.setBoxStrokeColorStateList(strokeStateList)
+            til.boxStrokeColor = greenColor
         }
     }
 
@@ -112,14 +131,12 @@ class ResetPasswordVerifyActivity : AppCompatActivity() {
         if (currentLangCode == TranslateLanguage.ENGLISH) return
         tilOtpCode.hint = d(t("6-Digit Reset Code"))
         tilOtpCode.helperText = d(t("Check your email inbox for the 6-digit code"))
-
         tilNewPassword.hint = d(t("New Password"))
         tilNewPassword.helperText = d(t("Must be more than 6 characters with letters and numbers"))
     }
 
     private fun performPasswordReset(email: String, otp: String, pass: String) {
         setLoadingState(true)
-
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 SupabaseManager.client.auth.verifyEmailOtp(

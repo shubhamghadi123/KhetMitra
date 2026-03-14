@@ -2,6 +2,7 @@ package com.example.khetmitra
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
@@ -11,6 +12,7 @@ import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Phone
@@ -20,7 +22,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class LoginActivity : AppCompatActivity() {
-
     private var currentLangCode = TranslateLanguage.ENGLISH
 
     private fun t(text: String): String {
@@ -30,11 +31,9 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         TranslationHelper.initTranslations(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
-
         lifecycleScope.launch {
             SupabaseManager.client.auth.sessionStatus.collect { status ->
                 when (status) {
@@ -69,22 +68,44 @@ class LoginActivity : AppCompatActivity() {
         mapOf(R.id.etLoginMobile to "Mobile Number", R.id.etLoginPassword to "Password")
             .forEach { (id, hint) ->
                 val et = findViewById<TextInputEditText>(id)
-                (et?.parent?.parent as? com.google.android.material.textfield.TextInputLayout)?.hint = t(hint)
+                (et?.parent?.parent as? TextInputLayout)?.hint = t(hint)
             }
     }
 
+    private fun setupTextFieldColors() {
+        val greenColor  = "#52B788".toColorInt()
+        val defaultGrey = "#E8EDE0".toColorInt()
+        val bgColor     = "#FFFFFF".toColorInt()
+        val strokeStateList = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_focused),
+                intArrayOf(-android.R.attr.state_enabled),
+                intArrayOf() // Default state
+            ),
+            intArrayOf(greenColor, defaultGrey, greenColor)
+        )
+        val etMobile = findViewById<TextInputEditText>(R.id.etLoginMobile)
+        val etPassword = findViewById<TextInputEditText>(R.id.etLoginPassword)
+        val tilMobile = etMobile?.parent?.parent as? TextInputLayout
+        val tilPassword = etPassword?.parent?.parent as? TextInputLayout
+        listOfNotNull(tilMobile, tilPassword).forEach { til ->
+            til.setBoxBackgroundColor(bgColor)
+            til.setBoxStrokeColorStateList(strokeStateList)
+            til.boxStrokeColor = greenColor
+        }
+    }
+
     private fun setupUI() {
+        setupTextFieldColors()
         val btnLogin = findViewById<MaterialCardView>(R.id.btnLogin)
         val tvRegisterLink = findViewById<TextView>(R.id.tvRegisterLink)
         val tvForgotPassword = findViewById<TextView>(R.id.tvForgotPassword)
         val etLoginMobile = findViewById<TextInputEditText>(R.id.etLoginMobile)
-
         val prefilledPhone = intent.getStringExtra("REGISTERED_PHONE")
         if (!prefilledPhone.isNullOrEmpty()) {
             etLoginMobile.setText(prefilledPhone)
             Toast.makeText(this, t("User is already registered, enter password"), Toast.LENGTH_LONG).show()
         }
-
         btnLogin.setOnClickListener { loginFarmer() }
         tvRegisterLink.setOnClickListener { startActivity(Intent(this, RegisterActivity::class.java)) }
         tvForgotPassword.setOnClickListener { startActivity(Intent(this, ForgotPasswordActivity::class.java)) }
@@ -94,20 +115,16 @@ class LoginActivity : AppCompatActivity() {
     private fun loginFarmer() {
         val mobile = findViewById<TextInputEditText>(R.id.etLoginMobile).text.toString().trim()
         val password = findViewById<TextInputEditText>(R.id.etLoginPassword).text.toString()
-
         if (mobile.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, t("Please enter both mobile number and password"), Toast.LENGTH_SHORT).show()
             return
         }
-
         val formattedPhone = if (mobile.startsWith("+")) mobile else "+91$mobile"
         val btnLogin = findViewById<MaterialCardView>(R.id.btnLogin)
         val tvBtnLabel = btnLogin.findViewById<TextView>(R.id.tvBtnLoginLabel)
-
         btnLogin.isClickable = false
         tvBtnLabel.text = t("Logging in...")
         btnLogin.setCardBackgroundColor("#2D6A4F".toColorInt())
-
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 SupabaseManager.client.auth.signInWith(Phone) {

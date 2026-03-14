@@ -79,9 +79,7 @@ class RegisterActivity : AppCompatActivity() {
 
     private val galleryLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { photoUri = it; ivProfilePhoto.setImageURI(it) }
-    }
+    ) { uri: Uri? -> uri?.let { photoUri = it; ivProfilePhoto.setImageURI(it) } }
 
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -106,10 +104,8 @@ class RegisterActivity : AppCompatActivity() {
         setContentView(R.layout.activity_register)
         TranslationHelper.initTranslations(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
-        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH)
-            ?: TranslateLanguage.ENGLISH
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
         bindViews()
-
         if (currentLangCode != TranslateLanguage.ENGLISH) {
             translateScreenInstant(findViewById(android.R.id.content))
             translateHints()
@@ -117,18 +113,17 @@ class RegisterActivity : AppCompatActivity() {
         setupProfilePhoto()
         setupTextFieldColors()
         setupGenderSelection()
+        setupSpinnerColors()
         setupIncomeSpinner()
         setupDateSpinners()
         loadStatesFromSupabase()
 
-        fusedLocationClient = com.google.android.gms.location.LocationServices
-            .getFusedLocationProviderClient(this)
+        fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestLocationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+
         btnRegister.setOnClickListener { registerFarmer() }
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
     }
@@ -141,16 +136,16 @@ class RegisterActivity : AppCompatActivity() {
         spinnerDistrict    = findViewById(R.id.spinnerDistrict)
         spinnerIncome      = findViewById(R.id.spinnerIncome)
         spinnerYear        = findViewById(R.id.spinnerYear)
-        tilFirstName = findViewById(R.id.tilFirstName)
-        tilLastName  = findViewById(R.id.tilLastName)
-        tilPhone     = findViewById(R.id.tilPhone)
-        tilPassword  = findViewById(R.id.tilPassword)
-        tilEmail     = findViewById(R.id.tilEmail)
-        tilFarmerId  = findViewById(R.id.tilFarmerId)
+        tilFirstName       = findViewById(R.id.tilFirstName)
+        tilLastName        = findViewById(R.id.tilLastName)
+        tilPhone           = findViewById(R.id.tilPhone)
+        tilPassword        = findViewById(R.id.tilPassword)
+        tilEmail           = findViewById(R.id.tilEmail)
+        tilFarmerId        = findViewById(R.id.tilFarmerId)
+        ivProfilePhoto     = findViewById(R.id.ivProfilePhoto)
     }
 
     private fun setupProfilePhoto() {
-        ivProfilePhoto = findViewById(R.id.ivProfilePhoto)
         val btnPickPhoto = findViewById<MaterialCardView>(R.id.btnPickPhoto)
         btnPickPhoto.setOnClickListener { showPhotoPickerDialog() }
         ivProfilePhoto.setOnClickListener { showPhotoPickerDialog() }
@@ -159,18 +154,28 @@ class RegisterActivity : AppCompatActivity() {
     private fun showPhotoPickerDialog() {
         AlertDialog.Builder(this)
             .setTitle(t("Upload Photo"))
-            .setItems(arrayOf("📷  ${t("Take a Photo")}", "🖼️  ${t("Choose from Gallery")}")) { _, which ->
+            .setItems(arrayOf(
+                "📷  ${t("Take a Photo")}",
+                "🖼️  ${t("Choose from Gallery")}",
+                "🗑️  ${t("Remove Photo")}"
+            )) { _, which ->
                 when (which) {
                     0 -> {
-                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                            == PackageManager.PERMISSION_GRANTED
-                        ) launchCamera()
+                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) launchCamera()
                         else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                     1 -> galleryLauncher.launch("image/*")
+                    2 -> {
+                        photoUri = null
+                        when (selectedGender) {
+                            "male" -> ivProfilePhoto.setImageResource(R.drawable.default_male_farmer)
+                            "female" -> ivProfilePhoto.setImageResource(R.drawable.default_female_farmer)
+                            "other" -> ivProfilePhoto.setImageResource(R.drawable.default_other_farmer)
+                            else -> ivProfilePhoto.setImageResource(R.drawable.round_person_24)
+                        }
+                    }
                 }
-            }
-            .show()
+            }.show()
     }
 
     private fun launchCamera() {
@@ -181,79 +186,111 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun setupTextFieldColors() {
-        val greenColor   = "#52B788".toColorInt()
-        val defaultGrey  = "#E8EDE0".toColorInt()
-        val bgColor      = "#FFFFFF".toColorInt()
-        val blackColor   = "#000000".toColorInt()
-
+        val greenColor  = "#52B788".toColorInt()
+        val defaultGrey = "#E8EDE0".toColorInt()
+        val bgColor     = "#FFFFFF".toColorInt()
         val strokeStateList = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
-            intArrayOf(greenColor, defaultGrey)
+            arrayOf(
+                intArrayOf(android.R.attr.state_focused),
+                intArrayOf(-android.R.attr.state_enabled),
+                intArrayOf()
+            ),
+            intArrayOf(greenColor, defaultGrey, greenColor)
         )
-        listOf(tilFirstName, tilLastName, tilPhone, tilPassword, tilEmail, tilFarmerId)
-            .forEach { til ->
-                til.setBoxBackgroundColor(bgColor)
-                til.setBoxStrokeColorStateList(strokeStateList)
-                til.defaultHintTextColor = ColorStateList.valueOf(blackColor)
-            }
+        listOf(tilFirstName, tilLastName, tilPhone, tilPassword, tilEmail, tilFarmerId).forEach { til ->
+            til.setBoxBackgroundColor(bgColor)
+            til.setBoxStrokeColorStateList(strokeStateList)
+            til.boxStrokeColor = greenColor
+        }
+    }
+
+    private fun genderTriples() = listOf(
+        Triple(findViewById<MaterialCardView>(R.id.cardMale),   findViewById<TextView>(R.id.tvMaleLabel),   "male"),
+        Triple(findViewById<MaterialCardView>(R.id.cardFemale), findViewById<TextView>(R.id.tvFemaleLabel), "female"),
+        Triple(findViewById<MaterialCardView>(R.id.cardOther),  findViewById<TextView>(R.id.tvOtherLabel),  "other")
+    )
+
+    private fun resetGenderCards(
+        cards: List<Triple<MaterialCardView, TextView, String>>,
+        strokeColor: Int = "#E8EDE0".toColorInt(),
+        bgColor: Int     = "#FFFFFF".toColorInt(),
+        textColor: Int   = "#1A3C2E".toColorInt()
+    ) {
+        val strokePx = (1.5f * resources.displayMetrics.density).toInt()
+        cards.forEach { (c, l, _) ->
+            c.strokeColor = strokeColor
+            c.strokeWidth = strokePx
+            c.setCardBackgroundColor(bgColor)
+            l.setTextColor(textColor)
+        }
+    }
+
+    private fun applyGenderHighlight(
+        card: MaterialCardView,
+        label: TextView,
+        strokeColor: Int = "#52B788".toColorInt(),
+        bgColor: Int = "#F0FAF5".toColorInt(),
+        textColor: Int = "#52B788".toColorInt()
+    ) {
+        val strokePx = (2f * resources.displayMetrics.density).toInt()
+        card.strokeColor = strokeColor
+        card.strokeWidth = strokePx
+        card.setCardBackgroundColor(bgColor)
+        label.setTextColor(textColor)
     }
 
     private fun setupGenderSelection() {
-        val cardMale   = findViewById<MaterialCardView>(R.id.cardMale)
-        val cardFemale = findViewById<MaterialCardView>(R.id.cardFemale)
-        val cardOther  = findViewById<MaterialCardView>(R.id.cardOther)
-        val tvMale     = findViewById<TextView>(R.id.tvMaleLabel)
-        val tvFemale   = findViewById<TextView>(R.id.tvFemaleLabel)
-        val tvOther    = findViewById<TextView>(R.id.tvOtherLabel)
-
-        val cards = listOf(
-            Triple(cardMale, tvMale, "male"),
-            Triple(cardFemale, tvFemale, "female"),
-            Triple(cardOther, tvOther, "other")
-        )
-
-        val defaultStrokePx = (1.5f * resources.displayMetrics.density).toInt()
-        val activeStrokePx  = (2f   * resources.displayMetrics.density).toInt()
-
-        cards.forEach { (card, label, gender) ->
+        val greenColor = "#52B788".toColorInt()
+        val whiteColor = "#FFFFFF".toColorInt()
+        val darkTextColor = "#1A3C2E".toColorInt()
+        resetGenderCards(genderTriples(), greenColor, whiteColor, darkTextColor)
+        genderTriples().forEach { (card, label, gender) ->
             card.setOnClickListener {
-                cards.forEach { (c, l, _) ->
-                    c.strokeColor = "#E8EDE0".toColorInt()
-                    c.strokeWidth = defaultStrokePx
-                    c.setCardBackgroundColor("#FFFFFF".toColorInt())
-                    l.setTextColor("#1A3C2E".toColorInt())
-                }
-                card.strokeColor = "#52B788".toColorInt()
-                card.strokeWidth = activeStrokePx
-                card.setCardBackgroundColor("#F0FAF5".toColorInt())
-                label.setTextColor("#52B788".toColorInt())
+                resetGenderCards(genderTriples(), greenColor, whiteColor, darkTextColor)
+                applyGenderHighlight(card, label)
                 selectedGender = gender
+                if (photoUri == null) {
+                    when (selectedGender) {
+                        "male" -> ivProfilePhoto.setImageResource(R.drawable.default_male_farmer)
+                        "female" -> ivProfilePhoto.setImageResource(R.drawable.default_female_farmer)
+                        "other" -> ivProfilePhoto.setImageResource(R.drawable.default_other_farmer)
+                        else -> ivProfilePhoto.setImageResource(R.drawable.round_person_24)
+                    }
+                }
             }
         }
     }
 
+    private fun setupSpinnerColors() {
+        val greenColor = "#52B788".toColorInt()
+        listOf(
+            R.id.spinnerDay, R.id.spinnerMonth, R.id.spinnerYear,
+            R.id.spinnerState, R.id.spinnerDistrict, R.id.spinnerIncome
+        ).forEach { id ->
+            val spinner = findViewById<Spinner>(id)
+            val parentCard = spinner.parent as? MaterialCardView
+            parentCard?.strokeColor = greenColor
+        }
+    }
+
     private fun setupDateSpinners() {
-        findViewById<Spinner>(R.id.spinnerDay).adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            (1..31).map { d(it.toString()) }.toTypedArray()
+        findViewById<Spinner>(R.id.spinnerDay).applyCustomStyle(
+            (1..31).map { d(it.toString()) }
         )
-        findViewById<Spinner>(R.id.spinnerMonth).adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            arrayOf(
+        findViewById<Spinner>(R.id.spinnerMonth).applyCustomStyle(
+            listOf(
                 t("Jan"), t("Feb"), t("Mar"), t("Apr"), t("May"), t("Jun"),
                 t("Jul"), t("Aug"), t("Sep"), t("Oct"), t("Nov"), t("Dec")
             )
         )
-        spinnerYear.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            (1940..currentYear).map { d(it.toString()) }.reversed().toTypedArray()
+        spinnerYear.applyCustomStyle(
+            (1940..currentYear).map { d(it.toString()) }.reversed()
         )
     }
 
     private fun setupIncomeSpinner() {
-        spinnerIncome.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            englishIncomes.map { d(t(it)) }.toTypedArray()
+        spinnerIncome.applyCustomStyle(
+            englishIncomes.map { d(t(it)) }
         )
     }
 
@@ -261,41 +298,27 @@ class RegisterActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = SupabaseManager.client.postgrest["states"]
-                    .select {
-                        filter { eq("status", 1) }
-                        order("state_name", Order.ASCENDING)
-                    }
+                    .select { filter { eq("status", 1) }; order("state_name", Order.ASCENDING) }
                     .decodeList<StateRow>()
-
                 val translatedStates = result.map { state ->
                     async { translateDynamicText(state.stateName) }
                 }.awaitAll()
-
                 withContext(Dispatchers.Main) {
                     stateList = result
-                    spinnerState.adapter = ArrayAdapter(
-                        this@RegisterActivity,
-                        android.R.layout.simple_spinner_dropdown_item,
-                        translatedStates
-                    )
+                    spinnerState.applyCustomStyle(translatedStates)
                     spinnerState.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                             loadDistrictsForState(stateList[position].stateId)
                         }
                         override fun onNothingSelected(parent: AdapterView<*>?) {}
                     }
-                    if (ContextCompat.checkSelfPermission(
-                            this@RegisterActivity, Manifest.permission.ACCESS_FINE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
+                    if (ContextCompat.checkSelfPermission(this@RegisterActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                         fetchLocationAndAutoSelectState()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("RegisterActivity", "Failed to load states: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RegisterActivity, t("Failed to load states"), Toast.LENGTH_SHORT).show()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(this@RegisterActivity, t("Failed to load states"), Toast.LENGTH_SHORT).show() }
             }
         }
     }
@@ -304,50 +327,31 @@ class RegisterActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = SupabaseManager.client.postgrest["districts"]
-                    .select {
-                        filter {
-                            eq("state_id", stateId)
-                            eq("status", 1)
-                        }
-                        order("district_name", Order.ASCENDING)
-                    }
+                    .select { filter { eq("state_id", stateId); eq("status", 1) }; order("district_name", Order.ASCENDING) }
                     .decodeList<DistrictRow>()
-
                 val translatedDistricts = result.map { district ->
                     async { translateDynamicText(district.districtName) }
                 }.awaitAll()
-
                 withContext(Dispatchers.Main) {
                     districtList = result
-                    spinnerDistrict.adapter = ArrayAdapter(
-                        this@RegisterActivity,
-                        android.R.layout.simple_spinner_dropdown_item,
-                        translatedDistricts
-                    )
+                    spinnerDistrict.applyCustomStyle(translatedDistricts)
                 }
             } catch (e: Exception) {
                 Log.e("RegisterActivity", "Failed to load districts: ${e.message}")
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@RegisterActivity, t("Failed to load districts"), Toast.LENGTH_SHORT).show()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(this@RegisterActivity, t("Failed to load districts"), Toast.LENGTH_SHORT).show() }
             }
         }
     }
 
     @Suppress("DEPRECATION")
     private fun fetchLocationAndAutoSelectState() {
-        if (locationAutoSelectDone) return
-        if (stateList.isEmpty()) return
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
-
+        if (locationAutoSelectDone || stateList.isEmpty()) return
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
-                        val addresses = Geocoder(this@RegisterActivity, Locale.getDefault())
-                            .getFromLocation(location.latitude, location.longitude, 1)
+                        val addresses = Geocoder(this@RegisterActivity, Locale.getDefault()).getFromLocation(location.latitude, location.longitude, 1)
                         if (!addresses.isNullOrEmpty()) {
                             val detectedState = addresses[0].adminArea
                             if (detectedState != null) {
@@ -357,9 +361,7 @@ class RegisterActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.e("RegisterActivity", "Geocoder failed: ${e.message}")
-                    }
+                    } catch (e: Exception) { Log.e("RegisterActivity", "Geocoder failed: ${e.message}") }
                 }
             }
         }
@@ -367,10 +369,16 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun selectStateInSpinner(detectedState: String) {
         val index = stateList.indexOfFirst {
-            it.stateName.equals(detectedState, ignoreCase = true) ||
-                    detectedState.contains(it.stateName, ignoreCase = true)
+            it.stateName.equals(detectedState, ignoreCase = true) || detectedState.contains(it.stateName, ignoreCase = true)
         }
         if (index >= 0) spinnerState.setSelection(index)
+    }
+
+    private fun Spinner.applyCustomStyle(items: List<String>) {
+        val adapter = ArrayAdapter(context, R.layout.custom_spinner_item, items)
+        adapter.setDropDownViewResource(R.layout.custom_spinner_dropdown_item)
+        this.adapter = adapter
+        this.setPopupBackgroundResource(R.drawable.bg_spinner_dropdown)
     }
 
     private fun translateHints() {
@@ -411,9 +419,7 @@ class RegisterActivity : AppCompatActivity() {
                 client.translate(text)
                     .addOnSuccessListener { result -> continuation.resumeWith(Result.success(result)) }
                     .addOnFailureListener { continuation.resumeWith(Result.success(text)) }
-            }.addOnFailureListener {
-                continuation.resumeWith(Result.success(text))
-            }
+            }.addOnFailureListener { continuation.resumeWith(Result.success(text)) }
         }
 
     private fun registerFarmer() {
@@ -429,61 +435,36 @@ class RegisterActivity : AppCompatActivity() {
         val statePos     = spinnerState.selectedItemPosition
         val districtPos  = spinnerDistrict.selectedItemPosition
         val incomePos    = spinnerIncome.selectedItemPosition
-        val stateEnglish    = if (statePos    in stateList.indices)    stateList[statePos].stateName       else "Unknown"
+        val stateEnglish    = if (statePos in stateList.indices) stateList[statePos].stateName else "Unknown"
         val districtEnglish = if (districtPos in districtList.indices) districtList[districtPos].districtName else "Unknown"
-        val incomeEnglish   = if (incomePos   >= 0)                    englishIncomes[incomePos]           else "Unknown"
+        val incomeEnglish   = if (incomePos >= 0) englishIncomes[incomePos] else "Unknown"
         var hasError = false
-
         fun TextInputLayout.require(value: String, msg: String): Boolean {
-            return if (value.isEmpty()) { error = t(msg); hasError = true; false }
-            else { error = null; true }
+            return if (value.isEmpty()) { error = t(msg); hasError = true; false } else { error = null; true }
         }
-
         tilFirstName.require(firstName, "First name is required")
         tilLastName.require(lastName, "Last name is required")
         tilEmail.require(email, "Email is required")
         tilPassword.require(password, "Password is required")
         tilPhone.require(phone, "Phone number is required")
-
-        if (phone.isNotEmpty() && phone.length < 10) {
-            tilPhone.error = t("Enter a valid 10-digit phone number"); hasError = true
-        }
+        if (phone.isNotEmpty() && phone.length < 10) { tilPhone.error = t("Enter a valid 10-digit phone number"); hasError = true }
         if (password.isNotEmpty()) {
             when {
-                password.length <= 6 -> {
-                    tilPassword.error = t("Password must be more than 6 characters"); hasError = true
-                }
-                !password.any { it.isLetter() } || !password.any { it.isDigit() } -> {
-                    tilPassword.error = t("Password must include letters and numbers"); hasError = true
-                }
+                password.length <= 6 -> { tilPassword.error = t("Password must be more than 6 characters"); hasError = true }
+                !password.any { it.isLetter() } || !password.any { it.isDigit() } -> { tilPassword.error = t("Password must include letters and numbers"); hasError = true }
                 else -> tilPassword.error = null
             }
         }
-        if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.error = t("Enter a valid email address"); hasError = true
-        }
-
-        if (selectedGender.isEmpty()) {
-            Toast.makeText(this, t("Please select a gender"), Toast.LENGTH_SHORT).show()
-            hasError = true
-        }
-
-        if (districtList.isEmpty()) {
-            Toast.makeText(this, t("Please wait for districts to load"), Toast.LENGTH_SHORT).show()
-            hasError = true
-        }
-
+        if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) { tilEmail.error = t("Enter a valid email address"); hasError = true }
+        if (selectedGender.isEmpty()) { Toast.makeText(this, t("Please select a gender"), Toast.LENGTH_SHORT).show(); hasError = true }
+        if (districtList.isEmpty()) { Toast.makeText(this, t("Please wait for districts to load"), Toast.LENGTH_SHORT).show(); hasError = true }
         if (hasError) return
         setLoadingState(true)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                SupabaseManager.client.auth.signUpWith(
-                    io.github.jan.supabase.gotrue.providers.builtin.Email
-                ) {
-                    this.email = email
-                    this.password = password
+                SupabaseManager.client.auth.signUpWith(io.github.jan.supabase.gotrue.providers.builtin.Email) {
+                    this.email = email; this.password = password
                 }
-
                 val user = SupabaseManager.client.auth.currentUserOrNull()
                 if (user != null) {
                     try {
@@ -495,23 +476,17 @@ class RegisterActivity : AppCompatActivity() {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         throw Exception("This phone number is already linked to another account.")
                     }
-
                     var photoUrl: String? = null
                     photoUri?.let { uri ->
                         try {
                             val bytes = contentResolver.openInputStream(uri)?.readBytes()
                             if (bytes != null) {
                                 val path = "${user.id}.jpg"
-                                SupabaseManager.client.storage["profile-photos"]
-                                    .upload(path, bytes, upsert = true)
-                                photoUrl = SupabaseManager.client.storage["profile-photos"]
-                                    .publicUrl(path)
+                                SupabaseManager.client.storage["profile-photos"].upload(path, bytes, upsert = true)
+                                photoUrl = SupabaseManager.client.storage["profile-photos"].publicUrl(path)
                             }
-                        } catch (e: Exception) {
-                            Log.e("RegisterActivity", "Photo upload failed: ${e.message}")
-                        }
+                        } catch (e: Exception) { Log.e("RegisterActivity", "Photo upload failed: ${e.message}") }
                     }
-
                     SupabaseManager.client.postgrest["farmers"].insert(
                         FarmerProfile(
                             id                  = user.id,
@@ -528,7 +503,6 @@ class RegisterActivity : AppCompatActivity() {
                             profile_photo_url   = photoUrl
                         )
                     )
-
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@RegisterActivity, t("Registration Successful!"), Toast.LENGTH_LONG).show()
                         startActivity(Intent(this@RegisterActivity, LoginActivity::class.java))
@@ -537,11 +511,7 @@ class RegisterActivity : AppCompatActivity() {
                 } else {
                     withContext(Dispatchers.Main) {
                         setLoadingState(false)
-                        Toast.makeText(
-                            this@RegisterActivity,
-                            t("Login blocked. Check Supabase settings."),
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this@RegisterActivity, t("Login blocked. Check Supabase settings."), Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
@@ -549,13 +519,8 @@ class RegisterActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     setLoadingState(false)
                     val err = e.message?.lowercase() ?: ""
-                    if (err.contains("already registered") || err.contains("already exists") ||
-                        (err.contains("in use") && !err.contains("email"))
-                    ) {
-                        startActivity(
-                            Intent(this@RegisterActivity, LoginActivity::class.java)
-                                .putExtra("REGISTERED_PHONE", phone)
-                        )
+                    if (err.contains("already registered") || err.contains("already exists") || (err.contains("in use") && !err.contains("email"))) {
+                        startActivity(Intent(this@RegisterActivity, LoginActivity::class.java).putExtra("REGISTERED_PHONE", phone))
                         finish()
                     } else {
                         Log.e("SupabaseError", "Registration Error: ", e)
@@ -570,9 +535,7 @@ class RegisterActivity : AppCompatActivity() {
         btnRegister.isClickable = !loading
         progressRegister.visibility = if (loading) View.VISIBLE else View.GONE
         tvBtnRegisterLabel.text = if (loading) t("Registering...") else t("Complete Registration")
-        btnRegister.setCardBackgroundColor(
-            if (loading) "#2D6A4F".toColorInt() else "#52B788".toColorInt()
-        )
+        btnRegister.setCardBackgroundColor(if (loading) "#2D6A4F".toColorInt() else "#52B788".toColorInt())
     }
 
     private fun formatDob(day: String, monthIndex: Int, year: String) =

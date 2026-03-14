@@ -51,7 +51,7 @@
         android:layout_marginStart="20dp"
         android:layout_marginTop="12dp"
         app:cardBackgroundColor="#2D6A4F"
-        app:cardCornerRadius="18dp"
+        app:cardCornerRadius="28dp"
         app:cardElevation="0dp"
         app:strokeColor="#52B788"
         app:strokeWidth="1.5dp"
@@ -64,6 +64,13 @@
             android:gravity="center"
             android:text="🧑‍🌾"
             android:textSize="26sp" />
+
+        <ImageView
+            android:id="@+id/ivNavProfilePhoto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
 
     </com.google.android.material.card.MaterialCardView>
 

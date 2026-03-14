@@ -40,7 +40,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : BaseActivity() {
-
     private lateinit var adapter: DashboardAdapter
     private val dashboardItems = ArrayList<DataModels>()
     private var currentLangCode = TranslateLanguage.ENGLISH
@@ -71,7 +70,6 @@ class MainActivity : BaseActivity() {
         val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
         val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
         val btnScanCrop = findViewById<View>(R.id.btnScanCrop)
-
         val navView = findViewById<NavigationView>(R.id.navView)
         val logoutItem = navView.menu.findItem(R.id.nav_logout)
         val logoutColor = ColorStateList.valueOf("#EF4444".toColorInt())
@@ -98,13 +96,12 @@ class MainActivity : BaseActivity() {
             startActivity(intent)
         }
         btnScanCrop.setOnClickListener(scanCropClickListener)
-
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_profile -> startActivity(Intent(this, ProfileActivity::class.java))
                 R.id.nav_manage_fields -> startActivity(Intent(this, ManageFieldsActivity::class.java))
                 R.id.nav_settings -> startActivity(Intent(this, SettingsActivity::class.java))
-                R.id.nav_help -> { /* TODO */ }
+                R.id.nav_help -> startActivity(Intent(this, HelpSupportActivity::class.java))
                 R.id.nav_logout -> {
                     kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                         try {
@@ -162,16 +159,34 @@ class MainActivity : BaseActivity() {
         }
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
+
+        if (currentLangCode != TranslateLanguage.ENGLISH) {
+            val rootView = findViewById<View>(android.R.id.content)
+            TranslationHelper.translateViewHierarchy(rootView, currentLangCode) {}
+        }
+    }
+
+    private fun loadProfileImage(url: String, imageView: android.widget.ImageView?) {
+        if (imageView == null) return
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val connection = java.net.URL(url).openConnection()
+                connection.doInput = true
+                connection.connect()
+                val inputStream = connection.getInputStream()
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                withContext(Dispatchers.Main) {
+                    imageView.setImageBitmap(bitmap)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to load profile image: ${e.message}")
+            }
+        }
     }
 
     private fun setupInitialData() {
         dashboardItems.clear()
-
         val weatherSubtitle = "${t("Loading")}..."
-        val plansSubtitle = "${d("3")} ${t("tasks for today")}"
-        val chatSubtitle = "${d("2")} ${t("new messages")}"
-        val marketSubtitle = "${t("Up by")} ${d("10")}%"
-
         dashboardItems.add(
             DataModels(
                 title = t("Weather"),
@@ -186,7 +201,7 @@ class MainActivity : BaseActivity() {
         dashboardItems.add(
             DataModels(
                 title = t("Plans"),
-                subtitle = plansSubtitle,
+                subtitle = "",
                 iconRes = R.drawable.ic_plans,
                 tag = t("Today"),
                 bgColor = cardThemes[1].bgColor,
@@ -197,7 +212,7 @@ class MainActivity : BaseActivity() {
         dashboardItems.add(
             DataModels(
                 title = t("Chat"),
-                subtitle = chatSubtitle,
+                subtitle = "",
                 iconRes = R.drawable.ic_chat,
                 tag = t("New"),
                 bgColor = cardThemes[2].bgColor,
@@ -208,7 +223,7 @@ class MainActivity : BaseActivity() {
         dashboardItems.add(
             DataModels(
                 title = t("Market"),
-                subtitle = marketSubtitle,
+                subtitle = "",
                 iconRes = R.drawable.ic_market,
                 tag = t("Updated"),
                 bgColor = cardThemes[3].bgColor,
@@ -223,39 +238,51 @@ class MainActivity : BaseActivity() {
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             try {
                 val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
-
                 if (userId == null) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, "Debug: User ID is null! Session lost.", Toast.LENGTH_LONG).show()
                     }
                     return@launch
                 }
-
                 val profile = SupabaseManager.client.postgrest["farmers"]
                     .select { filter { eq("id", userId) } }
                     .decodeSingleOrNull<FarmerProfile>()
-
                 withContext(Dispatchers.Main) {
                     if (profile != null) {
                         val tvWelcomeMessage = findViewById<TextView>(R.id.tvWelcome)
                         val tvUsername = findViewById<TextView>(R.id.tvUsername)
-
                         if (tvUsername == null) {
                             Toast.makeText(this@MainActivity, "Debug: tvUsername ID not found in XML!", Toast.LENGTH_LONG).show()
                         }
-
-                        val welcomeText = t("Welcome Back")
-                        tvWelcomeMessage?.text = "$welcomeText,"
-
+                        val welcomeText = t("Welcome back,")
+                        tvWelcomeMessage?.text = welcomeText
                         translateWithMLKit("${profile.first_name}!") { translatedFirstName ->
                             tvUsername?.text = translatedFirstName
                         }
-
                         val navView = findViewById<NavigationView>(R.id.navView)
                         val headerView = navView?.getHeaderView(0)
                         val tvHeaderName = headerView?.findViewById<TextView>(R.id.navUserName)
                         translateWithMLKit(profile.first_name) { translatedFullName ->
                             tvHeaderName?.text = translatedFullName
+                        }
+                        val ivMainProfile = findViewById<android.widget.ImageView>(R.id.ivMainProfilePhoto)
+                        val ivNavProfile = headerView?.findViewById<android.widget.ImageView>(R.id.ivNavProfilePhoto)
+                        if (profile.profile_photo_url.isNullOrEmpty()) {
+                            val defaultAvatar = when (profile.gender.lowercase()) {
+                                "male" -> R.drawable.default_male_farmer
+                                "female" -> R.drawable.default_female_farmer
+                                "other" -> R.drawable.default_other_farmer
+                                else -> R.drawable.round_person_24
+                            }
+                            ivMainProfile?.setImageResource(defaultAvatar)
+                            ivNavProfile?.setImageResource(defaultAvatar)
+                            ivMainProfile?.setBackgroundColor(android.graphics.Color.WHITE)
+                            ivNavProfile?.setBackgroundColor(android.graphics.Color.WHITE)
+                        } else {
+                            loadProfileImage(profile.profile_photo_url, ivMainProfile)
+                            loadProfileImage(profile.profile_photo_url, ivNavProfile)
+                            ivMainProfile?.background = null
+                            ivNavProfile?.background = null
                         }
                     } else {
                         Toast.makeText(this@MainActivity, "Debug: Profile is NULL. Database blocked the read!", Toast.LENGTH_LONG).show()
@@ -273,14 +300,11 @@ class MainActivity : BaseActivity() {
 
     private fun translateNavigationDrawer() {
         if (currentLangCode == TranslateLanguage.ENGLISH) return
-
         val navView = findViewById<NavigationView>(R.id.navView) ?: return
-
         if (navView.headerCount > 0) {
             val headerView = navView.getHeaderView(0)
             TranslationHelper.translateViewHierarchy(headerView, currentLangCode) {}
         }
-
         val menu = navView.menu
         for (i in 0 until menu.size) {
             val item = menu[i]
@@ -302,6 +326,7 @@ class MainActivity : BaseActivity() {
         checkLocationPermissionAndFetch()
     }
 
+    @Suppress("DEPRECATION")
     @Deprecated("Use OnBackPressedDispatcher instead")
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
@@ -361,7 +386,6 @@ class MainActivity : BaseActivity() {
     private fun fetchWeather(query: String) {
         var lat: Double
         var lon: Double
-
         try {
             val parts = query.split(",")
             lat = parts[0].trim().toDouble()
@@ -370,12 +394,10 @@ class MainActivity : BaseActivity() {
             lat = 19.07
             lon = 72.87
         }
-
         val retrofit = Retrofit.Builder()
             .baseUrl("https://api.open-meteo.com/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-
         val service = retrofit.create(WeatherService::class.java)
         service.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
             override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
@@ -391,7 +413,6 @@ class MainActivity : BaseActivity() {
                     val rawCondition = getConditionText(weatherCode)
                     val iconRes = getIconForCondition(rawCondition, isDay)
                     val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
-
                     if (manualTranslation != null) {
                         updateWeatherCard(manualTranslation, tempText, tempSymbol, iconRes)
                     } else {
@@ -401,7 +422,6 @@ class MainActivity : BaseActivity() {
                     }
                 }
             }
-
             override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
                 Log.e("MainActivity", "Weather fetch failed: ${t.message}", t)
             }

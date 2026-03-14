@@ -2,6 +2,7 @@ package com.example.khetmitra
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -13,6 +14,8 @@ import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -21,9 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SoilReportActivity : AppCompatActivity() {
-
     private var langCode: String = TranslateLanguage.ENGLISH
-
     private lateinit var layoutLoading: LinearLayout
     private lateinit var layoutContent: NestedScrollView
     private lateinit var tvFarmSubtitle: TextView
@@ -31,6 +32,8 @@ class SoilReportActivity : AppCompatActivity() {
     private lateinit var tvIrrigationAlert: TextView
     private lateinit var tvSurfaceTemp: TextView
     private lateinit var tvDepthTemp: TextView
+    private lateinit var tvHumidity: TextView
+    private lateinit var tvNdviScore: TextView
     private lateinit var tvSowingAdvice: TextView
     private lateinit var toggleGroupImagery: MaterialButtonToggleGroup
     private lateinit var ivSatelliteImage: ImageView
@@ -42,64 +45,55 @@ class SoilReportActivity : AppCompatActivity() {
         return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
 
-    fun d(num: Any): String {
-        return TranslationHelper.convertDigits(num.toString(), langCode)
-    }
+    fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_soil_report)
-
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
-        layoutLoading = findViewById(R.id.layoutLoading)
-        layoutContent = findViewById(R.id.layoutContent)
-        tvFarmSubtitle = findViewById(R.id.tvFarmSubtitle)
-        tvMoistureValue = findViewById(R.id.tvMoistureValue)
-        tvIrrigationAlert = findViewById(R.id.tvIrrigationAlert)
-        tvSurfaceTemp = findViewById(R.id.tvSurfaceTemp)
-        tvDepthTemp = findViewById(R.id.tvDepthTemp)
-        tvSowingAdvice = findViewById(R.id.tvSowingAdvice)
-        toggleGroupImagery = findViewById(R.id.toggleGroupImagery)
-        ivSatelliteImage = findViewById(R.id.ivSatelliteImage)
+        layoutLoading       = findViewById(R.id.layoutLoading)
+        layoutContent       = findViewById(R.id.layoutContent)
+        tvFarmSubtitle      = findViewById(R.id.tvFarmSubtitle)
+        tvMoistureValue     = findViewById(R.id.tvMoistureValue)
+        tvIrrigationAlert   = findViewById(R.id.tvIrrigationAlert)
+        tvSurfaceTemp       = findViewById(R.id.tvSurfaceTemp)
+        tvDepthTemp         = findViewById(R.id.tvDepthTemp)
+        tvHumidity          = findViewById(R.id.tvHumidity)
+        tvNdviScore         = findViewById(R.id.tvNdviScore)
+        tvSowingAdvice      = findViewById(R.id.tvSowingAdvice)
+        toggleGroupImagery  = findViewById(R.id.toggleGroupImagery)
+        ivSatelliteImage    = findViewById(R.id.ivSatelliteImage)
 
-        findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<TextView>(R.id.tvSoilDepthLabel)?.text = t("Soil (10cm)")
 
-        val toggleGroupImagery = findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupImagery)
+        findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
 
         toggleGroupImagery.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
                 when (checkedId) {
-                    R.id.btnNdvi -> {
-                        loadSatelliteImage(ndviUrl)
-                    }
-                    R.id.btnTrueColor -> {
-                        loadSatelliteImage(trueColorUrl)
-                    }
+                    R.id.btnNdvi      -> loadSatelliteImage(ndviUrl)
+                    R.id.btnTrueColor -> loadSatelliteImage(trueColorUrl)
                 }
             }
         }
 
-        val farmName = intent.getStringExtra("FARM_NAME") ?: "My Farm"
-        val farmSize = intent.getStringExtra("FARM_SIZE") ?: ""
+        val farmName        = intent.getStringExtra("FARM_NAME") ?: "My Farm"
+        val farmSize        = intent.getStringExtra("FARM_SIZE") ?: ""
         val coordinatesJson = intent.getStringExtra("FARM_COORDINATES") ?: "[]"
-
         val translatedFarmName = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
-        val translatedSize = farmSize.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
-
-        val finalSubtitle = "${d(translatedFarmName)} • ${d(translatedSize)}"
-
+        val translatedSize     = farmSize.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
+        val finalSubtitle      = "${d(translatedFarmName)} • ${d(translatedSize)}"
         tvFarmSubtitle.text = finalSubtitle
 
         if (langCode != TranslateLanguage.ENGLISH) {
             findViewById<View>(android.R.id.content).post {
-                TranslationHelper.translateViewHierarchy(findViewById(android.R.id.content), langCode) {
-                    tvFarmSubtitle.text = finalSubtitle
-                }
+                TranslationHelper.translateViewHierarchy(
+                    findViewById(android.R.id.content), langCode
+                ) { tvFarmSubtitle.text = finalSubtitle }
             }
         }
-
         fetchAgroData(farmName, coordinatesJson)
     }
 
@@ -107,92 +101,65 @@ class SoilReportActivity : AppCompatActivity() {
     private fun fetchAgroData(farmName: String, coordinatesJson: String) {
         layoutLoading.visibility = View.VISIBLE
         layoutContent.visibility = View.GONE
-
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val listType = object : TypeToken<List<SavedCoordinate>>() {}.type
                 val savedPoints: List<SavedCoordinate> = Gson().fromJson(coordinatesJson, listType)
-
                 val polygonPoints = mutableListOf<List<Double>>()
                 for (point in savedPoints) {
                     val lat = point.latitude ?: point.lat ?: 0.0
                     val lon = point.longitude ?: point.lng ?: 0.0
                     polygonPoints.add(listOf(lon, lat))
                 }
-
-                if (polygonPoints.isEmpty() || polygonPoints[0] == listOf(0.0, 0.0)) {
+                if (polygonPoints.isEmpty() || polygonPoints[0] == listOf(0.0, 0.0))
                     throw Exception("Coordinates are empty. Check database!")
-                }
-
-                if (polygonPoints.first() != polygonPoints.last()) {
+                if (polygonPoints.first() != polygonPoints.last())
                     polygonPoints.add(polygonPoints.first())
-                }
-
                 var finalCoordinates: List<List<List<Double>>> = listOf(polygonPoints.toList())
                 var polygonRequest = PolygonRequest(
-                    name = farmName,
+                    name    = farmName,
                     geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
                 )
-
                 val apiKey = BuildConfig.AGRO_API_KEY
-                var polyId = ""
-
+                var polyId: String
                 var polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
-
                 if (polyResponse.isSuccessful && polyResponse.body() != null) {
                     polyId = polyResponse.body()!!.id
                 } else if (polyResponse.code() == 422) {
                     val errorStr = polyResponse.errorBody()?.string() ?: ""
-
                     if (errorStr.contains("duplicated")) {
-                        val match = "'([a-z0-9]+)'".toRegex().find(errorStr)
-                        if (match != null) {
-                            polyId = match.groupValues[1]
-                        } else {
-                            throw Exception("Duplicated, but couldn't extract ID.")
-                        }
+                        polyId = "'([a-z0-9]+)'".toRegex().find(errorStr)?.groupValues?.get(1)
+                            ?: throw Exception("Duplicated, but couldn't extract ID.")
                     } else if (errorStr.contains("Area of the polygon")) {
-                        var sumLon = 0.0
-                        var sumLat = 0.0
-                        for (p in polygonPoints) {
-                            sumLon += p[0]
-                            sumLat += p[1]
-                        }
-                        val centerLon = sumLon / polygonPoints.size
-                        val centerLat = sumLat / polygonPoints.size
-
-                        val offset = 0.0006
-                        val expandedBox = listOf(
-                            listOf(centerLon - offset, centerLat - offset),
-                            listOf(centerLon + offset, centerLat - offset),
-                            listOf(centerLon + offset, centerLat + offset),
-                            listOf(centerLon - offset, centerLat + offset),
-                            listOf(centerLon - offset, centerLat - offset)
+                        var sumLon = 0.0; var sumLat = 0.0
+                        polygonPoints.forEach { sumLon += it[0]; sumLat += it[1] }
+                        val cLon = sumLon / polygonPoints.size
+                        val cLat = sumLat / polygonPoints.size
+                        val off = 0.0006
+                        val box = listOf(
+                            listOf(cLon - off, cLat - off), listOf(cLon + off, cLat - off),
+                            listOf(cLon + off, cLat + off), listOf(cLon - off, cLat + off),
+                            listOf(cLon - off, cLat - off)
                         )
-
-                        finalCoordinates = listOf(expandedBox)
+                        finalCoordinates = listOf(box)
                         polygonRequest = PolygonRequest(
-                            name = "$farmName (Expanded)",
+                            name     = "$farmName (Expanded)",
                             geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
                         )
-
                         polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
-
-                        if (polyResponse.isSuccessful && polyResponse.body() != null) {
-                            polyId = polyResponse.body()!!.id
+                        polyId = if (polyResponse.isSuccessful && polyResponse.body() != null) {
+                            polyResponse.body()!!.id
                         } else {
                             val secondError = polyResponse.errorBody()?.string() ?: ""
-                            if (secondError.contains("duplicated")) {
-                                val match2 = "'([a-z0-9]+)'".toRegex().find(secondError)
-                                if (match2 != null) polyId = match2.groupValues[1]
-                                else throw Exception("Expanded box duplicated, couldn't extract ID.")
-                            } else {
-                                throw Exception("Server Rejected Expanded Box: $secondError")
-                            }
+                            if (secondError.contains("duplicated"))
+                                "'([a-z0-9]+)'".toRegex().find(secondError)?.groupValues?.get(1)
+                                    ?: throw Exception("Expanded box duplicated, couldn't extract ID.")
+                            else throw Exception("Server Rejected Expanded Box: $secondError")
                         }
-
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@SoilReportActivity, t("Field is small. Showing expanded regional satellite view."), Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@SoilReportActivity,
+                                t("Field is small. Showing expanded regional satellite view."),
+                                Toast.LENGTH_LONG).show()
                         }
                     } else {
                         throw Exception("Server Rejected: $errorStr")
@@ -200,84 +167,60 @@ class SoilReportActivity : AppCompatActivity() {
                 } else {
                     throw Exception("Failed to create boundary. Code: ${polyResponse.code()}")
                 }
-
                 val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
-
-                var airTempCelsius: Double? = null
                 var airHumidity: Double? = null
-                var currentCondition: String? = null
-
                 try {
                     val weatherResponse = AgroRetrofitClient.api.getCurrentWeather(polyId, apiKey)
                     if (weatherResponse.isSuccessful && weatherResponse.body() != null) {
-                        airTempCelsius = weatherResponse.body()!!.main.temp - 273.15
                         airHumidity = weatherResponse.body()!!.main.humidity
-                        currentCondition = weatherResponse.body()!!.weather.firstOrNull()?.main ?: "Unknown"
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AgroAPI", "Weather failed: ${e.message}")
+                    Log.e("AgroAPI", "Weather failed: ${e.message}")
                 }
-
-                val endTime = System.currentTimeMillis() / 1000
+                val endTime   = System.currentTimeMillis() / 1000
                 val startTime = endTime - (30 * 24 * 60 * 60)
                 val imageResponse = AgroRetrofitClient.api.getSatelliteImages(polyId, startTime, endTime, apiKey)
-
-                // --- 2. EXTRACT SATELLITE & NDVI SCORE ---
                 var finalNdviScore: Double? = null
-
                 if (imageResponse.isSuccessful && !imageResponse.body().isNullOrEmpty()) {
                     val latestImage = imageResponse.body()!!.maxByOrNull { it.dt }
                     if (latestImage != null) {
-                        ndviUrl = latestImage.image.ndvi
+                        ndviUrl      = latestImage.image.ndvi
                         trueColorUrl = latestImage.image.truecolor
-
-                        // NEW: Fetch the actual NDVI number!
                         val statUrl = latestImage.stats?.ndvi
                         if (statUrl != null) {
                             try {
-                                // AgroMonitoring sometimes returns HTTP, we must force HTTPS for Android security
                                 val secureStatUrl = statUrl.replace("http://", "https://")
                                 val statResponse = AgroRetrofitClient.api.getNdviStats(secureStatUrl)
-                                if (statResponse.isSuccessful && statResponse.body() != null) {
+                                if (statResponse.isSuccessful && statResponse.body() != null)
                                     finalNdviScore = statResponse.body()!!.mean
-                                }
                             } catch (e: Exception) {
-                                android.util.Log.e("AgroAPI", "NDVI Stat fetch failed: ${e.message}")
+                                Log.e("AgroAPI", "NDVI Stat fetch failed: ${e.message}")
                             }
                         }
                     }
                 }
 
-                // --- 3. SAVE EVERYTHING TO SUPABASE ---
                 if (soilResponse.isSuccessful && soilResponse.body() != null) {
                     val soilBody = soilResponse.body()!!
-                    val soilTempCelsius = soilBody.t10 - 273.15
-
                     saveAgromonitoringData(
-                        fieldName = farmName,
-                        polyId = polyId,
-                        temp = airTempCelsius,
-                        hum = airHumidity,
-                        condition = currentCondition,
-                        soilMoist = soilBody.moisture,
-                        soilTemp = soilTempCelsius,
-                        ndviScore = finalNdviScore // BOOM! We now have the real number!
+                        fieldName  = farmName,
+                        polyId     = polyId,
+                        temp       = null,
+                        hum        = airHumidity,
+                        condition  = null,
+                        soilMoist  = soilBody.moisture,
+                        soilTemp   = soilBody.t10 - 273.15,
+                        ndviScore  = finalNdviScore
                     )
                 }
 
-                // --- 4. UPDATE UI ---
                 withContext(Dispatchers.Main) {
-                    if (soilResponse.isSuccessful && soilResponse.body() != null) {
-                        updateSoilUI(soilResponse.body()!!)
-                    }
-
-                    // load the image we extracted earlier
+                    if (soilResponse.isSuccessful && soilResponse.body() != null)
+                        updateSoilUI(soilResponse.body()!!, airHumidity, finalNdviScore)
                     loadSatelliteImage(ndviUrl)
-
                     layoutLoading.visibility = View.GONE
                     layoutContent.visibility = View.VISIBLE
                 }
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     layoutLoading.visibility = View.GONE
@@ -287,48 +230,59 @@ class SoilReportActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetTextI18n")
-    private fun updateSoilUI(soilData: SoilDataResponse) {
+    @SuppressLint("SetTextI18n", "DefaultLocale")
+    private fun updateSoilUI(soilData: SoilDataResponse, humidity: Double?, ndviScore: Double?) {
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+        val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)")
         val moisturePercent = (soilData.moisture * 100).toInt()
         tvMoistureValue.text = "${d(moisturePercent)}%"
-
-        findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.progressMoisture).progress = moisturePercent
-
-        val surfaceCelsius = (soilData.t0 - 273.15).toInt()
-        val depthCelsius = (soilData.t10 - 273.15).toInt()
-
-        tvSurfaceTemp.text = "${d(surfaceCelsius)}${t("°C")}"
-        tvDepthTemp.text = "${d(depthCelsius)}${t("°C")}"
-
-        if (moisturePercent < 20) {
-            tvIrrigationAlert.text = t("Alert: Moisture is critically low. Immediate irrigation is highly recommended.")
-            tvIrrigationAlert.setTextColor("#D32F2F".toColorInt())
-            tvIrrigationAlert.setBackgroundColor("#FFEBEE".toColorInt())
-        } else if (moisturePercent in 20..40) {
-            tvIrrigationAlert.text = t("Note: Soil is moderately dry. Plan irrigation soon.")
-            tvIrrigationAlert.setTextColor("#F57C00".toColorInt())
-            tvIrrigationAlert.setBackgroundColor("#FFF3E0".toColorInt())
+        findViewById<LinearProgressIndicator>(R.id.progressMoisture).progress = moisturePercent
+        val surfaceCelsius = (soilData.t0  - 273.15).toInt()
+        val depthCelsius   = (soilData.t10 - 273.15).toInt()
+        if (tempUnitPref == "Fahrenheit (°F)") {
+            val surfaceF = (surfaceCelsius * 9.0 / 5.0) + 32
+            val depthF = (depthCelsius * 9.0 / 5.0) + 32
+            tvSurfaceTemp.text = "${d(surfaceF.toInt())}${t("°F")}"
+            tvDepthTemp.text   = "${d(depthF.toInt())}${t("°F")}"
         } else {
-            tvIrrigationAlert.text = t("Good: Soil moisture is optimal. No immediate irrigation needed.")
-            tvIrrigationAlert.setTextColor("#388E3C".toColorInt())
-            tvIrrigationAlert.setBackgroundColor("#E8F5E9".toColorInt())
+            tvSurfaceTemp.text = "${d(surfaceCelsius)}${t("°C")}"
+            tvDepthTemp.text   = "${d(depthCelsius)}${t("°C")}"
         }
-
-        if (depthCelsius in 20..30) {
-            tvSowingAdvice.text = t("Perfect temperature conditions for sowing most crops at 10cm depth.")
-        } else if (depthCelsius < 20) {
-            tvSowingAdvice.text = t("Soil is quite cool. Sowing might have delayed germination.")
-        } else {
-            tvSowingAdvice.text = t("Soil is quite hot. Ensure adequate moisture if sowing.")
+        tvHumidity.text = if (humidity != null) "${d(humidity.toInt())}%" else "--"
+        tvNdviScore.text = if (ndviScore != null)
+            d(String.format("%.2f", ndviScore))
+        else "--"
+        val (alertText, alertTextColor, alertBg) = when {
+            moisturePercent < 20   -> Triple(
+                t("Alert: Moisture is critically low. Immediate irrigation is highly recommended."),
+                "#D32F2F", "#FFEBEE"
+            )
+            moisturePercent in 20..40 -> Triple(
+                t("Note: Soil is moderately dry. Plan irrigation soon."),
+                "#F57C00", "#FFF3E0"
+            )
+            else -> Triple(
+                t("Good: Soil moisture is optimal. No immediate irrigation needed."),
+                "#388E3C", "#E8F5E9"
+            )
+        }
+        tvIrrigationAlert.text = alertText
+        tvIrrigationAlert.setTextColor(alertTextColor.toColorInt())
+        findViewById<MaterialCardView>(R.id.cardIrrigationAlert)
+            .setCardBackgroundColor(alertBg.toColorInt())
+        tvSowingAdvice.text = when {
+            depthCelsius < 20      -> t("Soil is quite cool. Sowing might have delayed germination.")
+            depthCelsius in 20..30 -> {
+                d(t("Perfect temperature conditions for sowing most crops at 10cm depth."))
+            }
+            else                   -> t("Soil is quite hot. Ensure adequate moisture if sowing.")
         }
     }
 
     private fun loadSatelliteImage(url: String?) {
         if (!url.isNullOrEmpty()) {
-            val secureUrl = url.replace("http://", "https://")
-
             Glide.with(this)
-                .load(secureUrl)
+                .load(url.replace("http://", "https://"))
                 .centerCrop()
                 .into(ivSatelliteImage)
         }

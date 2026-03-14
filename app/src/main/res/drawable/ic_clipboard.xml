@@ -1,0 +1,60 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Clipboard body -->
+    <path
+        android:fillColor="#52B788"
+        android:fillAlpha="0.15"
+        android:pathData="M5,4 Q5,3 6,3 L18,3 Q19,3 19,4 L19,21 Q19,22 18,22 L6,22 Q5,22 5,21 Z" />
+
+    <!-- Clipboard border -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#52B788"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5,4 Q5,3 6,3 L18,3 Q19,3 19,4 L19,21 Q19,22 18,22 L6,22 Q5,22 5,21 Z" />
+
+    <!-- Clip tab background -->
+    <path
+        android:fillColor="#52B788"
+        android:pathData="M9,2 Q9,1 10,1 L14,1 Q15,1 15,2 L15,5 Q15,6 14,6 L10,6 Q9,6 9,5 Z" />
+
+    <!-- Clip tab border -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#52B788"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9,2 Q9,1 10,1 L14,1 Q15,1 15,2 L15,5 Q15,6 14,6 L10,6 Q9,6 9,5 Z" />
+
+    <!-- Line 1 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#52B788"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M8,10 L16,10" />
+
+    <!-- Line 2 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#52B788"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M8,13.5 L16,13.5" />
+
+    <!-- Line 3 (shorter) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#52B788"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M8,17 L13,17" />
+
+</vector>

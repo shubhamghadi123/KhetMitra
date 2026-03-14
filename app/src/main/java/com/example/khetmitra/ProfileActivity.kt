@@ -1,7 +1,6 @@
 package com.example.khetmitra
 
 import android.app.AlertDialog
-import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
@@ -9,8 +8,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
+import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,33 +30,34 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
+import java.util.Calendar
 
 class ProfileActivity : AppCompatActivity() {
-
     private var isEditMode = false
     private var langCode: String = TranslateLanguage.ENGLISH
     private var selectedGender: String = ""
     private var photoUri: Uri? = null
     private var currentPhotoUrl: String? = null
-    private lateinit var ivProfilePhoto: ShapeableImageView
-    private lateinit var dropdownDay: AutoCompleteTextView
-    private lateinit var dropdownMonth: AutoCompleteTextView
-    private lateinit var dropdownYear: AutoCompleteTextView
-    private lateinit var dropdownIncome: AutoCompleteTextView
     private var stateList: List<StateRow> = emptyList()
     private var districtList: List<DistrictRow> = emptyList()
-    private val englishMonths = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
-        "Jul","Aug","Sep","Oct","Nov","Dec")
+    private val currentYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+    private lateinit var ivProfilePhoto: ShapeableImageView
+    private lateinit var spinnerDay: Spinner
+    private lateinit var spinnerMonth: Spinner
+    private lateinit var spinnerYear: Spinner
+    private lateinit var spinnerIncome: Spinner
+    private lateinit var spinnerState: Spinner
+    private lateinit var spinnerDistrict: Spinner
     private val englishDays   = (1..31).map { it.toString() }.toTypedArray()
-    private val englishYears  = (1940..2026).map { it.toString() }.reversed().toTypedArray()
-    private val englishIncomes = arrayOf(
-        "Below ₹50,000", "₹50,000 - ₹1,00,000", "₹1,00,000 - ₹3,00,000", "Above ₹3,00,000"
-    )
-
+    private val englishYears  = (1940..currentYear).map { it.toString() }.reversed().toTypedArray()
+    private val englishIncomes = arrayOf("Below ₹50,000", "₹50,000 - ₹1,00,000", "₹1,00,000 - ₹3,00,000", "Above ₹3,00,000")
     private val galleryLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? -> uri?.let { photoUri = it; ivProfilePhoto.setImageURI(it) } }
@@ -71,64 +73,83 @@ class ProfileActivity : AppCompatActivity() {
         else Toast.makeText(this, t("Camera permission denied"), Toast.LENGTH_SHORT).show()
     }
 
-    fun t(text: String): String {
+    private fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
         return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
-    fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
+
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
-
         TranslationHelper.initTranslations(this)
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
-
+        bindViews()
         if (langCode != TranslateLanguage.ENGLISH) {
             translateScreenInstant(findViewById(android.R.id.content))
             translateHints()
         }
-
-        ivProfilePhoto  = findViewById(R.id.ivProfilePhoto)
-        dropdownDay     = findViewById(R.id.dropdownDay)
-        dropdownMonth   = findViewById(R.id.dropdownMonth)
-        dropdownYear    = findViewById(R.id.dropdownYear)
-        dropdownIncome  = findViewById(R.id.dropdownIncome)
-
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<MaterialCardView>(R.id.btnEditProfile).setOnClickListener {
             if (isEditMode) {
                 toggleEditMode(false)
-                Toast.makeText(this, t("Edit Mode Disabled"), Toast.LENGTH_SHORT).show()
+                photoUri = null
+                fetchProfileFromSupabase()
+                Toast.makeText(this, t("Edit Mode Disabled. Unsaved changes reverted."), Toast.LENGTH_SHORT).show()
             } else {
                 toggleEditMode(true)
                 Toast.makeText(this, t("Edit Mode Enabled"), Toast.LENGTH_SHORT).show()
             }
         }
-
         setupProfilePhoto()
         setupGenderSelection()
-        setupDobDropdowns()
-        setupIncomeDropdown()
+        setupDateSpinners()
+        setupIncomeSpinner()
         loadStatesFromSupabase()
         toggleEditMode(false)
-
         findViewById<MaterialCardView>(R.id.btnSaveProfile).setOnClickListener {
             saveProfileToSupabase()
         }
     }
 
-    private fun setupDobDropdowns() {
-        dropdownDay.setAdapter(NoFilterAdapter(this, englishDays.map { d(it) }.toTypedArray()))
-        dropdownMonth.setAdapter(NoFilterAdapter(this,
-            englishMonths.map { t(it) }.toTypedArray()))
-        dropdownYear.setAdapter(NoFilterAdapter(this, englishYears.map { d(it) }.toTypedArray()))
+    private fun bindViews() {
+        ivProfilePhoto  = findViewById(R.id.ivProfilePhoto)
+        spinnerDay      = findViewById(R.id.spinnerDay)
+        spinnerMonth    = findViewById(R.id.spinnerMonth)
+        spinnerYear     = findViewById(R.id.spinnerYear)
+        spinnerIncome   = findViewById(R.id.spinnerIncome)
+        spinnerState    = findViewById(R.id.spinnerState)
+        spinnerDistrict = findViewById(R.id.spinnerDistrict)
     }
 
-    private fun setupIncomeDropdown() {
-        dropdownIncome.setAdapter(
-            NoFilterAdapter(this, englishIncomes.map { d(t(it)) }.toTypedArray()))
+    private fun Spinner.applyCustomStyle(items: List<String>) {
+        val adapter = ArrayAdapter(context, R.layout.custom_spinner_item, items)
+        adapter.setDropDownViewResource(R.layout.custom_spinner_dropdown_item)
+        this.adapter = adapter
+        this.setPopupBackgroundResource(R.drawable.bg_spinner_dropdown)
+    }
+
+    private fun setupDateSpinners() {
+        findViewById<Spinner>(R.id.spinnerDay).applyCustomStyle(
+            (1..31).map { d(it.toString()) }
+        )
+        findViewById<Spinner>(R.id.spinnerMonth).applyCustomStyle(
+            listOf(
+                t("Jan"), t("Feb"), t("Mar"), t("Apr"), t("May"), t("Jun"),
+                t("Jul"), t("Aug"), t("Sep"), t("Oct"), t("Nov"), t("Dec")
+            )
+        )
+        spinnerYear.applyCustomStyle(
+            (1940..currentYear).map { d(it.toString()) }.reversed()
+        )
+    }
+
+    private fun setupIncomeSpinner() {
+        spinnerIncome.applyCustomStyle(
+            englishIncomes.map { d(t(it)) }
+        )
     }
 
     private fun loadStatesFromSupabase() {
@@ -140,16 +161,20 @@ class ProfileActivity : AppCompatActivity() {
                         order("state_name", Order.ASCENDING)
                     }.decodeList<StateRow>()
 
+                val translatedStates = result.map { state ->
+                    async { translateDynamicText(state.stateName) }
+                }.awaitAll()
                 withContext(Dispatchers.Main) {
                     stateList = result
-                    findViewById<AutoCompleteTextView>(R.id.dropdownState).setAdapter(
-                        NoFilterAdapter(this@ProfileActivity, result.map { t(it.stateName) }.toTypedArray())
-                    )
-                    findViewById<AutoCompleteTextView>(R.id.dropdownState)
-                        .setOnItemClickListener { _, _, pos, _ ->
-                            if (pos in stateList.indices)
-                                loadDistrictsForState(stateList[pos].stateId)
+                    spinnerState.applyCustomStyle(translatedStates)
+                    spinnerState.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                            if (position in stateList.indices) {
+                                loadDistrictsForState(stateList[position].stateId)
+                            }
                         }
+                        override fun onNothingSelected(parent: AdapterView<*>?) {}
+                    }
                     fetchProfileFromSupabase()
                 }
             } catch (e: Exception) {
@@ -162,7 +187,7 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDistrictsForState(stateId: Int, preselect: String? = null) {
+    private fun loadDistrictsForState(stateId: Int, preselectDistrict: String? = null) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = SupabaseManager.client.postgrest["districts"]
@@ -171,15 +196,15 @@ class ProfileActivity : AppCompatActivity() {
                         order("district_name", Order.ASCENDING)
                     }.decodeList<DistrictRow>()
 
+                val translatedDistricts = result.map { district ->
+                    async { translateDynamicText(district.districtName) }
+                }.awaitAll()
                 withContext(Dispatchers.Main) {
                     districtList = result
-                    val dd = findViewById<AutoCompleteTextView>(R.id.dropdownDistrict)
-                    dd.setAdapter(ArrayAdapter(this@ProfileActivity,
-                        android.R.layout.simple_dropdown_item_1line,
-                        result.map { t(it.districtName) }))
-                    if (preselect != null) {
-                        val match = result.find { it.districtName.equals(preselect, ignoreCase = true) }
-                        if (match != null) dd.setText(t(match.districtName), false)
+                    spinnerDistrict.applyCustomStyle(translatedDistricts)
+                    if (preselectDistrict != null) {
+                        val index = districtList.indexOfFirst { it.districtName.equals(preselectDistrict, ignoreCase = true) }
+                        if (index >= 0) spinnerDistrict.setSelection(index)
                     }
                 }
             } catch (e: Exception) {
@@ -198,14 +223,27 @@ class ProfileActivity : AppCompatActivity() {
     private fun showPhotoPickerDialog() {
         AlertDialog.Builder(this)
             .setTitle(t("Upload Photo"))
-            .setItems(arrayOf("📷  ${t("Take a Photo")}", "🖼️  ${t("Choose from Gallery")}")) { _, which ->
+            .setItems(arrayOf(
+                "📷  ${t("Take a Photo")}",
+                "🖼️  ${t("Choose from Gallery")}",
+                "🗑️  ${t("Remove Photo")}"
+            )) { _, which ->
                 when (which) {
                     0 -> {
-                        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
-                            == PackageManager.PERMISSION_GRANTED) launchCamera()
+                        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) launchCamera()
                         else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     }
                     1 -> galleryLauncher.launch("image/*")
+                    2 -> {
+                        photoUri = null
+                        currentPhotoUrl = ""
+                        when (selectedGender) {
+                            "male" -> ivProfilePhoto.setImageResource(R.drawable.default_male_farmer)
+                            "female" -> ivProfilePhoto.setImageResource(R.drawable.default_female_farmer)
+                            "other" -> ivProfilePhoto.setImageResource(R.drawable.default_other_farmer)
+                            else -> ivProfilePhoto.setImageResource(R.drawable.round_person_24)
+                        }
+                    }
                 }
             }.show()
     }
@@ -221,8 +259,8 @@ class ProfileActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bm = BitmapFactory.decodeStream(
-                    URL(url).openConnection().apply { connectTimeout = 5000; readTimeout = 5000 }
-                        .getInputStream())
+                    URL(url).openConnection().apply { connectTimeout = 5000; readTimeout = 5000 }.getInputStream()
+                )
                 withContext(Dispatchers.Main) { ivProfilePhoto.setImageBitmap(bm) }
             } catch (e: Exception) { Log.e("ProfileActivity", "Photo load failed", e) }
         }
@@ -232,16 +270,17 @@ class ProfileActivity : AppCompatActivity() {
         genderTriples().forEach { (card, label, gender) ->
             card.setOnClickListener {
                 if (!isEditMode) return@setOnClickListener
-
-                resetGenderCards(
-                    cards = genderTriples(),
-                    strokeColor = "#52B788".toColorInt(),
-                    bgColor = "#FFFFFF".toColorInt(),
-                    textColor = "#1A3C2E".toColorInt()
-                )
-
+                resetGenderCards(genderTriples(), "#52B788".toColorInt(), "#FFFFFF".toColorInt(), "#1A3C2E".toColorInt())
                 applyGenderHighlight(card, label)
                 selectedGender = gender
+                if (photoUri == null && currentPhotoUrl.isNullOrEmpty()) {
+                    when (selectedGender) {
+                        "male" -> ivProfilePhoto.setImageResource(R.drawable.default_male_farmer)
+                        "female" -> ivProfilePhoto.setImageResource(R.drawable.default_female_farmer)
+                        "other" -> ivProfilePhoto.setImageResource(R.drawable.default_other_farmer)
+                        else -> ivProfilePhoto.setImageResource(R.drawable.round_person_24)
+                    }
+                }
             }
         }
     }
@@ -254,8 +293,7 @@ class ProfileActivity : AppCompatActivity() {
         val activeBorderColor = if (isEditMode) greenColor else defaultGrey
         val unselectedTextColor = if (isEditMode) "#1A3C2E".toColorInt() else "#888888".toColorInt()
         resetGenderCards(genderTriples(), activeBorderColor, "#FFFFFF".toColorInt(), unselectedTextColor)
-        genderTriples().find { it.third == selectedGender }
-            ?.let { (c, l, _) -> applyGenderHighlight(c, l) }
+        genderTriples().find { it.third == selectedGender }?.let { (c, l, _) -> applyGenderHighlight(c, l) }
     }
 
     private fun genderTriples() = listOf(
@@ -293,16 +331,6 @@ class ProfileActivity : AppCompatActivity() {
         label.setTextColor(textColor)
     }
 
-    private class NoFilterAdapter(ctx: Context, private val items: Array<String>) :
-        ArrayAdapter<String>(ctx, android.R.layout.simple_dropdown_item_1line, items) {
-        override fun getFilter() = object : android.widget.Filter() {
-            override fun performFiltering(c: CharSequence?) =
-                FilterResults().apply { values = items; count = items.size }
-            @Suppress("UNCHECKED_CAST")
-            override fun publishResults(c: CharSequence?, r: FilterResults?) = notifyDataSetChanged()
-        }
-    }
-
     private fun toggleEditMode(enabled: Boolean) {
         isEditMode = enabled
 
@@ -317,27 +345,14 @@ class ProfileActivity : AppCompatActivity() {
                 intArrayOf(-android.R.attr.state_enabled),
                 intArrayOf()
             ),
-            intArrayOf(
-                greenColor,
-                defaultGrey,
-                activeBorderColor
-            )
+            intArrayOf(greenColor, defaultGrey, activeBorderColor)
         )
 
-        listOf(R.id.etFirstName, R.id.etLastName, R.id.etPhone, R.id.etEmail,
-            R.id.etFarmerId, R.id.dropdownState, R.id.dropdownDistrict,
-            R.id.dropdownDay, R.id.dropdownMonth, R.id.dropdownYear,
-            R.id.dropdownIncome).forEach { id ->
-
-            val view = findViewById<View>(id)
+        listOf(R.id.etFirstName, R.id.etLastName, R.id.etPhone, R.id.etEmail, R.id.etFarmerId).forEach { id ->
+            val view = findViewById<TextInputEditText>(id)
             view.isEnabled = enabled
-            view.isClickable = enabled
-            view.isFocusable = enabled
-
-            if (view is TextInputEditText) {
-                view.isFocusableInTouchMode = enabled
-                view.isCursorVisible = enabled
-            }
+            view.isFocusableInTouchMode = enabled
+            view.isCursorVisible = enabled
 
             (view.parent?.parent as? TextInputLayout)?.let { til ->
                 til.isEnabled = enabled
@@ -347,6 +362,14 @@ class ProfileActivity : AppCompatActivity() {
             }
         }
 
+        listOf(spinnerState, spinnerDistrict, spinnerDay, spinnerMonth, spinnerYear, spinnerIncome).forEach { spinner ->
+            spinner.isEnabled = enabled
+            spinner.isClickable = enabled
+
+            val parentCard = spinner.parent as? MaterialCardView
+            parentCard?.strokeColor = activeBorderColor
+        }
+
         val gt = genderTriples()
         val unselectedTextColor = if (enabled) "#1A3C2E".toColorInt() else "#888888".toColorInt()
         resetGenderCards(gt, activeBorderColor, bgColor, unselectedTextColor)
@@ -354,48 +377,59 @@ class ProfileActivity : AppCompatActivity() {
             applyGenderHighlight(c, l)
         }
 
-        findViewById<MaterialCardView>(R.id.btnSaveProfile).visibility =
-            if (enabled) View.VISIBLE else View.GONE
-        findViewById<MaterialCardView>(R.id.btnPickPhoto)?.visibility =
-            if (enabled) View.VISIBLE else View.GONE
+        findViewById<MaterialCardView>(R.id.btnSaveProfile).visibility = if (enabled) View.VISIBLE else View.GONE
+        findViewById<MaterialCardView>(R.id.btnPickPhoto)?.visibility = if (enabled) View.VISIBLE else View.GONE
 
-        val editIcon = (findViewById<MaterialCardView>(R.id.btnEditProfile)
-            .getChildAt(0) as? android.widget.ImageView)
-        editIcon?.setImageResource(
-            if (enabled) android.R.drawable.ic_menu_close_clear_cancel
-            else android.R.drawable.ic_menu_edit)
+        val editIcon = (findViewById<MaterialCardView>(R.id.btnEditProfile).getChildAt(0) as? android.widget.ImageView)
+        editIcon?.setImageResource(if (enabled) android.R.drawable.ic_menu_close_clear_cancel else android.R.drawable.ic_menu_edit)
     }
 
     private fun translateScreenInstant(view: View) {
         if (langCode == TranslateLanguage.ENGLISH) return
-        if (view is TextView && view !is TextInputEditText && view !is AutoCompleteTextView) {
+        if (view is TextView && view !is TextInputEditText) {
             val text = view.text.toString()
             if (text.isNotEmpty()) view.text = t(text)
         }
-        if (view is android.view.ViewGroup)
+        if (view is android.view.ViewGroup) {
             for (i in 0 until view.childCount) translateScreenInstant(view.getChildAt(i))
+        }
     }
+
+    private suspend fun translateDynamicText(text: String): String =
+        suspendCancellableCoroutine { continuation ->
+            if (langCode == TranslateLanguage.ENGLISH) {
+                continuation.resumeWith(Result.success(text))
+                return@suspendCancellableCoroutine
+            }
+            val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(langCode)
+                .build()
+            val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+            client.downloadModelIfNeeded().addOnSuccessListener {
+                client.translate(text)
+                    .addOnSuccessListener { result -> continuation.resumeWith(Result.success(result)) }
+                    .addOnFailureListener { continuation.resumeWith(Result.success(text)) }
+            }.addOnFailureListener {
+                continuation.resumeWith(Result.success(text))
+            }
+        }
 
     private fun translateHints() {
         if (langCode == TranslateLanguage.ENGLISH) return
         mapOf(
-            R.id.etFirstName      to "First Name",
-            R.id.etLastName       to "Last Name",
-            R.id.etPhone          to "Phone Number",
-            R.id.etEmail          to "Email Address",
-            R.id.etFarmerId       to "Government Farmer ID",
-            R.id.dropdownState    to "State",
-            R.id.dropdownDistrict to "District",
-            R.id.dropdownDay      to "Day",
-            R.id.dropdownMonth    to "Month",
-            R.id.dropdownYear     to "Year",
-            R.id.dropdownIncome   to "Annual Income"
+            R.id.etFirstName to "First Name",
+            R.id.etLastName  to "Last Name",
+            R.id.etPhone     to "Phone Number",
+            R.id.etEmail     to "Email Address",
+            R.id.etFarmerId  to "Government Farmer ID"
         ).forEach { (id, hint) ->
             val view = findViewById<View>(id)
             val til = view?.parent?.parent as? TextInputLayout
             til?.hint = t(hint)
-            if (id == R.id.etPhone && til?.prefixText != null)
+            if (id == R.id.etPhone && til?.prefixText != null) {
                 til.prefixText = d(til.prefixText.toString())
+            }
         }
     }
 
@@ -421,7 +455,6 @@ class ProfileActivity : AppCompatActivity() {
         findViewById<TextInputEditText>(R.id.etEmail).setText(profile.email)
         findViewById<TextInputEditText>(R.id.etPhone).setText(d(profile.phone_number))
         findViewById<TextInputEditText>(R.id.etFarmerId).setText(d(profile.gov_farmer_id ?: ""))
-
         val dob = profile.date_of_birth
         if (dob.isNotBlank()) {
             val parts = dob.split("-")
@@ -429,65 +462,66 @@ class ProfileActivity : AppCompatActivity() {
                 val year  = parts[0].toIntOrNull()
                 val month = parts[1].toIntOrNull()
                 val day   = parts[2].toIntOrNull()
-                if (day != null && day in 1..31)
-                    dropdownDay.setText(d(day.toString()), false)
-                if (month != null && month in 1..12)
-                    dropdownMonth.setText(t(englishMonths[month - 1]), false)
-                if (year != null)
-                    dropdownYear.setText(d(year.toString()), false)
+                if (day != null && day in 1..31) spinnerDay.setSelection(day - 1)
+                if (month != null && month in 1..12) spinnerMonth.setSelection(month - 1)
+                if (year != null) {
+                    val yearIndex = englishYears.indexOf(year.toString())
+                    if (yearIndex >= 0) spinnerYear.setSelection(yearIndex)
+                }
             }
         }
 
-        val incomeMatch = englishIncomes.find {
-            it.equals(profile.annual_income_range, ignoreCase = true)
-        }
-        if (incomeMatch != null)
-            dropdownIncome.setText(d(t(incomeMatch)), false)
-
-        val stateMatch = stateList.find { it.stateName.equals(profile.state_location, ignoreCase = true) }
-        if (stateMatch != null) {
-            findViewById<AutoCompleteTextView>(R.id.dropdownState).setText(t(stateMatch.stateName), false)
-            loadDistrictsForState(stateMatch.stateId, preselect = profile.district)
-        } else {
-            findViewById<AutoCompleteTextView>(R.id.dropdownState).setText(t(profile.state_location), false)
+        val incomeIndex = englishIncomes.indexOfFirst { it.equals(profile.annual_income_range, ignoreCase = true) }
+        if (incomeIndex >= 0) spinnerIncome.setSelection(incomeIndex)
+        val stateIndex = stateList.indexOfFirst { it.stateName.equals(profile.state_location, ignoreCase = true) }
+        if (stateIndex >= 0) {
+            spinnerState.setSelection(stateIndex)
+            loadDistrictsForState(stateList[stateIndex].stateId, preselectDistrict = profile.district)
         }
 
         highlightGender(profile.gender)
         currentPhotoUrl = profile.profile_photo_url
-        loadProfilePhoto(currentPhotoUrl)
+        if (currentPhotoUrl.isNullOrEmpty()) {
+            when (profile.gender.lowercase()) {
+                "male" -> ivProfilePhoto.setImageResource(R.drawable.default_male_farmer)
+                "female" -> ivProfilePhoto.setImageResource(R.drawable.default_female_farmer)
+                "other" -> ivProfilePhoto.setImageResource(R.drawable.default_other_farmer)
+                else -> ivProfilePhoto.setImageResource(R.drawable.round_person_24)
+            }
+        } else {
+            loadProfilePhoto(currentPhotoUrl)
+        }
+    }
+
+    private fun reverseTranslateDigits(input: String): String {
+        var output = input
+        for (i in 0..9) {
+            output = output.replace(d(i.toString()), i.toString())
+        }
+        return output
     }
 
     private fun saveProfileToSupabase() {
         val btnSave    = findViewById<MaterialCardView>(R.id.btnSaveProfile)
         val tvBtnLabel = btnSave.findViewById<TextView>(R.id.tvBtnSaveLabel)
+        val progress   = btnSave.findViewById<ProgressBar>(R.id.progressSave)
         btnSave.isClickable = false
         tvBtnLabel.text = t("Saving...")
+        progress.visibility = View.VISIBLE
         btnSave.setCardBackgroundColor("#2D6A4F".toColorInt())
-        var dayText   = dropdownDay.text.toString()
-        var yearText  = dropdownYear.text.toString()
-        val monthText = dropdownMonth.text.toString()
-        for (i in 0..9) {
-            val local = d(i.toString())
-            dayText  = dayText.replace(local, i.toString())
-            yearText = yearText.replace(local, i.toString())
-        }
-        val monthIndex = englishMonths.indexOfFirst { t(it) == monthText }
-            .takeIf { it >= 0 } ?: 0
-        val dobEnglish = "$yearText-${(monthIndex + 1).toString().padStart(2, '0')}-${dayText.padStart(2, '0')}"
-        val incomeUI  = dropdownIncome.text.toString()
-        val incomeEnglish = englishIncomes.find { d(t(it)) == incomeUI } ?: incomeUI
-        val stateUI    = findViewById<AutoCompleteTextView>(R.id.dropdownState).text.toString()
-        val districtUI = findViewById<AutoCompleteTextView>(R.id.dropdownDistrict).text.toString()
-        val stateEnglish    = stateList.find { t(it.stateName) == stateUI }?.stateName ?: stateUI
-        val districtEnglish = districtList.find { t(it.districtName) == districtUI }?.districtName ?: districtUI
-        var phoneEnglish    = findViewById<TextInputEditText>(R.id.etPhone).text.toString()
-        var farmerIdEnglish = findViewById<TextInputEditText>(R.id.etFarmerId).text.toString()
-        for (i in 0..9) {
-            val local = d(i.toString())
-            phoneEnglish    = phoneEnglish.replace(local, i.toString())
-            farmerIdEnglish = farmerIdEnglish.replace(local, i.toString())
-        }
-
+        val dayEnglish    = englishDays[spinnerDay.selectedItemPosition].padStart(2, '0')
+        val monthEnglish  = (spinnerMonth.selectedItemPosition + 1).toString().padStart(2, '0')
+        val yearEnglish   = englishYears[spinnerYear.selectedItemPosition]
+        val dobEnglish    = "$yearEnglish-$monthEnglish-$dayEnglish"
+        val incomeEnglish = englishIncomes[spinnerIncome.selectedItemPosition]
+        val statePos      = spinnerState.selectedItemPosition
+        val stateEnglish  = if (statePos in stateList.indices) stateList[statePos].stateName else ""
+        val districtPos   = spinnerDistrict.selectedItemPosition
+        val districtEnglish = if (districtPos in districtList.indices) districtList[districtPos].districtName else ""
+        val phoneRaw    = findViewById<TextInputEditText>(R.id.etPhone).text.toString()
+        val farmerIdRaw = findViewById<TextInputEditText>(R.id.etFarmerId).text.toString()
+        val phoneEnglish    = reverseTranslateDigits(phoneRaw)
+        val farmerIdEnglish = reverseTranslateDigits(farmerIdRaw)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = SupabaseManager.client.auth.currentUserOrNull() ?: return@launch
@@ -502,14 +536,13 @@ class ProfileActivity : AppCompatActivity() {
                         }
                     } catch (e: Exception) { Log.e("ProfileActivity", "Photo upload failed: ${e.message}") }
                 }
-
                 SupabaseManager.client.postgrest["farmers"].upsert(
                     FarmerProfile(
                         id                  = user.id,
-                        first_name          = findViewById<TextInputEditText>(R.id.etFirstName).text.toString(),
-                        last_name           = findViewById<TextInputEditText>(R.id.etLastName).text.toString(),
+                        first_name          = findViewById<TextInputEditText>(R.id.etFirstName).text.toString().trim(),
+                        last_name           = findViewById<TextInputEditText>(R.id.etLastName).text.toString().trim(),
                         phone_number        = phoneEnglish,
-                        email               = findViewById<TextInputEditText>(R.id.etEmail).text.toString(),
+                        email               = findViewById<TextInputEditText>(R.id.etEmail).text.toString().trim(),
                         gov_farmer_id       = farmerIdEnglish.ifEmpty { null },
                         gender              = selectedGender,
                         profile_photo_url   = photoUrl,
@@ -519,12 +552,13 @@ class ProfileActivity : AppCompatActivity() {
                         annual_income_range = incomeEnglish
                     )
                 )
-
                 withContext(Dispatchers.Main) {
                     currentPhotoUrl = photoUrl; photoUri = null
                     Toast.makeText(this@ProfileActivity, t("Profile Updated!"), Toast.LENGTH_SHORT).show()
+
                     btnSave.isClickable = true
                     tvBtnLabel.text = t("Save Changes")
+                    progress.visibility = View.GONE
                     btnSave.setCardBackgroundColor("#52B788".toColorInt())
                     toggleEditMode(false)
                 }
@@ -532,6 +566,7 @@ class ProfileActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     btnSave.isClickable = true
                     tvBtnLabel.text = t("Save Changes")
+                    progress.visibility = View.GONE
                     btnSave.setCardBackgroundColor("#52B788".toColorInt())
                     Toast.makeText(this@ProfileActivity, t("Save failed: ") + e.message, Toast.LENGTH_LONG).show()
                 }

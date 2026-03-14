@@ -60,7 +60,7 @@ data class AirQualityResponse(
 )
 
 data class CurrentAQI(
-    val us_aqi: Int // This gives values like 45, 120, 300 (Raw AQI)
+    val us_aqi: Int
 )
 
 // UI MODELS (For RecyclerViews)
