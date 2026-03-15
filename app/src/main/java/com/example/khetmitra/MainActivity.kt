@@ -25,7 +25,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.navigation.NavigationView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.gotrue.auth
@@ -44,23 +44,8 @@ class MainActivity : BaseActivity() {
     private val dashboardItems = ArrayList<DataModels>()
     private var currentLangCode = TranslateLanguage.ENGLISH
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
     // Default to Mumbai coordinates if GPS fails
     private val DEFAULT_CITY = "19.07,72.87"
-
-    private data class CardTheme(
-        val bgColor: Int,
-        val accentColor: Int,
-        val emoji: String,
-        val tag: String
-    )
-
-    private val cardThemes = listOf(
-        CardTheme("#FFF7ED".toColorInt(), "#F97316".toColorInt(), "🌤️", "Live"),       // Weather
-        CardTheme("#F0FDF4".toColorInt(), "#22C55E".toColorInt(), "📋", "Today"),      // Plans
-        CardTheme("#F0F9FF".toColorInt(), "#0EA5E9".toColorInt(), "💬", "New"),        // Chat
-        CardTheme("#FAF5FF".toColorInt(), "#A855F7".toColorInt(), "📈", "Updated"),    // Market
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,8 +53,8 @@ class MainActivity : BaseActivity() {
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
-        val btnStartMapping = findViewById<MaterialButton>(R.id.btnStartMapping)
-        val btnScanCrop = findViewById<View>(R.id.btnScanCrop)
+        val btnStartMapping = findViewById<MaterialCardView>(R.id.btnStartMapping)
+        val btnScanCrop     = findViewById<MaterialCardView>(R.id.btnScanCrop)
         val navView = findViewById<NavigationView>(R.id.navView)
         val logoutItem = navView.menu.findItem(R.id.nav_logout)
         val logoutColor = ColorStateList.valueOf("#EF4444".toColorInt())
@@ -155,6 +140,8 @@ class MainActivity : BaseActivity() {
                     startActivity(Intent(this, MarketActivity::class.java))
                 title == t("Chat") || title == "Chat" ->
                     startActivity(Intent(this, ChatbotActivity::class.java))
+                title == t("Plans") || title == "Plans" ->
+                    startActivity(Intent(this, ChatbotActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
@@ -184,51 +171,62 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private val cardThemes = listOf(
+        CardTheme("#FFF7ED".toColorInt(), "#F97316".toColorInt(), "🌤️", "Live",    "#F97316".toColorInt()),
+        CardTheme("#F0FDF4".toColorInt(), "#22C55E".toColorInt(), "📋", "Today",   "#22C55E".toColorInt()),
+        CardTheme("#F0F9FF".toColorInt(), "#0EA5E9".toColorInt(), "💬", "New",     "#0EA5E9".toColorInt()),
+        CardTheme("#FAF5FF".toColorInt(), "#A855F7".toColorInt(), "📈", "Updated", "#A855F7".toColorInt()),
+    )
+
     private fun setupInitialData() {
         dashboardItems.clear()
         val weatherSubtitle = "${t("Loading")}..."
         dashboardItems.add(
             DataModels(
-                title = t("Weather"),
-                subtitle = weatherSubtitle,
-                iconRes = R.drawable.ic_weather,
-                tag = t("Live"),
-                bgColor = cardThemes[0].bgColor,
+                title       = t("Weather"),
+                subtitle    = weatherSubtitle,
+                iconRes     = R.drawable.ic_weather,
+                tag         = t("Live"),
+                bgColor     = cardThemes[0].bgColor,
                 accentColor = cardThemes[0].accentColor,
-                emoji = cardThemes[0].emoji
+                emoji       = cardThemes[0].emoji,
+                textColor   = cardThemes[0].textColor
             )
         )
         dashboardItems.add(
             DataModels(
-                title = t("Plans"),
-                subtitle = "",
-                iconRes = R.drawable.ic_plans,
-                tag = t("Today"),
-                bgColor = cardThemes[1].bgColor,
+                title       = t("Plans"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_plans,
+                tag         = t("Today"),
+                bgColor     = cardThemes[1].bgColor,
                 accentColor = cardThemes[1].accentColor,
-                emoji = cardThemes[1].emoji
+                emoji       = cardThemes[1].emoji,
+                textColor   = cardThemes[1].textColor
             )
         )
         dashboardItems.add(
             DataModels(
-                title = t("Chat"),
-                subtitle = "",
-                iconRes = R.drawable.ic_chat,
-                tag = t("New"),
-                bgColor = cardThemes[2].bgColor,
+                title       = t("Chat"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_chat,
+                tag         = t("New"),
+                bgColor     = cardThemes[2].bgColor,
                 accentColor = cardThemes[2].accentColor,
-                emoji = cardThemes[2].emoji
+                emoji       = cardThemes[2].emoji,
+                textColor   = cardThemes[2].textColor
             )
         )
         dashboardItems.add(
             DataModels(
-                title = t("Market"),
-                subtitle = "",
-                iconRes = R.drawable.ic_market,
-                tag = t("Updated"),
-                bgColor = cardThemes[3].bgColor,
+                title       = t("Market"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_market,
+                tag         = t("Updated"),
+                bgColor     = cardThemes[3].bgColor,
                 accentColor = cardThemes[3].accentColor,
-                emoji = cardThemes[3].emoji
+                emoji       = cardThemes[3].emoji,
+                textColor   = cardThemes[3].textColor
             )
         )
     }

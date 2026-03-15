@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="01/17"
-            android:textColor="#A8D5B5"
+            android:textColor="#098553"
             android:textSize="11sp"
             tools:ignore="HardcodedText" />
 

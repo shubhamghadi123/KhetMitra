@@ -39,17 +39,14 @@ class MarketActivity : AppCompatActivity() {
 
     private lateinit var lineChart: LineChart
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
     private var allStates: List<StateRow> = emptyList()
     private var allDistricts: List<DistrictRow> = emptyList()
     private var allMarkets: List<MarketRow> = emptyList()
     private var allCrops: List<CropRow> = emptyList()
-
     private var selectedStateId: Int = -1
     private var selectedDistrictId: Int = -1
     private var selectedMarketId: Int = -1
     private var selectedCropId: Int = -1
-
     private lateinit var dropdownState: AutoCompleteTextView
     private lateinit var dropdownDistrict: AutoCompleteTextView
     private lateinit var dropdownMarket: AutoCompleteTextView
@@ -61,7 +58,6 @@ class MarketActivity : AppCompatActivity() {
     private lateinit var tvNoData: TextView
     private lateinit var toggleGroup: MaterialButtonToggleGroup
 
-    // ─── Permission launcher ──────────────────────────────────────────────────
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -137,10 +133,10 @@ class MarketActivity : AppCompatActivity() {
             }
     }
 
+    @Suppress("DEPRECATION")
     private fun reverseGeocode(lat: Double, lng: Double) {
         try {
             val geocoder = Geocoder(this, Locale("en", "IN"))
-            @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocation(lat, lng, 1)
             if (addresses.isNullOrEmpty()) {
                 Toast.makeText(this, "Could not detect location. Select manually.", Toast.LENGTH_SHORT).show()

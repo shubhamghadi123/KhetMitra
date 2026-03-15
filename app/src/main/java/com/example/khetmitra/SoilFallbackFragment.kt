@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
@@ -43,7 +42,6 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
 
         val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
-
         soilList = listOf(
             SoilType(1, t("Alluvial Soil"), R.drawable.soil_alluvial, "#C2A278"),
             SoilType(2, t("Black / Regur Soil"), R.drawable.soil_black, "#1A1A1A"),
@@ -54,15 +52,12 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             SoilType(7, t("Saline & Alkaline Soil"), R.drawable.soil_saline, "#A8A8A8"),
             SoilType(8, t("Peaty & Marshy Soil"), R.drawable.soil_peaty, "#2B1E18")
         )
-
         setupManualGrid(view)
         setupRibbonRecyclerView(view)
         setupCropEstimation(view)
-
         view.findViewById<TextView>(R.id.tvHowToTest).setOnClickListener {
             showRibbonTestInstructions()
         }
-
         view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
             if (temporarySelectedSoil != null) {
                 parentFragmentManager.setFragmentResult("soil_request", bundleOf(
@@ -99,13 +94,11 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             .setView(customView)
             .setCancelable(true)
             .create()
-
         if (langCode != TranslateLanguage.ENGLISH) {
             customView.post {
                 TranslationHelper.translateViewHierarchy(customView, langCode) {}
             }
         }
-
         val btnGotIt = customView.findViewById<MaterialButton>(R.id.btnGotIt)
         btnGotIt.setOnClickListener {
             dialog.dismiss()
@@ -119,33 +112,24 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         val tvHeader2 = view.findViewById<TextView>(R.id.tvStep2Header)
 
         rvRibbon.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-
         val ribbonOptions = listOf(
             RibbonData(t("Breaks Easily"), t("Arid / Desert Soil")),
             RibbonData(t("Short Ribbon"), t("Alluvial / Red / Laterite / Mountain Soil")),
             RibbonData(t("Long Ribbon"), t("Black / Peaty / Saline Soil"))
         )
-
         ribbonAdapter = RibbonAdapter(ribbonOptions) { selected ->
-            view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
-                setText(t(""), false)
-                clearFocus()
-            }
+            view.findViewById<android.widget.Spinner>(R.id.spinnerCrop)?.setSelection(0)
             temporarySelectedSoil = null
             temporarySelectedCrop = "Not Selected"
-
             tvHeader2?.visibility = View.VISIBLE
             rvSoil?.visibility = View.VISIBLE
-
             view.findViewById<TextView>(R.id.tvEstimatedCropText)?.visibility = View.GONE
-
             val filteredSoils = when(selected.result) {
                 t("Breaks Easily") -> soilList.filter { it.id == 5 } // Arid
                 t("Short Ribbon") -> soilList.filter { it.id in listOf(1, 3, 4, 6) } // Alluvial, Red, Laterite, Mountain
                 t("Long Ribbon") -> soilList.filter { it.id in listOf(2, 7, 8) } // Black, Saline, Peaty
                 else -> soilList
             }
-
             if (::manualSoilAdapter.isInitialized) {
                 manualSoilAdapter.updateData(filteredSoils)
                 view.findViewById<androidx.core.widget.NestedScrollView>(R.id.nestedScrollView)?.post {
@@ -161,9 +145,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvFilteredSoils)
         if (rvSoil != null) {
             rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
-
             manualSoilAdapter = SoilAdapter(emptyList()) { selectedSoil ->
-
                 temporarySelectedSoil = when (selectedSoil.id) {
                     1 -> "Alluvial Soil"
                     2 -> "Black / Regur Soil"
@@ -175,12 +157,8 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
                     8 -> "Peaty & Marshy Soil"
                     else -> "Unknown Soil"
                 }
-
                 temporarySelectedCrop = "Not Selected"
-                view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)?.apply {
-                    setText(t(""), false)
-                    clearFocus()
-                }
+                view.findViewById<android.widget.Spinner>(R.id.spinnerCrop)?.setSelection(0)
                 view.findViewById<TextView>(R.id.tvEstimatedCropText)?.visibility = View.GONE
             }
             rvSoil.adapter = manualSoilAdapter
@@ -194,44 +172,38 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
             "Cashew", "Rubber", "Millets", "Bajra", "Tea", "Coffee",
             "Barley", "Tobacco", "Jute"
         )
-
-        val translatedCrops = cropKeys.map { t(it) }.toTypedArray()
-
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, translatedCrops)
-        val autoCompleteCrop = view.findViewById<AutoCompleteTextView>(R.id.autoCompleteCrop)
-        autoCompleteCrop.setAdapter(adapter)
-
-        try {
-            val parentInputLayout = autoCompleteCrop.parent.parent as? com.google.android.material.textfield.TextInputLayout
-            parentInputLayout?.hint = t("Select previous crop")
-        } catch (_: Exception) {
-        }
-
-        autoCompleteCrop.setOnItemClickListener { _, _, position, _ ->
-            val selectedCropEnglish = cropKeys[position]
-            temporarySelectedCrop = selectedCropEnglish
-
-            temporarySelectedSoil = when (selectedCropEnglish) {
-                "Rice", "Wheat" -> "Alluvial Soil"
-                "Cotton", "Soybean" -> "Black / Regur Soil"
-                "Pulses", "Groundnut" -> "Red & Yellow Soil"
-                "Cashew", "Rubber" -> "Laterite Soil"
-                "Millets", "Bajra" -> "Arid / Desert Soil"
-                "Tea", "Coffee" -> "Mountain / Forest Soil"
-                "Barley", "Tobacco" -> "Saline & Alkaline Soil"
-                "Jute" -> "Peaty & Marshy Soil"
-                else -> "Alluvial Soil"
+        val translatedCrops = mutableListOf(t("Select previous crop"))
+        translatedCrops.addAll(cropKeys.map { t(it) })
+        val spinnerCrop = view.findViewById<android.widget.Spinner>(R.id.autoCompleteCrop)
+        val adapter = ArrayAdapter(requireContext(), R.layout.custom_spinner_item, translatedCrops)
+        adapter.setDropDownViewResource(R.layout.custom_spinner_dropdown_item)
+        spinnerCrop.adapter = adapter
+        spinnerCrop.setPopupBackgroundResource(R.drawable.bg_spinner_dropdown)
+        spinnerCrop.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position == 0) return
+                val selectedCropEnglish = cropKeys[position - 1]
+                temporarySelectedCrop = selectedCropEnglish
+                temporarySelectedSoil = when (selectedCropEnglish) {
+                    "Rice", "Wheat" -> "Alluvial Soil"
+                    "Cotton", "Soybean" -> "Black / Regur Soil"
+                    "Pulses", "Groundnut" -> "Red & Yellow Soil"
+                    "Cashew", "Rubber" -> "Laterite Soil"
+                    "Millets", "Bajra" -> "Arid / Desert Soil"
+                    "Tea", "Coffee" -> "Mountain / Forest Soil"
+                    "Barley", "Tobacco" -> "Saline & Alkaline Soil"
+                    "Jute" -> "Peaty & Marshy Soil"
+                    else -> "Alluvial Soil"
+                }
+                if (::manualSoilAdapter.isInitialized) manualSoilAdapter.clearSelection()
+                if (::ribbonAdapter.isInitialized) ribbonAdapter.clearSelection()
+                requireView().findViewById<TextView>(R.id.tvStep2Header)?.visibility = View.GONE
+                requireView().findViewById<RecyclerView>(R.id.rvFilteredSoils)?.visibility = View.GONE
+                val tvEstimated = requireView().findViewById<TextView>(R.id.tvEstimatedCropText)
+                tvEstimated.text = "${t("Estimated Soil")}: ${t(temporarySelectedSoil!!)}"
+                tvEstimated.visibility = View.VISIBLE
             }
-
-            if (::manualSoilAdapter.isInitialized) manualSoilAdapter.clearSelection()
-            if (::ribbonAdapter.isInitialized) ribbonAdapter.clearSelection()
-
-            view.findViewById<TextView>(R.id.tvStep2Header)?.visibility = View.GONE
-            view.findViewById<RecyclerView>(R.id.rvFilteredSoils)?.visibility = View.GONE
-
-            val tvEstimated = view.findViewById<TextView>(R.id.tvEstimatedCropText)
-            tvEstimated.text = "${t("Estimated Soil")}: ${t(temporarySelectedSoil!!)}"
-            tvEstimated.visibility = View.VISIBLE
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
     }
 }

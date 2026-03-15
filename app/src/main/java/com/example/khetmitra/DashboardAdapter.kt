@@ -15,7 +15,7 @@ class DashboardAdapter(
     private val onItemClick: (DataModels) -> Unit
 ) : RecyclerView.Adapter<DashboardAdapter.ViewHolder>() {
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val root: MaterialCardView = view.findViewById(R.id.cardRoot)
         val cardIcon: MaterialCardView = view.findViewById(R.id.cardIcon)
         val tvIcon: TextView = view.findViewById(R.id.tvIcon)
@@ -35,9 +35,12 @@ class DashboardAdapter(
         val item = items[position]
 
         holder.tvTitle.text = item.title
+        holder.tvTitle.setTextColor(item.textColor)
         holder.tvSubtitle.text = item.subtitle
+        holder.tvSubtitle.setTextColor(item.textColor)
         holder.tvIcon.text = item.emoji
         holder.chipTag.text = item.tag
+        holder.chipTag.setTextColor(item.textColor)
 
         val accent = item.accentColor
 

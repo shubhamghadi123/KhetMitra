@@ -67,7 +67,7 @@
             android:id="@+id/tvTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textColor="#111111"
+            android:textColor="#A855F7"
             android:textSize="16sp"
             android:textStyle="bold"
             android:layout_marginTop="10dp"

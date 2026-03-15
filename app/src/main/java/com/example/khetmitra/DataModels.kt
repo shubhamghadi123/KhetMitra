@@ -2,17 +2,25 @@ package com.example.khetmitra
 
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.core.graphics.toColorInt
 
 // DASHBOARD MODEL
 data class DataModels(
     val title: String,
     val subtitle: String,
     val iconRes: Int,
-    val tag: String = "",
-    val bgColor: Int = "#F4F7F0".toColorInt(),
-    val accentColor: Int = "#22C55E".toColorInt(),
-    val emoji: String = ""
+    val tag: String,
+    val bgColor: Int,
+    val accentColor: Int,
+    val emoji: String,
+    val textColor: Int
+)
+
+data class CardTheme(
+    val bgColor: Int,
+    val accentColor: Int,
+    val emoji: String,
+    val tag: String,
+    val textColor: Int
 )
 
 // --- OPEN-METEO API MODELS ---
@@ -83,6 +91,14 @@ data class InsightModel(
     val description: String,
     val imageRes: Int,
     val tag: String = ""
+)
+
+data class TagStyle(
+    val emoji: String,
+    val label: String,
+    val textColor: Int,
+    val bgColor: Int,
+    val strokeColor: Int
 )
 
 data class ChatMessage(

@@ -21,7 +21,6 @@
         android:paddingVertical="14dp"
         android:paddingHorizontal="4dp">
 
-        <!-- Hour digits -->
         <TextView
             android:id="@+id/tvHourDigits"
             android:layout_width="wrap_content"
@@ -32,19 +31,17 @@
             android:textStyle="bold"
             tools:ignore="HardcodedText" />
 
-        <!-- AM/PM -->
         <TextView
             android:id="@+id/tvAmPm"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="-1dp"
             android:text="AM"
-            android:textColor="#A8D5B5"
+            android:textColor="#098553"
             android:textSize="10sp"
             android:textAllCaps="true"
-            tools:ignore="HardcodedText" />
+            tools:ignore="HardcodedText,SmallSp" />
 
-        <!-- Lottie icon -->
         <com.airbnb.lottie.LottieAnimationView
             android:id="@+id/ivHourIcon"
             android:layout_width="36dp"
@@ -55,7 +52,6 @@
             app:lottie_loop="false"
             app:lottie_rawRes="@raw/clear_day" />
 
-        <!-- Temperature -->
         <TextView
             android:id="@+id/tvHourTemp"
             android:layout_width="wrap_content"
@@ -65,6 +61,5 @@
             android:textSize="15sp"
             android:textStyle="bold"
             tools:ignore="HardcodedText" />
-
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

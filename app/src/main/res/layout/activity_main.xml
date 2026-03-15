@@ -140,67 +140,98 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
                 android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#1A3C2E"
+                app:cardBackgroundColor="#E8F5EE"
                 app:cardCornerRadius="28dp"
                 app:cardElevation="0dp"
-                app:strokeWidth="0dp">
+                app:strokeColor="#A2EBB7"
+                app:strokeWidth="1.5dp">
 
-                <androidx.constraintlayout.widget.ConstraintLayout
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="150dp"
-                    android:padding="16dp">
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="15dp">
 
-                    <TextView
-                        android:id="@+id/ivFarmEmoji"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🗺️"
-                        android:textSize="24sp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
+                        android:layout_marginBottom="5dp"
+                        app:cardBackgroundColor="#6ACE9F"
+                        app:cardCornerRadius="50dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#369B54"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="5dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🗺️"
+                                android:textSize="13sp"
+                                android:layout_marginEnd="6dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Field Mapping"
+                                android:textColor="#FFFFFF"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <TextView
                         android:id="@+id/tvSetupTitle"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
                         android:text="Unlock Smart Farming"
-                        android:textColor="#FFFFFF"
-                        android:textSize="17sp"
+                        android:textColor="#1A3C2E"
+                        android:textSize="20sp"
                         android:textStyle="bold"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/ivFarmEmoji"
-                        app:layout_constraintTop_toTopOf="@id/ivFarmEmoji"
-                        app:layout_constraintBottom_toBottomOf="@id/ivFarmEmoji" />
+                        android:layout_marginBottom="8dp" />
 
                     <TextView
                         android:id="@+id/tvSetupDesc"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
                         android:text="Add your field size and soil type to get accurate weather and fertilizer updates."
-                        android:textColor="#A8D5B5"
-                        android:textSize="14sp"
-                        android:lineSpacingExtra="1dp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/ivFarmEmoji" />
+                        android:textColor="#2D6A4F"
+                        android:textSize="13sp"
+                        android:lineSpacingExtra="3dp"
+                        android:layout_marginBottom="8dp" />
 
-                    <com.google.android.material.button.MaterialButton
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/btnStartMapping"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Map My Field"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:paddingHorizontal="20dp"
-                        app:backgroundTint="#52B788"
-                        app:cornerRadius="50dp"
-                        app:strokeWidth="0dp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
+                        android:layout_gravity="end"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardBackgroundColor="#6ACE9F"
+                        app:cardCornerRadius="50dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="#369B54">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="20dp"
+                            android:paddingVertical="10dp"
+                            android:text="Map My Field →"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
@@ -209,70 +240,98 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
                 android:layout_marginTop="14dp"
-                app:cardBackgroundColor="#FFF7ED"
+                app:cardBackgroundColor="#FEF0E6"
                 app:cardCornerRadius="28dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#F9731630"
+                app:strokeColor="#EFC4AC"
                 app:strokeWidth="1.5dp">
 
-                <androidx.constraintlayout.widget.ConstraintLayout
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="150dp"
-                    android:padding="16dp">
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="15dp">
 
-                    <TextView
-                        android:id="@+id/ivCameraEmoji"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📷"
-                        android:textSize="24sp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
+                        android:layout_marginBottom="5dp"
+                        app:cardBackgroundColor="#FFAB72"
+                        app:cardCornerRadius="50dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E07E60"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="5dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="📷"
+                                android:textSize="13sp"
+                                android:layout_marginEnd="6dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="AI Crop Scanner"
+                                android:textColor="#FFFFFF"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <TextView
                         android:id="@+id/tvScanTitle"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
                         android:text="Identify Crop Issues"
-                        android:textColor="#111111"
-                        android:textSize="17sp"
+                        android:textColor="#7C3A00"
+                        android:textSize="20sp"
                         android:textStyle="bold"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toEndOf="@id/ivCameraEmoji"
-                        app:layout_constraintTop_toTopOf="@id/ivCameraEmoji"
-                        app:layout_constraintBottom_toBottomOf="@id/ivCameraEmoji" />
+                        android:layout_marginBottom="8dp" />
 
                     <TextView
                         android:id="@+id/tvScanDesc"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
                         android:text="Take a photo of your crop to instantly identify pests, diseases, or nutrient deficiencies."
-                        android:textColor="#666666"
-                        android:textSize="14sp"
-                        android:lineSpacingExtra="1dp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/ivCameraEmoji" />
+                        android:textColor="#A0522D"
+                        android:textSize="13sp"
+                        android:lineSpacingExtra="3dp"
+                        android:layout_marginBottom="8dp" />
 
-                    <com.google.android.material.button.MaterialButton
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/btnScanCrop"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Scan My Crop"
-                        android:textColor="#F97316"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:paddingHorizontal="20dp"
-                        app:backgroundTint="#FFFFFF"
-                        app:cornerRadius="50dp"
-                        app:strokeColor="#F97316"
-                        app:strokeWidth="1.5dp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
+                        android:layout_gravity="end"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        app:cardBackgroundColor="#FFAB72"
+                        app:cardCornerRadius="50dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="#E07E60">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="20dp"
+                            android:paddingVertical="10dp"
+                            android:text="Scan My Crop →"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <androidx.recyclerview.widget.RecyclerView
