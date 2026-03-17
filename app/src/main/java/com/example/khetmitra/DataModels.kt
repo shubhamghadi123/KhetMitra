@@ -123,3 +123,14 @@ data class RibbonData(
     val result: String,
     val soilType: String
 )
+
+data class FarmPlanStage(
+    val stageNumber: Int,
+    val stageTitle: String,
+    val steps: List<String>,
+    val durationText: String,
+    val effortPercent: Int,
+    val criticality: Int,
+    var iconRes: Int = 0,
+    var cardColor: Int = 0
+)

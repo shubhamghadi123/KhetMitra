@@ -28,14 +28,20 @@ data class FarmEntry(
     val soil_type: String,
     val coordinates: String,
     val crop: String? = "Not Selected",
-    val polygon_id: String? = null
+    val polygon_id: String? = null,
+    val sand_pct: Double? = null,
+    val silt_pct: Double? = null,
+    val clay_pct: Double? = null
 )
 
 @Serializable
 data class FetchedFarm(
     val coordinates: String,
     val land_size: String,
-    val soil_type: String
+    val soil_type: String,
+    val sand_pct: Double? = null,
+    val silt_pct: Double? = null,
+    val clay_pct: Double? = null
 )
 
 @Serializable

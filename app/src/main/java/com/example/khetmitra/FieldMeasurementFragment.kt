@@ -217,10 +217,19 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     private fun showFarmDetailsDialog(farm: FetchedFarm) {
         val translatedTitle = t("Saved Farm Details")
         val areaParts = farm.land_size.split(" ")
-        val translatedArea = if (areaParts.size == 2) {
-            "${d(areaParts[0])} ${t(areaParts[1])}"
-        } else farm.land_size
-        val message = "${t("Area")}: $translatedArea\n${t("Soil")}: ${t(farm.soil_type)}"
+        val translatedArea = if (areaParts.size == 2) "${d(areaParts[0])} ${t(areaParts[1])}" else farm.land_size
+        var message = "${t("Area")}: $translatedArea\n${t("Soil")}: ${t(farm.soil_type)}"
+
+        if (farm.sand_pct != null && farm.silt_pct != null && farm.clay_pct != null) {
+            val sandFmt = String.format(Locale.US, "%.1f", farm.sand_pct)
+            val siltFmt = String.format(Locale.US, "%.1f", farm.silt_pct)
+            val clayFmt = String.format(Locale.US, "%.1f", farm.clay_pct)
+            message += "\n\n--- ${t("Satellite Analysis")} ---"
+            message += "\n• ${t("Sand")}: ${d(sandFmt)}%"
+            message += "\n• ${t("Silt")}: ${d(siltFmt)}%"
+            message += "\n• ${t("Clay")}: ${d(clayFmt)}%"
+        }
+
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle(translatedTitle)
             .setMessage(message)

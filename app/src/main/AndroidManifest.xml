@@ -86,17 +86,19 @@
             android:exported="false" />
 
         <activity
+            android:name=".WeatherActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".FarmPlanActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ChatbotActivity"
             android:exported="false" />
 
         <activity
             android:name=".MarketActivity"
             android:exported="false" />
-
-        <activity
-            android:name=".WeatherActivity"
-            android:exported="false" />
-
     </application>
-
 </manifest>

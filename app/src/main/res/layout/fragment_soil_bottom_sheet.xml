@@ -6,7 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F4F7F0"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    tools:ignore="HardcodedText">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -36,8 +37,7 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/dragHandle"
-            tools:ignore="HardcodedText" />
+            app:layout_constraintTop_toBottomOf="@id/dragHandle" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardSmartGuess"
@@ -54,174 +54,171 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="18dp">
+                android:padding="18dp"
+                android:minHeight="140dp">
 
-                <View
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:background="@drawable/bg_circle_glow_green"
-                    android:alpha="0.15"
-                    android:layout_marginEnd="-20dp"
-                    android:layout_marginTop="-20dp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/iconTileGuess"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    app:cardBackgroundColor="#2D6A4F"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp"
+                <ProgressBar
+                    android:id="@+id/pbLoadingApi"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:indeterminateTint="#52B788"
+                    android:visibility="visible"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="📍"
-                        android:textSize="18sp"
-                        tools:ignore="HardcodedText" />
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="Local Area Match"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    app:layout_constraintBottom_toBottomOf="@id/iconTileGuess"
-                    app:layout_constraintStart_toEndOf="@id/iconTileGuess"
-                    app:layout_constraintTop_toTopOf="@id/iconTileGuess"
-                    tools:ignore="HardcodedText" />
-
-                <TextView
-                    android:id="@+id/tvLocalMatchDesc"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:lineSpacingExtra="3dp"
-                    android:text="Most farms near you have Black Soil. Is your soil Black/Dark Brown?"
-                    android:textColor="#A8D5B5"
-                    android:textSize="13sp"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/iconTileGuess"
-                    tools:ignore="HardcodedText" />
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/btnLocalSoilMatch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardBackgroundColor="#52B788"
-                    app:cardCornerRadius="50dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tvLocalMatchDesc">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingHorizontal="20dp"
-                        android:paddingVertical="10dp"
-                        android:text="Yes, it's Black Soil"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText" />
-
-                </com.google.android.material.card.MaterialCardView>
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardScanSHC"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="12dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#E8EDE0"
-            app:strokeWidth="1.5dp"
-            app:layout_constraintTop_toBottomOf="@id/cardSmartGuess">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="16dp">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_marginEnd="14dp"
-                    app:cardBackgroundColor="#FFF7ED"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="#33F97316"
-                    app:strokeWidth="1dp">
-
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:layout_gravity="center"
-                        android:importantForAccessibility="no"
-                        android:src="@android:drawable/ic_menu_camera"
-                        app:tint="#F97316" />
-
-                </com.google.android.material.card.MaterialCardView>
+                    app:layout_constraintEnd_toEndOf="parent" />
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:id="@+id/layoutApiError"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Scan Soil Health Card"
-                        android:textColor="#1A3C2E"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        tools:ignore="HardcodedText" />
+                        android:text="🛰️"
+                        android:textSize="24sp"
+                        android:layout_marginBottom="8dp"/>
 
                     <TextView
+                        android:id="@+id/tvErrorMsg"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Extract details instantly using camera"
-                        android:textColor="#888888"
-                        android:textSize="12sp"
-                        tools:ignore="HardcodedText" />
+                        android:text="Satellite service is busy"
+                        android:textColor="#A8D5B5"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRetryApi"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Retry Scan"
+                        android:textColor="#52B788"
+                        android:textAllCaps="false"
+                        android:layout_marginTop="4dp"
+                        app:rippleColor="#2D6A4F" />
                 </LinearLayout>
 
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/round_arrow_back_24"
-                    android:rotation="180"
-                    app:tint="#52B788" />
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/layoutApiContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="invisible"
+                    app:layout_constraintTop_toTopOf="parent">
 
-            </LinearLayout>
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/iconTileGuess"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        app:cardBackgroundColor="#2D6A4F"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="🛰️"
+                            android:textSize="18sp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/tvSatelliteTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="Satellite Analysis"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        app:layout_constraintBottom_toBottomOf="@id/iconTileGuess"
+                        app:layout_constraintStart_toEndOf="@id/iconTileGuess"
+                        app:layout_constraintTop_toTopOf="@id/iconTileGuess" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutSoilStats"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:baselineAligned="false"
+                        android:orientation="horizontal"
+                        app:layout_constraintTop_toBottomOf="@id/iconTileGuess">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/tvSandVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
+                            <TextView android:id="@+id/tvSandLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sand" android:textColor="#A8D5B5" android:textSize="12sp"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/tvSiltVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
+                            <TextView android:id="@+id/tvSiltLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Silt" android:textColor="#A8D5B5" android:textSize="12sp"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView android:id="@+id/tvClayVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
+                            <TextView android:id="@+id/tvClayLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clay" android:textColor="#A8D5B5" android:textSize="12sp"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvLocalMatchDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Fetching data..."
+                        android:textColor="#A8D5B5"
+                        android:textSize="13sp"
+                        app:layout_constraintTop_toBottomOf="@id/layoutSoilStats" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/btnLocalSoilMatch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#52B788"
+                        app:cardCornerRadius="50dp"
+                        app:cardElevation="0dp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvLocalMatchDesc">
+                        <TextView
+                            android:id="@+id/btnLocalSoilMatchText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="20dp"
+                            android:paddingVertical="10dp"
+                            android:text="Confirm Soil Type"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </com.google.android.material.card.MaterialCardView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
@@ -229,21 +226,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
-            android:layout_marginTop="22dp"
+            android:layout_marginTop="26dp"
             android:text="Or choose manually:"
             android:textColor="#1A3C2E"
-            android:textSize="14sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/cardScanSHC"
-            tools:ignore="HardcodedText" />
+            app:layout_constraintTop_toBottomOf="@id/cardSmartGuess" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvSoilTypes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
             app:layout_constraintTop_toBottomOf="@id/tvManualLabel" />
@@ -256,30 +250,19 @@
             android:layout_marginTop="20dp"
             android:clickable="true"
             android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
             app:cardBackgroundColor="#52B788"
             app:cardCornerRadius="18dp"
             app:cardElevation="0dp"
-            app:strokeWidth="0dp"
             app:layout_constraintTop_toBottomOf="@id/rvSoilTypes">
-
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingVertical="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Save Farm Profile"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    tools:ignore="HardcodedText" />
-
-            </LinearLayout>
+                android:paddingVertical="16dp"
+                android:text="Save Farm Profile"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
@@ -287,19 +270,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:padding="12dp"
             android:text="Not sure about soil type?"
             android:textColor="#52B788"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnSaveProfileMain"
-            tools:ignore="HardcodedText" />
-
+            app:layout_constraintTop_toBottomOf="@id/btnSaveProfileMain" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

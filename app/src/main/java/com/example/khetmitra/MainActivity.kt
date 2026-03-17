@@ -141,7 +141,7 @@ class MainActivity : BaseActivity() {
                 title == t("Chat") || title == "Chat" ->
                     startActivity(Intent(this, ChatbotActivity::class.java))
                 title == t("Plans") || title == "Plans" ->
-                    startActivity(Intent(this, ChatbotActivity::class.java))
+                    startActivity(Intent(this, FarmPlanActivity::class.java))
             }
         }
         recyclerView.adapter = adapter

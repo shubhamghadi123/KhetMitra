@@ -2,6 +2,7 @@ package com.example.khetmitra
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
@@ -29,6 +30,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
+import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.launch
@@ -36,7 +38,6 @@ import java.time.LocalDate
 import java.util.Locale
 
 class MarketActivity : AppCompatActivity() {
-
     private lateinit var lineChart: LineChart
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var allStates: List<StateRow> = emptyList()
@@ -57,6 +58,14 @@ class MarketActivity : AppCompatActivity() {
     private lateinit var tvPriceUnit: TextView
     private lateinit var tvNoData: TextView
     private lateinit var toggleGroup: MaterialButtonToggleGroup
+    private var langCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
+    }
+
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -64,14 +73,13 @@ class MarketActivity : AppCompatActivity() {
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
                 || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) fetchLocation()
-        else Toast.makeText(this, "Location permission denied. Please select manually.", Toast.LENGTH_LONG).show()
+        else Toast.makeText(this, t("Location permission denied. Please select manually."), Toast.LENGTH_LONG).show()
     }
 
-    // ─── onCreate ────────────────────────────────────────────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_market)
-
+        updateLangCode()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
 
@@ -86,15 +94,18 @@ class MarketActivity : AppCompatActivity() {
         tvNoData         = findViewById(R.id.tvNoData)
         toggleGroup      = findViewById(R.id.toggleGroup)
         lineChart        = findViewById(R.id.lineChart)
-
         setupChartAppearance()
-
         dropdownDistrict.isEnabled = false
         dropdownMarket.isEnabled   = false
-
         toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked && selectedMarketId != -1 && selectedCropId != -1)
                 loadPriceHistory(checkedId == R.id.btnWeekly)
+        }
+        if (langCode != TranslateLanguage.ENGLISH) {
+            window.decorView.post {
+                TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {}
+                translateHints()
+            }
         }
 
         lifecycleScope.launch {
@@ -104,7 +115,15 @@ class MarketActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Location ────────────────────────────────────────────────────────────
+    override fun onResume() {
+        super.onResume()
+        updateLangCode()
+    }
+
+    private fun updateLangCode() {
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+    }
 
     private fun requestLocationPermission() {
         val fine   = Manifest.permission.ACCESS_FINE_LOCATION
@@ -126,7 +145,7 @@ class MarketActivity : AppCompatActivity() {
             .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
             .addOnSuccessListener { location: Location? ->
                 if (location != null) reverseGeocode(location.latitude, location.longitude)
-                else Toast.makeText(this, "Could not get location. Select manually.", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this, t("Could not get location. Select manually."), Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Location error: ${it.message}", Toast.LENGTH_SHORT).show()
@@ -139,20 +158,32 @@ class MarketActivity : AppCompatActivity() {
             val geocoder = Geocoder(this, Locale("en", "IN"))
             val addresses = geocoder.getFromLocation(lat, lng, 1)
             if (addresses.isNullOrEmpty()) {
-                Toast.makeText(this, "Could not detect location. Select manually.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, t("Could not detect location. Select manually."), Toast.LENGTH_SHORT).show()
                 return
             }
             val detectedState = addresses[0].adminArea?.trim() ?: ""
             Log.d("Location", "Detected state: $detectedState")
             if (detectedState.isNotEmpty()) autoSelectState(detectedState)
-            else Toast.makeText(this, "State not detected. Select manually.", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(this, t("State not detected. Select manually."), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e("Location", "Geocoder failed: ${e.message}")
-            Toast.makeText(this, "Geocoder error. Select manually.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Geocoder error. Select manually."), Toast.LENGTH_SHORT).show()
         }
     }
 
-    // ─── Auto-select ─────────────────────────────────────────────────────────
+    private fun translateHints() {
+        if (langCode == TranslateLanguage.ENGLISH) return
+        mapOf(
+            R.id.dropdownCrop     to "Commodity (Crop)",
+            R.id.dropdownState    to "State",
+            R.id.dropdownDistrict to "District",
+            R.id.dropdownMarket   to "Market (Mandi)"
+        ).forEach { (id, hint) ->
+            val view = findViewById<View>(id)
+            val til = view?.parent?.parent as? com.google.android.material.textfield.TextInputLayout
+            til?.hint = t(hint)
+        }
+    }
 
     private fun autoSelectState(detectedState: String) {
         val match = allStates.firstOrNull {
@@ -165,11 +196,9 @@ class MarketActivity : AppCompatActivity() {
             return
         }
         selectedStateId = match.stateId
-        dropdownState.setText(match.stateName, false)
+        dropdownState.setText(t(match.stateName), false)
         lifecycleScope.launch { loadDistricts(selectedStateId) }
     }
-
-    // ─── Loaders ─────────────────────────────────────────────────────────────
 
     private suspend fun loadStates() {
         try {
@@ -180,10 +209,9 @@ class MarketActivity : AppCompatActivity() {
                     order("state_name", Order.ASCENDING)
                 }
                 .decodeList<StateRow>()
-
-            val names = allStates.map { it.stateName }
+            val names = allStates.map { t(it.stateName) }
             dropdownState.setAdapter(
-                ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
+                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
             )
             dropdownState.setOnItemClickListener { _, _, pos, _ ->
                 selectedStateId    = allStates[pos].stateId
@@ -213,13 +241,11 @@ class MarketActivity : AppCompatActivity() {
                     order("district_name", Order.ASCENDING)
                 }
                 .decodeList<DistrictRow>()
-
-            val names = allDistricts.map { it.districtName }
+            val names = allDistricts.map { t(it.districtName) }
             dropdownDistrict.setAdapter(
-                ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
+                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
             )
             dropdownDistrict.isEnabled = true
-
             dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
                 selectedDistrictId = allDistricts[pos].districtId
                 selectedMarketId   = -1
@@ -245,13 +271,11 @@ class MarketActivity : AppCompatActivity() {
                     order("market_name", Order.ASCENDING)
                 }
                 .decodeList<MarketRow>()
-
-            val names = allMarkets.map { it.marketName }
+            val names = allMarkets.map { t(it.marketName) }
             dropdownMarket.setAdapter(
-                ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
+                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
             )
             dropdownMarket.isEnabled = true
-
             dropdownMarket.setOnItemClickListener { _, _, pos, _ ->
                 selectedMarketId = allMarkets[pos].marketId
                 refreshPriceData()
@@ -271,10 +295,9 @@ class MarketActivity : AppCompatActivity() {
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
-
-            val names = allCrops.map { it.cropName }
+            val names = allCrops.map { t(it.cropName) }
             dropdownCrop.setAdapter(
-                ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, names)
+                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
             )
             dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
                 selectedCropId = allCrops[pos].cropId
@@ -284,8 +307,6 @@ class MarketActivity : AppCompatActivity() {
             Log.e("Market", "loadCrops failed: ${e.message}")
         }
     }
-
-    // ─── Price ───────────────────────────────────────────────────────────────
 
     @SuppressLint("SetTextI18n")
     private fun refreshPriceData() {
@@ -303,16 +324,15 @@ class MarketActivity : AppCompatActivity() {
                         limit(1)
                     }
                     .decodeList<CropPriceRow>()
-
                 if (results.isEmpty()) {
                     showNoData(true)
                 } else {
                     showNoData(false)
                     val latest = results.first()
-                    tvPriceValue.text = "₹ ${latest.modalPrice.toInt()}"
-                    tvMinPrice.text   = "₹ ${latest.minPrice.toInt()}"
-                    tvMaxPrice.text   = "₹ ${latest.maxPrice.toInt()}"
-                    tvPriceUnit.text  = "/ ${latest.priceUnit}"
+                    tvPriceValue.text = "₹ ${d(latest.modalPrice.toInt())}"
+                    tvMinPrice.text   = "₹ ${d(latest.minPrice.toInt())}"
+                    tvMaxPrice.text   = "₹ ${d(latest.maxPrice.toInt())}"
+                    tvPriceUnit.text  = "/ ${t(latest.priceUnit)}"
                     loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly)
                 }
             } catch (e: Exception) {
@@ -328,9 +348,7 @@ class MarketActivity : AppCompatActivity() {
             try {
                 val today    = LocalDate.now()
                 val fromDate = if (isWeekly) today.minusDays(6) else today.minusDays(364)
-
                 Log.d("Chart", "Fetching: market=$selectedMarketId crop=$selectedCropId from=$fromDate to=$today")
-
                 var rows = SupabaseManager.client
                     .postgrest["crop_price"]
                     .select {
@@ -344,10 +362,7 @@ class MarketActivity : AppCompatActivity() {
                         limit(if (isWeekly) 7 else 365)
                     }
                     .decodeList<CropPriceRow>()
-
                 Log.d("Chart", "Rows in range: ${rows.size}")
-
-                // Fallback: if no data in date range, load latest available records
                 if (rows.isEmpty()) {
                     Log.w("Chart", "No data in range, falling back to latest records")
                     rows = SupabaseManager.client
@@ -364,12 +379,9 @@ class MarketActivity : AppCompatActivity() {
                         .reversed()
                     Log.d("Chart", "Fallback rows: ${rows.size}")
                 }
-
                 if (rows.isEmpty()) return@launch
-
                 val entries = ArrayList<Entry>()
                 val labels  = ArrayList<String>()
-
                 if (isWeekly) {
                     rows.forEachIndexed { i, row ->
                         entries.add(Entry(i.toFloat(), row.modalPrice))
@@ -384,18 +396,14 @@ class MarketActivity : AppCompatActivity() {
                             labels.add(formatMonthShort(rowList.first().priceDate))
                         }
                 }
-
                 Log.d("Chart", "Rendering ${entries.size} points")
                 showNoData(false)  // ensure chart is visible before drawing
                 updateChart(entries, labels)
-
             } catch (e: Exception) {
                 Log.e("Market", "loadPriceHistory failed: ${e.message}")
             }
         }
     }
-
-    // ─── Chart ───────────────────────────────────────────────────────────────
 
     private fun setupChartAppearance() {
         lineChart.description.isEnabled = false
@@ -439,8 +447,6 @@ class MarketActivity : AppCompatActivity() {
         lineChart.invalidate()
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
     private fun clearPriceUI() {
         tvPriceValue.text = "₹ --"
         tvMinPrice.text   = "₹ --"
@@ -460,14 +466,14 @@ class MarketActivity : AppCompatActivity() {
         return try {
             val p = date.split("-")
             val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-            "${p[2].toInt()} ${m[p[1].toInt()]}"
+            "${d(p[2].toInt())} ${t(m[p[1].toInt()])}"
         } catch (_: Exception) { date }
     }
 
     private fun formatMonthShort(date: String): String {
         return try {
             val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-            m[date.split("-")[1].toInt()]
+            t(m[date.split("-")[1].toInt()])
         } catch (_: Exception) { date }
     }
 }

@@ -425,6 +425,7 @@ class ManageFieldsActivity : AppCompatActivity() {
                         putExtra("FARM_NAME",        field.name ?: "My Farm")
                         putExtra("FARM_SIZE",        field.land_size)
                         putExtra("FARM_COORDINATES", field.coordinates)
+                        putExtra("POLYGON_ID",       field.polygon_id)
                     }
                 )
             }

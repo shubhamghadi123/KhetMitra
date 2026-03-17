@@ -19,6 +19,8 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.mlkit.nl.translate.TranslateLanguage
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,6 +103,8 @@ class SoilReportActivity : AppCompatActivity() {
     private fun fetchAgroData(farmName: String, coordinatesJson: String) {
         layoutLoading.visibility = View.VISIBLE
         layoutContent.visibility = View.GONE
+        val existingPolyId = intent.getStringExtra("POLYGON_ID")
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val listType = object : TypeToken<List<SavedCoordinate>>() {}.type
@@ -115,58 +119,85 @@ class SoilReportActivity : AppCompatActivity() {
                     throw Exception("Coordinates are empty. Check database!")
                 if (polygonPoints.first() != polygonPoints.last())
                     polygonPoints.add(polygonPoints.first())
-                var finalCoordinates: List<List<List<Double>>> = listOf(polygonPoints.toList())
-                var polygonRequest = PolygonRequest(
-                    name    = farmName,
-                    geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
-                )
+
                 val apiKey = BuildConfig.AGRO_API_KEY
                 var polyId: String
-                var polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
-                if (polyResponse.isSuccessful && polyResponse.body() != null) {
-                    polyId = polyResponse.body()!!.id
-                } else if (polyResponse.code() == 422) {
-                    val errorStr = polyResponse.errorBody()?.string() ?: ""
-                    if (errorStr.contains("duplicated")) {
-                        polyId = "'([a-z0-9]+)'".toRegex().find(errorStr)?.groupValues?.get(1)
-                            ?: throw Exception("Duplicated, but couldn't extract ID.")
-                    } else if (errorStr.contains("Area of the polygon")) {
-                        var sumLon = 0.0; var sumLat = 0.0
-                        polygonPoints.forEach { sumLon += it[0]; sumLat += it[1] }
-                        val cLon = sumLon / polygonPoints.size
-                        val cLat = sumLat / polygonPoints.size
-                        val off = 0.0006
-                        val box = listOf(
-                            listOf(cLon - off, cLat - off), listOf(cLon + off, cLat - off),
-                            listOf(cLon + off, cLat + off), listOf(cLon - off, cLat + off),
-                            listOf(cLon - off, cLat - off)
-                        )
-                        finalCoordinates = listOf(box)
-                        polygonRequest = PolygonRequest(
-                            name     = "$farmName (Expanded)",
-                            geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
-                        )
-                        polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
-                        polyId = if (polyResponse.isSuccessful && polyResponse.body() != null) {
-                            polyResponse.body()!!.id
+
+                if (!existingPolyId.isNullOrEmpty()) {
+                    polyId = existingPolyId
+                    Log.d("Khetmitra", "Using existing polygon_id: $polyId")
+                } else {
+                    // WE DON'T HAVE AN ID YET: Create it on Agromonitoring
+                    var finalCoordinates: List<List<List<Double>>> = listOf(polygonPoints.toList())
+                    var polygonRequest = PolygonRequest(
+                        name    = farmName,
+                        geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
+                    )
+
+                    var polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
+                    if (polyResponse.isSuccessful && polyResponse.body() != null) {
+                        polyId = polyResponse.body()!!.id
+                    } else if (polyResponse.code() == 422) {
+                        val errorStr = polyResponse.errorBody()?.string() ?: ""
+                        if (errorStr.contains("duplicated")) {
+                            polyId = "'([a-z0-9]+)'".toRegex().find(errorStr)?.groupValues?.get(1)
+                                ?: throw Exception("Duplicated, but couldn't extract ID.")
+                        } else if (errorStr.contains("Area of the polygon")) {
+                            var sumLon = 0.0; var sumLat = 0.0
+                            polygonPoints.forEach { sumLon += it[0]; sumLat += it[1] }
+                            val cLon = sumLon / polygonPoints.size
+                            val cLat = sumLat / polygonPoints.size
+                            val off = 0.0006
+                            val box = listOf(
+                                listOf(cLon - off, cLat - off), listOf(cLon + off, cLat - off),
+                                listOf(cLon + off, cLat + off), listOf(cLon - off, cLat + off),
+                                listOf(cLon - off, cLat - off)
+                            )
+                            finalCoordinates = listOf(box)
+                            polygonRequest = PolygonRequest(
+                                name     = "$farmName (Expanded)",
+                                geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
+                            )
+                            polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
+                            polyId = if (polyResponse.isSuccessful && polyResponse.body() != null) {
+                                polyResponse.body()!!.id
+                            } else {
+                                val secondError = polyResponse.errorBody()?.string() ?: ""
+                                if (secondError.contains("duplicated"))
+                                    "'([a-z0-9]+)'".toRegex().find(secondError)?.groupValues?.get(1)
+                                        ?: throw Exception("Expanded box duplicated, couldn't extract ID.")
+                                else throw Exception("Server Rejected Expanded Box: $secondError")
+                            }
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@SoilReportActivity,
+                                    t("Field is small. Showing expanded regional satellite view."),
+                                    Toast.LENGTH_LONG).show()
+                            }
                         } else {
-                            val secondError = polyResponse.errorBody()?.string() ?: ""
-                            if (secondError.contains("duplicated"))
-                                "'([a-z0-9]+)'".toRegex().find(secondError)?.groupValues?.get(1)
-                                    ?: throw Exception("Expanded box duplicated, couldn't extract ID.")
-                            else throw Exception("Server Rejected Expanded Box: $secondError")
-                        }
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@SoilReportActivity,
-                                t("Field is small. Showing expanded regional satellite view."),
-                                Toast.LENGTH_LONG).show()
+                            throw Exception("Server Rejected: $errorStr")
                         }
                     } else {
-                        throw Exception("Server Rejected: $errorStr")
+                        throw Exception("Failed to create boundary. Code: ${polyResponse.code()}")
                     }
-                } else {
-                    throw Exception("Failed to create boundary. Code: ${polyResponse.code()}")
+
+                    try {
+                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                        if (user != null) {
+                            SupabaseManager.client.postgrest["farms"].update(
+                                { set("polygon_id", polyId) }
+                            ) {
+                                filter {
+                                    eq("farmer_id", user.id)
+                                    eq("name", farmName)
+                                }
+                            }
+                            Log.d("Khetmitra", "Successfully synced polygon_id $polyId to master farms table!")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Khetmitra", "Failed to sync polygon_id to master table: ${e.message}")
+                    }
                 }
+
                 val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
                 var airHumidity: Double? = null
                 try {
@@ -177,10 +208,12 @@ class SoilReportActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("AgroAPI", "Weather failed: ${e.message}")
                 }
+
                 val endTime   = System.currentTimeMillis() / 1000
                 val startTime = endTime - (30 * 24 * 60 * 60)
                 val imageResponse = AgroRetrofitClient.api.getSatelliteImages(polyId, startTime, endTime, apiKey)
                 var finalNdviScore: Double? = null
+
                 if (imageResponse.isSuccessful && !imageResponse.body().isNullOrEmpty()) {
                     val latestImage = imageResponse.body()!!.maxByOrNull { it.dt }
                     if (latestImage != null) {

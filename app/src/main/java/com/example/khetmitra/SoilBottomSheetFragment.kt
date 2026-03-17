@@ -1,36 +1,35 @@
 package com.example.khetmitra
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 
-class SoilBottomSheetFragment : BottomSheetDialogFragment() {
+// Data class for the API result
+data class SoilData(val sand: Double, val silt: Double, val clay: Double, val isFallback: Boolean = false)
 
+class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     private var selectedSoil: String? = null
     private var fieldAreaAcres: Double = 0.0
     private var fieldLat: Double = 0.0
@@ -38,6 +37,9 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     private var coordinatesJson: String = ""
     private var langCode: String = TranslateLanguage.ENGLISH
     private lateinit var soilList: List<SoilType>
+    private var fetchedSand: Double? = null
+    private var fetchedSilt: Double? = null
+    private var fetchedClay: Double? = null
 
     fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -46,17 +48,6 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
     fun d(num: Any): String {
         return TranslationHelper.convertDigits(num.toString(), langCode)
-    }
-
-    private val cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        bitmap?.let { processImage(it) }
-    }
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) startSoilHealthCardScanner()
-        else Toast.makeText(context, t("Camera permission required to scan card"), Toast.LENGTH_SHORT).show()
     }
 
     companion object {
@@ -81,9 +72,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_soil_bottom_sheet, container, false)
     }
@@ -94,6 +83,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
 
         val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
         soilList = listOf(
             SoilType(1, t("Alluvial Soil"), R.drawable.soil_alluvial, "#C2A278"),
             SoilType(2, t("Black / Regur Soil"), R.drawable.soil_black, "#1A1A1A"),
@@ -104,88 +94,102 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             SoilType(7, t("Saline & Alkaline Soil"), R.drawable.soil_saline, "#A8A8A8"),
             SoilType(8, t("Peaty & Marshy Soil"), R.drawable.soil_peaty, "#2B1E18")
         )
+
         val rvSoil = view.findViewById<RecyclerView>(R.id.rvSoilTypes)
+        val pbLoadingApi = view.findViewById<ProgressBar>(R.id.pbLoadingApi)
+        val layoutApiContent = view.findViewById<View>(R.id.layoutApiContent)
+        val layoutApiError = view.findViewById<View>(R.id.layoutApiError)
+        val btnRetryApi = view.findViewById<android.widget.Button>(R.id.btnRetryApi)
         val tvLocalMatchDesc = view.findViewById<TextView>(R.id.tvLocalMatchDesc)
-        val btnLocalSoilMatchCard = view.findViewById<View>(R.id.btnLocalSoilMatch)
-        val btnLocalSoilMatchText = (btnLocalSoilMatchCard as ViewGroup).getChildAt(0) as TextView
-        val btnNotSure = view.findViewById<TextView>(R.id.btnNotSure)
-        val cardScanSHC = view.findViewById<MaterialCardView>(R.id.cardScanSHC)
-        val btnSaveProfileMain = view.findViewById<View>(R.id.btnSaveProfileMain)
-        var recommendedSoilData = Pair("Black / Regur Soil", "Black / Dark Brown")
-        if (fieldLat != 0.0 && fieldLng != 0.0) {
-            try {
-                val geocoder = android.location.Geocoder(requireContext(), Locale.ENGLISH)
-                @Suppress("DEPRECATION") val addresses = geocoder.getFromLocation(fieldLat, fieldLng, 1)
-                if (!addresses.isNullOrEmpty()) {
-                    val stateName = addresses[0].adminArea ?: ""
-                    recommendedSoilData = when {
-                        stateName.contains("Maharashtra", true) || stateName.contains("Gujarat", true) || stateName.contains("Madhya Pradesh", true) ->
-                            Pair("Black / Regur Soil", "Black / Dark Brown")
-                        stateName.contains("Punjab", true) || stateName.contains("Haryana", true) || stateName.contains("Uttar Pradesh", true) || stateName.contains("Bihar", true) ->
-                            Pair("Alluvial Soil", "Light Gray / Ashy")
-                        stateName.contains("Rajasthan", true) ->
-                            Pair("Arid / Desert Soil", "Light Brown / Sandy")
-                        stateName.contains("Karnataka", true) || stateName.contains("Kerala", true) || stateName.contains("Tamil Nadu", true) || stateName.contains("Odisha", true) ->
-                            Pair("Red & Yellow Soil", "Red / Yellowish")
-                        stateName.contains("Assam", true) || stateName.contains("Himachal", true) || stateName.contains("Uttarakhand", true) ->
-                            Pair("Mountain / Forest Soil", "Dark Brown / Blackish")
-                        else -> Pair("Alluvial Soil", "Light Gray / Ashy")
+        val btnLocalSoilMatchCard = view.findViewById<MaterialCardView>(R.id.btnLocalSoilMatch)
+        val btnLocalSoilMatchText = view.findViewById<TextView>(R.id.btnLocalSoilMatchText)
+        val btnSaveProfileMain = view.findViewById<MaterialCardView>(R.id.btnSaveProfileMain)
+
+        fun fetchSatelliteData() {
+            pbLoadingApi.visibility = View.VISIBLE
+            layoutApiContent.visibility = View.INVISIBLE
+            layoutApiError?.visibility = View.GONE
+            lifecycleScope.launch {
+                val fetchedSoil = if (fieldLat != 0.0 && fieldLng != 0.0) {
+                    fetchSoilDataFromApi(fieldLat, fieldLng)
+                } else null
+                pbLoadingApi.visibility = View.GONE
+                if (fetchedSoil != null) {
+                    fetchedSand = fetchedSoil.sand
+                    fetchedSilt = fetchedSoil.silt
+                    fetchedClay = fetchedSoil.clay
+                    layoutApiContent.visibility = View.VISIBLE
+                    layoutApiError?.visibility = View.GONE
+                    val sandFmt = String.format(Locale.US, "%.1f", fetchedSoil.sand)
+                    val siltFmt = String.format(Locale.US, "%.1f", fetchedSoil.silt)
+                    val clayFmt = String.format(Locale.US, "%.1f", fetchedSoil.clay)
+                    view.findViewById<TextView>(R.id.tvSandVal).text = "${d(sandFmt)}%"
+                    view.findViewById<TextView>(R.id.tvSiltVal).text = "${d(siltFmt)}%"
+                    view.findViewById<TextView>(R.id.tvClayVal).text = "${d(clayFmt)}%"
+                    view.findViewById<TextView>(R.id.tvSandLabel).text = t("Sand")
+                    view.findViewById<TextView>(R.id.tvSiltLabel).text = t("Silt")
+                    view.findViewById<TextView>(R.id.tvClayLabel).text = t("Clay")
+                    val tvSatelliteTitle = view.findViewById<TextView>(R.id.tvSatelliteTitle)
+                    if (fetchedSoil.isFallback) {
+                        tvSatelliteTitle.text = t("Regional Analysis")
+                        tvSatelliteTitle.setTextColor("#FFCC00".toColorInt())
+                    } else {
+                        tvSatelliteTitle.text = t("Satellite Analysis")
+                        tvSatelliteTitle.setTextColor(android.graphics.Color.WHITE)
                     }
+                    val mappedSoilData = mapTextureToIndianSoil(fetchedSoil)
+                    val soilName = mappedSoilData.first
+                    val colorHint = mappedSoilData.second
+                    val translatedSoil = t(soilName)
+                    val descTemplate = if (fetchedSoil.isFallback) {
+                        t("Based on regional data for your location, the soil is likely [SOIL]. Is it [COLOR]?")
+                    } else {
+                        t("Based on satellite analysis, your soil is likely [SOIL]. Is your soil [COLOR]?")
+                    }
+                    tvLocalMatchDesc.text = descTemplate
+                        .replace("[SOIL]", translatedSoil)
+                        .replace("[COLOR]", t(colorHint))
+                    btnLocalSoilMatchText.text = t("Confirm: [SOIL]").replace("[SOIL]", translatedSoil)
+                    btnLocalSoilMatchCard.setOnClickListener {
+                        selectedSoil = soilName
+                        saveFinalFarmData(soilName)
+                    }
+                } else {
+                    layoutApiError?.visibility = View.VISIBLE
+                    layoutApiContent.visibility = View.INVISIBLE
+                    Toast.makeText(requireContext(), t("Satellite service busy. Please try again or choose manually."), Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            }
+        }
+        btnRetryApi?.setOnClickListener {
+            fetchSatelliteData()
+        }
+        fetchSatelliteData()
+        view.findViewById<TextView>(R.id.tvManualLabel).text = t("Choose manually:")
+        rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
+        rvSoil.adapter = SoilAdapter(soilList) { selected ->
+            selectedSoil = when (selected.id) {
+                1 -> "Alluvial Soil"
+                2 -> "Black / Regur Soil"
+                3 -> "Red & Yellow Soil"
+                4 -> "Laterite Soil"
+                5 -> "Arid / Desert Soil"
+                6 -> "Mountain / Forest Soil"
+                7 -> "Saline & Alkaline Soil"
+                8 -> "Peaty & Marshy Soil"
+                else -> "Unknown Soil"
+            }
+            btnSaveProfileMain.isEnabled = true
+        }
+
+        view.findViewById<TextView>(R.id.btnNotSure).apply {
+            text = t("Not sure about soil type?")
+            setOnClickListener {
+                val fallbackFrag = SoilFallbackFragment()
+                fallbackFrag.show(parentFragmentManager, "SoilGuidance")
             }
         }
 
-        val soilName = recommendedSoilData.first
-        val colorHint = recommendedSoilData.second
-        tvLocalMatchDesc?.text = ""
-        btnLocalSoilMatchText.text = ""
-        val setupUI = {
-            val translatedSoil = t(soilName)
-            val translatedColor = t(colorHint)
-            tvLocalMatchDesc?.text = t("Most farms near you have [SOIL]. Is your soil [COLOR]?")
-                .replace("[SOIL]", translatedSoil)
-                .replace("[COLOR]", translatedColor)
-            btnLocalSoilMatchText.text = t("Yes, it's [SOIL]")
-                .replace("[SOIL]", translatedSoil)
-            btnLocalSoilMatchCard.setOnClickListener {
-                selectedSoil = soilName
-                saveFinalFarmData(soilName)
-            }
-            rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
-            rvSoil.adapter = SoilAdapter(soilList) { selected ->
-                selectedSoil = when (selected.id) {
-                    1 -> "Alluvial Soil"
-                    2 -> "Black / Regur Soil"
-                    3 -> "Red & Yellow Soil"
-                    4 -> "Laterite Soil"
-                    5 -> "Arid / Desert Soil"
-                    6 -> "Mountain / Forest Soil"
-                    7 -> "Saline & Alkaline Soil"
-                    8 -> "Peaty & Marshy Soil"
-                    else -> "Unknown Soil"
-                }
-                btnSaveProfileMain.isEnabled = true
-            }
-        }
-
-        if (langCode != TranslateLanguage.ENGLISH) {
-            view.post {
-                TranslationHelper.translateViewHierarchy(view, langCode) {
-                    view.post { setupUI() }
-                }
-            }
-        } else {
-            setupUI()
-        }
-        cardScanSHC.setOnClickListener {
-            startSoilHealthCardScanner()
-        }
-        btnNotSure.setOnClickListener {
-            val fallbackFrag = SoilFallbackFragment()
-            fallbackFrag.show(parentFragmentManager, "SoilGuidance")
-        }
         btnSaveProfileMain.setOnClickListener {
             if (selectedSoil != null) {
                 saveFinalFarmData(selectedSoil!!)
@@ -193,112 +197,140 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 Toast.makeText(requireContext(), t("Please select soil"), Toast.LENGTH_SHORT).show()
             }
         }
+
         parentFragmentManager.setFragmentResultListener("soil_request", viewLifecycleOwner) { _, bundle ->
             val detectedSoil = bundle.getString("selected_soil")
             val detectedCrop = bundle.getString("selected_crop") ?: "Not Selected"
-            detectedSoil?.let {
-                saveFinalFarmData(it, detectedCrop)
-            }
+            detectedSoil?.let { saveFinalFarmData(it, detectedCrop) }
         }
     }
 
-    private fun startSoilHealthCardScanner() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED) {
-            cameraLauncher.launch(null)
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
+    private suspend fun fetchSoilDataFromApi(lat: Double, lon: Double): SoilData {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d("SoilGrids", "Requesting soil data for Lat: $lat, Lon: $lon")
 
-    private fun processImage(bitmap: Bitmap) {
-        val image = InputImage.fromBitmap(bitmap, 0)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val detectedSoil = parseSoilFromText(visionText.text)
-                if (detectedSoil != null) {
-                    saveFinalFarmData(detectedSoil)
+                val urlString = "https://rest.isric.org/soilgrids/v2.0/properties/query?lat=$lat&lon=$lon&property=clay&property=sand&property=silt&depth=0-5cm&value=mean"
+                val url = URL(urlString)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 4000 // Faster timeout for better UX
+                connection.readTimeout = 4000
+
+                val responseCode = connection.responseCode
+                Log.d("SoilGrids", "Response Code: $responseCode")
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val responseText = connection.inputStream.bufferedReader().readText()
+                    val jsonObject = org.json.JSONObject(responseText)
+                    val properties = jsonObject.optJSONObject("properties") ?: return@withContext getRegionalSoilGuess(lat, lon)
+                    val layers = properties.optJSONArray("layers") ?: return@withContext getRegionalSoilGuess(lat, lon)
+
+                    var sand = 0.0; var silt = 0.0; var clay = 0.0
+
+                    for (i in 0 until layers.length()) {
+                        val layer = layers.getJSONObject(i)
+                        val name = layer.getString("name")
+                        val depthsArray = layer.optJSONArray("depths")
+
+                        if (depthsArray != null && depthsArray.length() > 0) {
+                            val valuesObj = depthsArray.getJSONObject(0).optJSONObject("values")
+                            if (valuesObj != null && valuesObj.has("mean")) {
+                                val meanValue = valuesObj.getDouble("mean") / 10.0
+                                when (name) {
+                                    "sand" -> sand = meanValue
+                                    "silt" -> silt = meanValue
+                                    "clay" -> clay = meanValue
+                                }
+                            }
+                        }
+                    }
+                    Log.d("SoilGrids", "Success from API")
+                    return@withContext SoilData(sand, silt, clay, isFallback = false)
                 } else {
-                    Toast.makeText(context, t("Soil type not found on card. Try manual selection."), Toast.LENGTH_LONG).show()
+                    Log.e("SoilGrids", "Server Error $responseCode. Triggering Fallback.")
+                    return@withContext getRegionalSoilGuess(lat, lon)
                 }
+            } catch (_: Exception) {
+                Log.e("SoilGrids", "Network failure. Triggering Fallback.")
+                return@withContext getRegionalSoilGuess(lat, lon)
             }
-            .addOnFailureListener {
-                Toast.makeText(context, t("Failed to read card"), Toast.LENGTH_SHORT).show()
-            }
+        }
     }
 
-    private fun parseSoilFromText(text: String): String? {
-        val lowerText = text.lowercase()
+    private fun getRegionalSoilGuess(lat: Double, lon: Double): SoilData {
         return when {
-            lowerText.contains("black") || lowerText.contains("काळी") -> "Black Soil"
-            lowerText.contains("red") || lowerText.contains("तांबडी") -> "Red Soil"
-            lowerText.contains("sandy") || lowerText.contains("रेताड") -> "Sandy Soil"
-            lowerText.contains("clay") || lowerText.contains("चिकन") -> "Clay Soil"
-            else -> null
+            // Maharashtra / Gujarat / MP (Black Soil / High Clay)
+            lat in 15.0..24.0 && lon in 70.0..80.0 -> SoilData(15.0, 25.0, 60.0, true)
+            // North India / Indo-Gangetic Plain (Alluvial / High Silt)
+            lat in 24.0..32.0 && lon in 74.0..90.0 -> SoilData(35.0, 45.0, 20.0, true)
+            // Rajasthan / Bordering regions (Arid / High Sand)
+            lat in 24.0..30.0 && lon in 69.0..75.0 -> SoilData(85.0, 10.0, 5.0, true)
+            // South/Coastal (Laterite/Red Zone)
+            lat in 8.0..15.0 -> SoilData(40.0, 20.0, 40.0, true)
+            // Default Indian Average
+            else -> SoilData(33.0, 33.0, 34.0, true)
+        }
+    }
+
+    private fun mapTextureToIndianSoil(soil: SoilData): Pair<String, String> {
+        return when {
+            soil.clay >= 35.0 -> Pair("Black / Regur Soil", "Black / Dark Brown")
+            soil.sand >= 65.0 -> Pair("Arid / Desert Soil", "Light Brown / Sandy")
+            soil.silt >= 40.0 && soil.sand < 50.0 -> Pair("Alluvial Soil", "Light Gray / Ashy")
+            else -> Pair("Red & Yellow Soil", "Red / Yellowish")
         }
     }
 
     private fun saveFinalFarmData(soilType: String, cropType: String = "Not Selected") {
-        val dbAreaText = if (fieldAreaAcres < 1.0) {
-            String.format(Locale.US, "%.2f Guntas", fieldAreaAcres * 40)
-        } else {
-            String.format(Locale.US, "%.2f Acres", fieldAreaAcres)
-        }
-
-        val displayAreaText = if (fieldAreaAcres < 1.0) {
-            val areaGuntas = fieldAreaAcres * 40
-            val formattedGuntas = String.format(Locale.US, "%.2f", areaGuntas)
-            "${d(formattedGuntas)} ${t("Guntas")}"
-        } else {
-            val formattedAcres = String.format(Locale.US, "%.2f", fieldAreaAcres)
-            "${d(formattedAcres)} ${t("Acres")}"
-        }
+        val dbAreaText = if (fieldAreaAcres < 1.0) String.format(Locale.US, "%.2f Guntas", fieldAreaAcres * 40)
+        else String.format(Locale.US, "%.2f Acres", fieldAreaAcres)
 
         Toast.makeText(requireContext(), t("Saving farm profile..."), Toast.LENGTH_SHORT).show()
         val safeContext = requireContext()
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = SupabaseManager.client.auth.currentUserOrNull()
                 if (user != null) {
                     val existingFarms = SupabaseManager.client.postgrest["farms"]
-                        .select {
-                            filter { eq("farmer_id", user.id) }
-                        }.decodeList<FarmEntry>()
-                    val existingNames = existingFarms.mapNotNull { it.name }
+                        .select { filter { eq("farmer_id", user.id) } }
+                        .decodeList<FarmEntry>()
+
                     var nextNumber = existingFarms.size + 1
                     var autoName = "Farm $nextNumber"
-                    while (existingNames.contains(autoName)) {
+                    while (existingFarms.mapNotNull { it.name }.contains(autoName)) {
                         nextNumber++
                         autoName = "Farm $nextNumber"
                     }
+
+                    // Uses the updated FarmEntry model with percentages
                     val newFarm = FarmEntry(
                         farmer_id = user.id,
                         name = autoName,
                         land_size = dbAreaText,
                         soil_type = soilType,
                         coordinates = coordinatesJson,
-                        crop = cropType
+                        crop = cropType,
+                        sand_pct = fetchedSand,
+                        silt_pct = fetchedSilt,
+                        clay_pct = fetchedClay
                     )
+
                     SupabaseManager.client.postgrest["farms"].insert(newFarm)
+
                     withContext(Dispatchers.Main) {
-                        val translatedMessage = "${t("Farm saved")}\n${t("Area")}: $displayAreaText\n${t("Soil")}: ${t(soilType)}"
-                        Toast.makeText(safeContext, translatedMessage, Toast.LENGTH_LONG).show()
+                        Toast.makeText(safeContext, t("Farm saved successfully!"), Toast.LENGTH_LONG).show()
                         dismiss()
                         val intent = android.content.Intent(safeContext, ManageFieldsActivity::class.java)
                         intent.flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                         safeContext.startActivity(intent)
                         activity?.finish()
                     }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(safeContext, t("Error: User not logged in"), Toast.LENGTH_SHORT).show()
-                    }
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(safeContext, "Database Error: ${e.message}", Toast.LENGTH_LONG).show()
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    withContext(Dispatchers.Main) { Toast.makeText(safeContext, "Error: ${e.message}", Toast.LENGTH_LONG).show() }
                 }
             }
         }

@@ -504,7 +504,6 @@
                         android:id="@+id/lineChart"
                         android:layout_width="match_parent"
                         android:layout_height="200dp" />
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
