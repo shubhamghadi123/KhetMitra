@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -26,11 +27,10 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -200,6 +200,7 @@ class WeatherActivity : BaseActivity() {
         if (!swipeRefreshLayout.isRefreshing) {
             loadingOverlay.visibility = View.VISIBLE
         }
+
         var lat = 19.07
         var lon = 72.87
         try {
@@ -209,45 +210,42 @@ class WeatherActivity : BaseActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        val weatherRetrofit = Retrofit.Builder()
-            .baseUrl("https://api.open-meteo.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        val weatherService = weatherRetrofit.create(WeatherService::class.java)
-        val aqiRetrofit = Retrofit.Builder()
-            .baseUrl("https://air-quality-api.open-meteo.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        val aqiService = aqiRetrofit.create(AirQualityService::class.java)
-        weatherService.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
-            override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    val weatherData = response.body()!!
-                    aqiService.getAirQuality(lat, lon).enqueue(object : Callback<AirQualityResponse> {
-                        override fun onResponse(call2: Call<AirQualityResponse>, response2: Response<AirQualityResponse>) {
-                            val rawAqi = response2.body()?.current?.us_aqi ?: 50
-                            val epaIndex = convertAqiToEpa(rawAqi)
-                            currentWeatherUI(weatherData, epaIndex, lat, lon)
-                            swipeRefreshLayout.isRefreshing = false
-                            loadingOverlay.visibility = View.GONE
-                        }
-                        override fun onFailure(call2: Call<AirQualityResponse>, thr: Throwable) {
-                            currentWeatherUI(weatherData, 1, lat, lon)
-                            swipeRefreshLayout.isRefreshing = false
-                            loadingOverlay.visibility = View.GONE
-                        }
-                    })
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val weatherDeferred = async { RetrofitClient.weatherService.getForecast(lat, lon) }
+                val aqiDeferred = async { RetrofitClient.aqiService.getAirQuality(lat, lon) }
+                val weatherResponse = weatherDeferred.await()
+                val aqiResponse = aqiDeferred.await()
+                if (weatherResponse.isSuccessful && weatherResponse.body() != null) {
+                    val weatherData = weatherResponse.body()!!
+                    val rawAqi = if (aqiResponse.isSuccessful) {
+                        aqiResponse.body()?.current?.us_aqi ?: 50
+                    } else {
+                        50
+                    }
+                    val epaIndex = convertAqiToEpa(rawAqi)
+                    withContext(Dispatchers.Main) {
+                        currentWeatherUI(weatherData, epaIndex, lat, lon)
+                        swipeRefreshLayout.isRefreshing = false
+                        loadingOverlay.visibility = View.GONE
+                    }
                 } else {
+                    withContext(Dispatchers.Main) {
+                        loadingOverlay.visibility = View.GONE
+                        swipeRefreshLayout.isRefreshing = false
+                        Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
                     loadingOverlay.visibility = View.GONE
                     swipeRefreshLayout.isRefreshing = false
+                    Toast.makeText(this@WeatherActivity, "Network Error", Toast.LENGTH_SHORT).show()
                 }
             }
-            override fun onFailure(call: Call<OpenMeteoResponse>, thr: Throwable) {
-                loadingOverlay.visibility = View.GONE
-                Toast.makeText(this@WeatherActivity, "Failed to load weather", Toast.LENGTH_SHORT).show()
-                swipeRefreshLayout.isRefreshing = false
-            }
-        })
+        }
     }
 
     private fun convertAqiToEpa(rawAqi: Int): Int {

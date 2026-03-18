@@ -130,3 +130,13 @@ data class ChatMessageEntity(
     @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("file_name") val fileName: String? = null
 )
+
+@Serializable
+data class SavedFarmPlan(
+    val id: Int? = null,
+    val farmer_id: String,
+    val farm_name: String,
+    val crop_name: String,
+    val plan_json: String,
+    val created_at: String? = null
+)

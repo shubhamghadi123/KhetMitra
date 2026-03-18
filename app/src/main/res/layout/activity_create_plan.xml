@@ -57,7 +57,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="14dp"
         android:layout_marginEnd="20dp"
-        android:text="Smart Farm Planner"
+        android:text="Create New Plan"
         android:textColor="#FFFFFF"
         android:textSize="20sp"
         android:textStyle="bold"
@@ -72,7 +72,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="14dp"
         android:layout_marginEnd="20dp"
-        android:text="AI-powered crop planning"
+        android:text="Select your field and crop"
         android:textColor="#A8D5B5"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="@id/btnBack"
@@ -126,7 +126,6 @@
                             app:cardCornerRadius="10dp"
                             app:cardElevation="0dp"
                             app:strokeWidth="0dp">
-
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -144,58 +143,80 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/tvFarmLabel"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:hint="Select Field"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#E8EDE0"
-                        app:boxStrokeWidthFocused="1.5dp"
-                        app:hintTextColor="#52B788"
-                        app:startIconDrawable="@drawable/round_location_on_24"
-                        app:startIconTint="#52B788">
+                        android:text="Select Field"
+                        android:textColor="#52B788"
+                        android:textSize="12sp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="4dp"/>
 
-                        <AutoCompleteTextView
-                            android:id="@+id/dropdownFarm"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:padding="14dp"
-                            android:textColor="#111111"
-                            android:textSize="15sp"
-                            tools:ignore="LabelFor" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Select Crop"
-                        app:boxCornerRadiusTopStart="14dp"
-                        app:boxCornerRadiusTopEnd="14dp"
-                        app:boxCornerRadiusBottomStart="14dp"
-                        app:boxCornerRadiusBottomEnd="14dp"
-                        app:boxStrokeColor="#E8EDE0"
-                        app:boxStrokeWidthFocused="1.5dp"
-                        app:hintTextColor="#52B788"
-                        app:startIconDrawable="@drawable/ic_crop"
-                        app:startIconTint="#52B788">
+                        android:layout_height="55dp"
+                        android:layout_marginBottom="16dp"
+                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#52B788"
+                        app:strokeWidth="1.5dp">
 
-                        <AutoCompleteTextView
-                            android:id="@+id/dropdownCrop"
+                        <Spinner
+                            android:id="@+id/spinnerFarm"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:padding="14dp"
-                            android:textColor="#111111"
-                            android:textSize="15sp"
-                            tools:ignore="LabelFor" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                            android:layout_height="match_parent"
+                            android:background="@android:color/transparent"
+                            android:paddingHorizontal="16dp"
+                            android:popupBackground="@drawable/bg_spinner_dropdown" />
+
+                        <ImageView
+                            android:layout_width="35dp"
+                            android:layout_height="35dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="16dp"
+                            android:src="@drawable/arrow_down"
+                            app:tint="#52B788"
+                            android:importantForAccessibility="no" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/tvCropLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Select Crop"
+                        android:textColor="#52B788"
+                        android:textSize="12sp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="4dp"/>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="55dp"
+                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#52B788"
+                        app:strokeWidth="1.5dp">
+
+                        <Spinner
+                            android:id="@+id/spinnerCrop"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@android:color/transparent"
+                            android:paddingHorizontal="16dp"
+                            android:popupBackground="@drawable/bg_spinner_dropdown" />
+
+                        <ImageView
+                            android:layout_width="35dp"
+                            android:layout_height="35dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="16dp"
+                            android:src="@drawable/arrow_down"
+                            app:tint="#52B788"
+                            android:importantForAccessibility="no" />
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -237,78 +258,6 @@
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:id="@+id/layoutLoading"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:paddingVertical="32dp"
-                android:visibility="gone">
-
-                <ProgressBar
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:indeterminateTint="#52B788" />
-
-                <TextView
-                    android:id="@+id/tvLoadingStatus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Fetching weather &amp; soil data..."
-                    android:textColor="#1A3C2E"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/layoutPlanTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="10dp"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginEnd="10dp"
-                    app:cardBackgroundColor="#F0FAF5"
-                    app:cardCornerRadius="10dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="📋"
-                        android:textSize="15sp" />
-                </com.google.android.material.card.MaterialCardView>
-
-                <TextView
-                    android:id="@+id/tvPlanTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Structured Farm Plan"
-                    android:textColor="#1A3C2E"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvPlanStages"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:orientation="horizontal"
-                android:clipToPadding="false"
-                android:visibility="gone"
-                tools:visibility="visible" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

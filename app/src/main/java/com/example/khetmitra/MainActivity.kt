@@ -3,17 +3,22 @@ package com.example.khetmitra
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
@@ -21,6 +26,7 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.get
 import androidx.core.view.size
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -28,16 +34,16 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.navigation.NavigationView
 import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import java.net.URL
 
 class MainActivity : BaseActivity() {
     private lateinit var adapter: DashboardAdapter
@@ -52,7 +58,7 @@ class MainActivity : BaseActivity() {
         setContentView(R.layout.activity_main)
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val profileCard = findViewById<androidx.cardview.widget.CardView>(R.id.profileCard)
+        val profileCard = findViewById<CardView>(R.id.profileCard)
         val btnStartMapping = findViewById<MaterialCardView>(R.id.btnStartMapping)
         val btnScanCrop     = findViewById<MaterialCardView>(R.id.btnScanCrop)
         val navView = findViewById<NavigationView>(R.id.navView)
@@ -88,7 +94,7 @@ class MainActivity : BaseActivity() {
                 R.id.nav_settings -> startActivity(Intent(this, SettingsActivity::class.java))
                 R.id.nav_help -> startActivity(Intent(this, HelpSupportActivity::class.java))
                 R.id.nav_logout -> {
-                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    CoroutineScope(Dispatchers.IO).launch {
                         try {
                             SupabaseManager.client.auth.signOut()
                             withContext(Dispatchers.Main) {
@@ -99,7 +105,7 @@ class MainActivity : BaseActivity() {
                                 finish()
                             }
                         } catch (e: Exception) {
-                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            if (e is CancellationException) throw e
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivity, t("Error logging out: ") + e.message, Toast.LENGTH_LONG).show()
                             }
@@ -141,7 +147,7 @@ class MainActivity : BaseActivity() {
                 title == t("Chat") || title == "Chat" ->
                     startActivity(Intent(this, ChatbotActivity::class.java))
                 title == t("Plans") || title == "Plans" ->
-                    startActivity(Intent(this, FarmPlanActivity::class.java))
+                    startActivity(Intent(this, PlanDashboardActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
@@ -153,15 +159,15 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun loadProfileImage(url: String, imageView: android.widget.ImageView?) {
+    private fun loadProfileImage(url: String, imageView: ImageView?) {
         if (imageView == null) return
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connection = java.net.URL(url).openConnection()
+                val connection = URL(url).openConnection()
                 connection.doInput = true
                 connection.connect()
                 val inputStream = connection.getInputStream()
-                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
                 withContext(Dispatchers.Main) {
                     imageView.setImageBitmap(bitmap)
                 }
@@ -233,7 +239,7 @@ class MainActivity : BaseActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun fetchAndDisplayFarmerName() {
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
                 if (userId == null) {
@@ -263,8 +269,8 @@ class MainActivity : BaseActivity() {
                         translateWithMLKit(profile.first_name) { translatedFullName ->
                             tvHeaderName?.text = translatedFullName
                         }
-                        val ivMainProfile = findViewById<android.widget.ImageView>(R.id.ivMainProfilePhoto)
-                        val ivNavProfile = headerView?.findViewById<android.widget.ImageView>(R.id.ivNavProfilePhoto)
+                        val ivMainProfile = findViewById<ImageView>(R.id.ivMainProfilePhoto)
+                        val ivNavProfile = headerView?.findViewById<ImageView>(R.id.ivNavProfilePhoto)
                         if (profile.profile_photo_url.isNullOrEmpty()) {
                             val defaultAvatar = when (profile.gender.lowercase()) {
                                 "male" -> R.drawable.default_male_farmer
@@ -274,8 +280,8 @@ class MainActivity : BaseActivity() {
                             }
                             ivMainProfile?.setImageResource(defaultAvatar)
                             ivNavProfile?.setImageResource(defaultAvatar)
-                            ivMainProfile?.setBackgroundColor(android.graphics.Color.WHITE)
-                            ivNavProfile?.setBackgroundColor(android.graphics.Color.WHITE)
+                            ivMainProfile?.setBackgroundColor(Color.WHITE)
+                            ivNavProfile?.setBackgroundColor(Color.WHITE)
                         } else {
                             loadProfileImage(profile.profile_photo_url, ivMainProfile)
                             loadProfileImage(profile.profile_photo_url, ivNavProfile)
@@ -287,7 +293,7 @@ class MainActivity : BaseActivity() {
                     }
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Debug DB Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -372,7 +378,7 @@ class MainActivity : BaseActivity() {
         return TranslationHelper.convertDigits(num, currentLangCode)
     }
 
-    private fun isFahrenheit(prefs: android.content.SharedPreferences): Boolean {
+    private fun isFahrenheit(prefs: SharedPreferences): Boolean {
         val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)") ?: "Celsius (°C)"
         return tempUnitPref.contains("Fahrenheit")
     }
@@ -392,38 +398,38 @@ class MainActivity : BaseActivity() {
             lat = 19.07
             lon = 72.87
         }
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.open-meteo.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        val service = retrofit.create(WeatherService::class.java)
-        service.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
-            override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.weatherService.getForecast(lat, lon)
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!
                     val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
                     val useFahrenheit = isFahrenheit(prefs)
-                    val tempSymbol = if (useFahrenheit) t("°F") else t("°C")
                     val currentTempRaw = data.current.temperature_2m
                     val tempText = convertTemp(currentTempRaw, useFahrenheit).toString()
                     val weatherCode = data.current.weathercode
                     val isDay = data.current.is_day
                     val rawCondition = getConditionText(weatherCode)
                     val iconRes = getIconForCondition(rawCondition, isDay)
-                    val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
-                    if (manualTranslation != null) {
-                        updateWeatherCard(manualTranslation, tempText, tempSymbol, iconRes)
-                    } else {
-                        translateWithMLKit(rawCondition) { translatedText ->
-                            updateWeatherCard(translatedText, tempText, tempSymbol, iconRes)
+                    withContext(Dispatchers.Main) {
+                        val tempSymbol = if (useFahrenheit) t("°F") else t("°C")
+                        val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
+                        if (manualTranslation != null) {
+                            updateWeatherCard(manualTranslation, tempText, tempSymbol, iconRes)
+                        } else {
+                            translateWithMLKit(rawCondition) { translatedText ->
+                                updateWeatherCard(translatedText, tempText, tempSymbol, iconRes)
+                            }
                         }
                     }
+                } else {
+                    Log.e("MainActivity", "Weather fetch unsuccessful: ${response.code()}")
                 }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Weather fetch failed: ${e.message}", e)
             }
-            override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
-                Log.e("MainActivity", "Weather fetch failed: ${t.message}", t)
-            }
-        })
+        }
     }
 
     private fun getConditionText(code: Int): String {
@@ -464,11 +470,11 @@ class MainActivity : BaseActivity() {
             callback(text)
             return
         }
-        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+        val options = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH)
             .setTargetLanguage(currentLangCode)
             .build()
-        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+        val client = Translation.getClient(options)
         client.downloadModelIfNeeded().addOnSuccessListener {
             client.translate(text).addOnSuccessListener { result ->
                 callback(result)

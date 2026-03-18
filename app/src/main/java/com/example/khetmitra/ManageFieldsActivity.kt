@@ -225,14 +225,23 @@ class ManageFieldsActivity : AppCompatActivity() {
 
     private fun deleteFieldFromDatabase(fieldId: String, position: Int) {
         Toast.makeText(this, t("Deleting field..."), Toast.LENGTH_SHORT).show()
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                SupabaseManager.client.postgrest["farms"].delete { filter { eq("id", fieldId) } }
+                val deletedRows = SupabaseManager.client.postgrest["farms"].delete {
+                    select()
+                    filter { eq("id", fieldId) }
+                }.decodeList<FarmEntry>()
+
                 withContext(Dispatchers.Main) {
-                    farmsList.removeAt(position)
-                    adapter.notifyItemRemoved(position)
-                    adapter.notifyItemRangeChanged(position, farmsList.size)
-                    Toast.makeText(this@ManageFieldsActivity, t("Field deleted"), Toast.LENGTH_SHORT).show()
+                    if (deletedRows.isNotEmpty()) {
+                        farmsList.removeAt(position)
+                        adapter.notifyItemRemoved(position)
+                        adapter.notifyItemRangeChanged(position, farmsList.size)
+                        Toast.makeText(this@ManageFieldsActivity, t("Field deleted"), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@ManageFieldsActivity, t("Failed: Database blocked deletion. Check RLS policies."), Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -371,7 +380,10 @@ class ManageFieldsActivity : AppCompatActivity() {
                 holder.spinnerCrop.setAdapter(null)
                 holder.spinnerCrop.setText(displayCrop, false)
                 holder.btnEditField.setOnClickListener {
-                    showDeleteConfirmationDialog(field, holder.adapterPosition)
+                    val pos = holder.adapterPosition
+                    if (pos != RecyclerView.NO_POSITION) {
+                        showDeleteConfirmationDialog(fields[pos], pos)
+                    }
                 }
             } else {
                 holder.ivEditIcon.clearColorFilter()
@@ -379,7 +391,9 @@ class ManageFieldsActivity : AppCompatActivity() {
                     holder.ivEditIcon.setImageResource(R.drawable.round_check_24)
                     holder.etFieldName.setText(translatedName)
                     holder.etFieldName.isEnabled = true
-                    holder.etFieldName.setBackgroundResource(androidx.appcompat.R.drawable.abc_edit_text_material)
+                    val typedValue = android.util.TypedValue()
+                    holder.itemView.context.theme.resolveAttribute(android.R.attr.editTextBackground, typedValue, true)
+                    holder.etFieldName.setBackgroundResource(typedValue.resourceId)
                     holder.etFieldName.requestFocus()
                     holder.layoutCrop.isEnabled = true
                     holder.layoutCrop.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU

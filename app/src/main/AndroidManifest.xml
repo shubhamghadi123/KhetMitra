@@ -90,7 +90,19 @@
             android:exported="false" />
 
         <activity
-            android:name=".FarmPlanActivity"
+            android:name=".PlanDashboardActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ViewPlanActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".StageDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".CreatePlanActivity"
             android:exported="false" />
 
         <activity

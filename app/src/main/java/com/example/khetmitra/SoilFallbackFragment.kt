@@ -9,12 +9,14 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.graphics.toColorInt
 import androidx.core.os.bundleOf
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mlkit.nl.translate.TranslateLanguage
 
@@ -58,7 +60,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         view.findViewById<TextView>(R.id.tvHowToTest).setOnClickListener {
             showRibbonTestInstructions()
         }
-        view.findViewById<MaterialButton>(R.id.btnSaveProfile).setOnClickListener {
+        view.findViewById<MaterialCardView>(R.id.btnSaveProfile).setOnClickListener {
             if (temporarySelectedSoil != null) {
                 parentFragmentManager.setFragmentResult("soil_request", bundleOf(
                     "selected_soil" to temporarySelectedSoil,
@@ -175,6 +177,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         val translatedCrops = mutableListOf(t("Select previous crop"))
         translatedCrops.addAll(cropKeys.map { t(it) })
         val spinnerCrop = view.findViewById<android.widget.Spinner>(R.id.autoCompleteCrop)
+        val cardSpinner = view.findViewById<MaterialCardView>(R.id.menuPreviousCrop)
         val adapter = ArrayAdapter(requireContext(), R.layout.custom_spinner_item, translatedCrops)
         adapter.setDropDownViewResource(R.layout.custom_spinner_dropdown_item)
         spinnerCrop.adapter = adapter
@@ -182,6 +185,7 @@ class SoilFallbackFragment : BottomSheetDialogFragment() {
         spinnerCrop.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (position == 0) return
+                cardSpinner?.strokeColor = "#52B788".toColorInt()
                 val selectedCropEnglish = cropKeys[position - 1]
                 temporarySelectedCrop = selectedCropEnglish
                 temporarySelectedSoil = when (selectedCropEnglish) {

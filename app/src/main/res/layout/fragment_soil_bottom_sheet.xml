@@ -46,9 +46,10 @@
             android:layout_marginHorizontal="16dp"
             android:layout_marginTop="18dp"
             app:cardBackgroundColor="#1A3C2E"
+            app:strokeColor="#216E48"
             app:cardCornerRadius="22dp"
             app:cardElevation="0dp"
-            app:strokeWidth="0dp"
+            app:strokeWidth="1.5dp"
             app:layout_constraintTop_toBottomOf="@id/tvTitle">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -110,18 +111,20 @@
                     android:id="@+id/layoutApiContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:visibility="invisible"
                     app:layout_constraintTop_toTopOf="parent">
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/iconTileGuess"
                         android:layout_width="38dp"
                         android:layout_height="38dp"
-                        app:cardBackgroundColor="#2D6A4F"
+                        app:cardBackgroundColor="#34A36D"
+                        app:strokeColor="#216E48"
+                        app:strokeWidth="1dp"
                         app:cardCornerRadius="12dp"
                         app:cardElevation="0dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -136,7 +139,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:text="Satellite Analysis"
-                        android:textColor="#FFFFFF"
+                        android:textColor="#C96D1A"
                         android:textSize="15sp"
                         android:textStyle="bold"
                         app:layout_constraintBottom_toBottomOf="@id/iconTileGuess"
@@ -152,35 +155,125 @@
                         android:orientation="horizontal"
                         app:layout_constraintTop_toBottomOf="@id/iconTileGuess">
 
-                        <LinearLayout
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:gravity="center"
-                            android:orientation="vertical">
-                            <TextView android:id="@+id/tvSandVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
-                            <TextView android:id="@+id/tvSandLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sand" android:textColor="#A8D5B5" android:textSize="12sp"/>
-                        </LinearLayout>
+                            android:layout_marginEnd="5dp"
+                            app:cardBackgroundColor="#34A36D"
+                            app:strokeColor="#216E48"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1dp">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="center"
-                            android:orientation="vertical">
-                            <TextView android:id="@+id/tvSiltVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
-                            <TextView android:id="@+id/tvSiltLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Silt" android:textColor="#A8D5B5" android:textSize="12sp"/>
-                        </LinearLayout>
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:padding="12dp">
 
-                        <LinearLayout
+                                <TextView
+                                    android:id="@+id/tvSandLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="Sand"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="12sp"
+                                    android:gravity="center" />
+
+                                <TextView
+                                    android:id="@+id/tvSandVal"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="-- %"
+                                    android:textColor="#C96D1A"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:gravity="center"
-                            android:orientation="vertical">
-                            <TextView android:id="@+id/tvClayVal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--%" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"/>
-                            <TextView android:id="@+id/tvClayLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clay" android:textColor="#A8D5B5" android:textSize="12sp"/>
-                        </LinearLayout>
+                            android:layout_marginEnd="5dp"
+                            app:cardBackgroundColor="#34A36D"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="#216E48"
+                            app:strokeWidth="1dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:id="@+id/tvSiltLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="Silt"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="12sp"
+                                    android:gravity="center" />
+
+                                <TextView
+                                    android:id="@+id/tvSiltVal"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="-- %"
+                                    android:textColor="#C96D1A"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            app:cardBackgroundColor="#34A36D"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="#216E48"
+                            app:strokeWidth="1dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:padding="12dp">
+
+                                <TextView
+                                    android:id="@+id/tvClayLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="Clay"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="12sp"
+                                    android:gravity="center"/>
+
+                                <TextView
+                                    android:id="@+id/tvClayVal"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="-- %"
+                                    android:textColor="#C96D1A"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
                     </LinearLayout>
 
                     <TextView
@@ -189,7 +282,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="Fetching data..."
-                        android:textColor="#A8D5B5"
+                        android:textColor="#FFFFFF"
                         android:textSize="13sp"
                         app:layout_constraintTop_toBottomOf="@id/layoutSoilStats" />
 
@@ -200,11 +293,13 @@
                         android:layout_marginTop="14dp"
                         android:clickable="true"
                         android:focusable="true"
-                        app:cardBackgroundColor="#52B788"
                         app:cardCornerRadius="50dp"
+                        app:cardBackgroundColor="#34A36D"
+                        app:strokeColor="#216E48"
                         app:cardElevation="0dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/tvLocalMatchDesc">
+
                         <TextView
                             android:id="@+id/btnLocalSoilMatchText"
                             android:layout_width="wrap_content"
@@ -243,7 +338,7 @@
             app:layout_constraintTop_toBottomOf="@id/tvManualLabel" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/btnSaveProfileMain"
+            android:id="@+id/btnsaveCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
@@ -251,10 +346,13 @@
             android:clickable="true"
             android:focusable="true"
             app:cardBackgroundColor="#52B788"
+            app:strokeColor="#216E48"
             app:cardCornerRadius="18dp"
             app:cardElevation="0dp"
             app:layout_constraintTop_toBottomOf="@id/rvSoilTypes">
+
             <TextView
+                android:id="@+id/btnSaveProfileMain"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
@@ -277,6 +375,6 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnSaveProfileMain" />
+            app:layout_constraintTop_toBottomOf="@id/btnsaveCard" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

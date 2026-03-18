@@ -124,6 +124,12 @@ data class RibbonData(
     val soilType: String
 )
 
+data class FarmPlanResponse(
+    val estimatedYield: String,
+    val totalDurationDays: String,
+    val stages: List<FarmPlanStage>
+)
+
 data class FarmPlanStage(
     val stageNumber: Int,
     val stageTitle: String,
@@ -131,6 +137,6 @@ data class FarmPlanStage(
     val durationText: String,
     val effortPercent: Int,
     val criticality: Int,
-    var iconRes: Int = 0,
-    var cardColor: Int = 0
+    @Transient var iconRes: Int = 0,
+    @Transient var cardColor: Int = 0
 )

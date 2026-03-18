@@ -56,12 +56,12 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
-
     private lateinit var mapView: MapView
     private lateinit var polygonAnnotationManager: PolygonAnnotationManager
     private lateinit var circleAnnotationManager: CircleAnnotationManager
     private lateinit var pointAnnotationManager: PointAnnotationManager
     private val savedFarmsDataMap = mutableMapOf<String, FetchedFarm>()
+    private val savedFarmPolygonMap = mutableMapOf<String, FetchedFarm>()
     private var activePolygonAnnotation: com.mapbox.maps.plugin.annotation.generated.PolygonAnnotation? = null
     private val boundaryPoints = mutableListOf<LatLng>()
     private val circleIdToIndex = mutableMapOf<String, Int>()
@@ -113,14 +113,16 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
         val prefs = requireActivity().getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+
         mapView          = view.findViewById(R.id.mapView)
         tvCalculatedArea = view.findViewById(R.id.tvCalculatedArea)
         cardWalkBoundary = view.findViewById(R.id.btnWalkBoundary)
         cardNextStep     = view.findViewById(R.id.btnNextStep)
         cardClearMap     = view.findViewById(R.id.btnClearMap)
         cardUndo         = view.findViewById(R.id.btnUndo)
-        tvWalkLabel = cardWalkBoundary.findViewById(R.id.tvWalkLabel)
-        ivWalkIcon  = cardWalkBoundary.findViewById(R.id.ivWalkIcon)
+        tvWalkLabel      = cardWalkBoundary.findViewById(R.id.tvWalkLabel)
+        ivWalkIcon       = cardWalkBoundary.findViewById(R.id.ivWalkIcon)
+
         view.findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
@@ -136,17 +138,30 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+
         mapView.mapboxMap.loadStyle(Style.SATELLITE_STREETS) {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-            circleAnnotationManager = annotationApi.createCircleAnnotationManager()
-            pointAnnotationManager = annotationApi.createPointAnnotationManager()
+            circleAnnotationManager  = annotationApi.createCircleAnnotationManager()
+            pointAnnotationManager   = annotationApi.createPointAnnotationManager()
+
             pointAnnotationManager.addClickListener { annotation ->
                 val farmData = savedFarmsDataMap[annotation.id]
                 if (farmData != null) showFarmDetailsDialog(farmData)
                 true
             }
+
+            polygonAnnotationManager.addClickListener { annotation ->
+                val farmData = savedFarmPolygonMap[annotation.id]
+                if (farmData != null) {
+                    showFarmDetailsDialog(farmData)
+                    return@addClickListener true
+                }
+                false
+            }
+
             loadExistingFarms()
+
             circleAnnotationManager.addDragListener(object : OnCircleAnnotationDragListener {
                 override fun onAnnotationDrag(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
                     val circle = annotation as CircleAnnotation
@@ -157,8 +172,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                     }
                 }
 
-                override fun onAnnotationDragStarted(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
-                }
+                override fun onAnnotationDragStarted(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {}
 
                 override fun onAnnotationDragFinished(annotation: com.mapbox.maps.plugin.annotation.Annotation<*>) {
                     val circle = annotation as CircleAnnotation
@@ -175,13 +189,14 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 enabled = true
                 pulsingEnabled = true
             }
+
             centerMapOnCurrentLocation()
+
             mapView.mapboxMap.addOnMapClickListener { point ->
                 if (overlay.isVisible) {
                     overlay.visibility = View.GONE
                     overlay.isClickable = false
                 }
-
                 if (!isTracking) {
                     addPoint(point.latitude(), point.longitude(), true)
                 } else {
@@ -194,6 +209,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         cardWalkBoundary.setOnClickListener { if (isTracking) stopTracking() else startTracking() }
         cardClearMap.setOnClickListener    { resetMap() }
         cardUndo.setOnClickListener        { undoLastPoint() }
+
         cardNextStep.setOnClickListener {
             val fieldLat = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].latitude else 0.0
             val fieldLng = if (boundaryPoints.isNotEmpty()) boundaryPoints[0].longitude else 0.0
@@ -202,7 +218,9 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val soilSheet = SoilBottomSheetFragment.newInstance(lastCalculatedAreaAcres, fieldLat, fieldLng, coordinatesJson)
             soilSheet.show(parentFragmentManager, "SoilSheet")
         }
+
         setupLocationCallback()
+
         if (langCode != TranslateLanguage.ENGLISH) {
             view.post {
                 TranslationHelper.translateViewHierarchy(view, langCode) {
@@ -224,7 +242,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             val sandFmt = String.format(Locale.US, "%.1f", farm.sand_pct)
             val siltFmt = String.format(Locale.US, "%.1f", farm.silt_pct)
             val clayFmt = String.format(Locale.US, "%.1f", farm.clay_pct)
-            message += "\n\n--- ${t("Satellite Analysis")} ---"
             message += "\n• ${t("Sand")}: ${d(sandFmt)}%"
             message += "\n• ${t("Silt")}: ${d(siltFmt)}%"
             message += "\n• ${t("Clay")}: ${d(clayFmt)}%"
@@ -249,6 +266,7 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
 
                     withContext(Dispatchers.Main) {
                         savedFarmsDataMap.clear()
+                        savedFarmPolygonMap.clear()
                         farms.forEachIndexed { index, farm ->
                             drawExistingFarm(farm, index + 1)
                         }
@@ -268,12 +286,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
                 val points = latLngList.map { Point.fromLngLat(it["lng"]!!, it["lat"]!!) }.toMutableList()
                 points.add(points.first())
                 val polygon = Polygon.fromLngLats(listOf(points))
-                polygonAnnotationManager.create(
+
+                val polygonAnnotation = polygonAnnotationManager.create(
                     PolygonAnnotationOptions()
                         .withGeometry(polygon)
                         .withFillColor("#442196F3".toColorInt())
                         .withFillOutlineColor("#2196F3")
                 )
+                savedFarmPolygonMap[polygonAnnotation.id] = farm
+
                 var sumLat = 0.0; var sumLng = 0.0
                 latLngList.forEach { sumLat += it["lat"]!!; sumLng += it["lng"]!! }
                 val textAnnotation = pointAnnotationManager.create(
@@ -311,7 +332,6 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
             ActivityCompat.requestPermissions(requireActivity(), arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
             return
         }
-
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
                 moveCamera(location.latitude, location.longitude)
@@ -432,13 +452,10 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
         val end = points.size - 1
         for (i in 1 until end) {
             val d = perpendicularDistance(points[i], points[0], points[end])
-            if (d > dmax) {
-                index = i
-                dmax = d
-            }
+            if (d > dmax) { index = i; dmax = d }
         }
         return if (dmax > toleranceMeters) {
-            val left = simplifyPath(points.subList(0, index + 1), toleranceMeters)
+            val left  = simplifyPath(points.subList(0, index + 1), toleranceMeters)
             val right = simplifyPath(points.subList(index, end + 1), toleranceMeters)
             val result = left.toMutableList()
             result.removeAt(result.size - 1)
@@ -500,19 +517,15 @@ class FieldMeasurementFragment : Fragment(R.layout.fragment_field_measurement) {
     }
 
     @SuppressLint("Lifecycle")
-    override fun onStart() {
-        super.onStart()
-        mapView.onStart()
-    }
+    override fun onStart() { super.onStart(); mapView.onStart() }
+
     @SuppressLint("Lifecycle")
     override fun onStop() {
         super.onStop()
         mapView.onStop()
         if (isTracking) stopTracking()
     }
+
     @SuppressLint("Lifecycle")
-    override fun onDestroy() {
-        super.onDestroy()
-        mapView.onDestroy()
-    }
+    override fun onDestroy() { super.onDestroy(); mapView.onDestroy() }
 }

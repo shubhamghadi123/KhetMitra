@@ -356,5 +356,5 @@
         app:itemIconTint="@color/nav_item_text_color"
         app:itemBackground="@drawable/nav_item_background"
         app:itemHorizontalPadding="16dp"
-        app:itemIconPadding="12dp" />
+        app:itemIconPadding="12dp"/>
 </androidx.drawerlayout.widget.DrawerLayout>

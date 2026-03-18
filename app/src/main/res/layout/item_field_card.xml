@@ -103,8 +103,10 @@
                 android:layout_height="wrap_content"
                 android:cursorVisible="false"
                 android:focusable="false"
+                android:paddingStart="40dp"
                 android:textColor="#111111"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                tools:ignore="RtlSymmetry" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -128,9 +130,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:cursorVisible="false"
+                android:paddingStart="40dp"
                 android:focusable="false"
                 android:textColor="#111111"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                tools:ignore="RtlSymmetry" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -156,8 +160,9 @@
                 android:inputType="none"
                 android:padding="14dp"
                 android:textColor="#111111"
+                android:paddingStart="40dp"
                 android:textSize="15sp"
-                tools:ignore="LabelFor" />
+                tools:ignore="LabelFor,RtlSymmetry" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.card.MaterialCardView

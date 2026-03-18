@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -103,7 +102,12 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         val tvLocalMatchDesc = view.findViewById<TextView>(R.id.tvLocalMatchDesc)
         val btnLocalSoilMatchCard = view.findViewById<MaterialCardView>(R.id.btnLocalSoilMatch)
         val btnLocalSoilMatchText = view.findViewById<TextView>(R.id.btnLocalSoilMatchText)
-        val btnSaveProfileMain = view.findViewById<MaterialCardView>(R.id.btnSaveProfileMain)
+
+        val tvMainTitle = view.findViewById<TextView>(R.id.tvTitle)
+        tvMainTitle?.text = t("What type of soil do you have?")
+        val btnSaveCard = view.findViewById<MaterialCardView>(R.id.btnsaveCard)
+        val tvSaveLabel = btnSaveCard?.findViewById<TextView>(R.id.btnSaveProfileMain) // Check your XML for this inner ID
+        tvSaveLabel?.text = t("Save Farm Profile")
 
         fun fetchSatelliteData() {
             pbLoadingApi.visibility = View.VISIBLE
@@ -132,10 +136,8 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                     val tvSatelliteTitle = view.findViewById<TextView>(R.id.tvSatelliteTitle)
                     if (fetchedSoil.isFallback) {
                         tvSatelliteTitle.text = t("Regional Analysis")
-                        tvSatelliteTitle.setTextColor("#FFCC00".toColorInt())
                     } else {
                         tvSatelliteTitle.text = t("Satellite Analysis")
-                        tvSatelliteTitle.setTextColor(android.graphics.Color.WHITE)
                     }
                     val mappedSoilData = mapTextureToIndianSoil(fetchedSoil)
                     val soilName = mappedSoilData.first
@@ -165,7 +167,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             fetchSatelliteData()
         }
         fetchSatelliteData()
-        view.findViewById<TextView>(R.id.tvManualLabel).text = t("Choose manually:")
+        view.findViewById<TextView>(R.id.tvManualLabel).text = t("Or choose manually:")
         rvSoil.layoutManager = GridLayoutManager(requireContext(), 2)
         rvSoil.adapter = SoilAdapter(soilList) { selected ->
             selectedSoil = when (selected.id) {
@@ -179,7 +181,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 8 -> "Peaty & Marshy Soil"
                 else -> "Unknown Soil"
             }
-            btnSaveProfileMain.isEnabled = true
+            btnSaveCard.isEnabled = true
         }
 
         view.findViewById<TextView>(R.id.btnNotSure).apply {
@@ -190,7 +192,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
             }
         }
 
-        btnSaveProfileMain.setOnClickListener {
+        view.findViewById<MaterialCardView>(R.id.btnsaveCard).setOnClickListener {
             if (selectedSoil != null) {
                 saveFinalFarmData(selectedSoil!!)
             } else {
@@ -214,7 +216,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 val url = URL(urlString)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 4000 // Faster timeout for better UX
+                connection.connectTimeout = 4000
                 connection.readTimeout = 4000
 
                 val responseCode = connection.responseCode
@@ -304,7 +306,6 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                         autoName = "Farm $nextNumber"
                     }
 
-                    // Uses the updated FarmEntry model with percentages
                     val newFarm = FarmEntry(
                         farmer_id = user.id,
                         name = autoName,
