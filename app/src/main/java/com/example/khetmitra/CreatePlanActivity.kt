@@ -39,6 +39,8 @@ class CreatePlanActivity : AppCompatActivity() {
         return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
 
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
+
     private fun android.widget.Spinner.applyCustomStyle(items: List<String>) {
         val adapter = ArrayAdapter(context, R.layout.custom_spinner_item, items)
         adapter.setDropDownViewResource(R.layout.custom_spinner_dropdown_item)
@@ -62,8 +64,9 @@ class CreatePlanActivity : AppCompatActivity() {
 
         if (langCode != TranslateLanguage.ENGLISH) {
             window.decorView.post {
-                TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {}
-                translateHints()
+                TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {
+                    translateHints()
+                }
             }
         }
 
@@ -95,10 +98,13 @@ class CreatePlanActivity : AppCompatActivity() {
                 .decodeList<FarmEntry>()
             val names = farmsList.map { farm ->
                 val farmName = farm.name ?: "Unnamed Farm"
+                val translatedFarmName = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
                 if (farm.land_size.isNotBlank()) {
-                    "$farmName (${farm.land_size})"
+                    val translatedSize = farm.land_size.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
+
+                    "${d(translatedFarmName)} (${d(translatedSize)})"
                 } else {
-                    farmName
+                    d(translatedFarmName)
                 }
             }
             withContext(Dispatchers.Main) {
@@ -165,9 +171,12 @@ class CreatePlanActivity : AppCompatActivity() {
                 if (existingPlans.isNotEmpty()) {
                     val existingPlan = existingPlans.first()
                     withContext(Dispatchers.Main) {
+                        val alertMsg = t("A [CROP] plan already exists for [FARM]. Opening it now!")
+                            .replace("[CROP]", t(targetCropName))
+                            .replace("[FARM]", targetFarmName)
                         Toast.makeText(
                             this@CreatePlanActivity,
-                            t("A $targetCropName plan already exists for $targetFarmName. Opening it now!"),
+                            alertMsg,
                             Toast.LENGTH_LONG
                         ).show()
                         val intent = android.content.Intent(this@CreatePlanActivity, ViewPlanActivity::class.java)
@@ -184,8 +193,8 @@ class CreatePlanActivity : AppCompatActivity() {
                 var lat = 19.07
                 var lon = 72.87
                 try {
-                    val coords = selectedFarm!!.coordinates
-                    val parts = coords.split(",")
+                    val cords = selectedFarm!!.coordinates
+                    val parts = cords.split(",")
                     lat = parts[0].trim().toDouble()
                     lon = parts[1].trim().toDouble()
                 } catch (_: Exception) {

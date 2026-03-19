@@ -8,7 +8,6 @@
     android:layout_height="match_parent"
     tools:ignore="HardcodedText">
 
-    <!-- ======== MAIN CONTENT (your existing layout) ======== -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -31,7 +30,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- CHANGED: Back button → Hamburger menu button -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/btnMenu"
             android:layout_width="40dp"
@@ -56,7 +54,6 @@
                 android:importantForAccessibility="no"
                 android:src="@drawable/round_menu_24"
                 app:tint="#FFFFFF" />
-
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
@@ -72,25 +69,8 @@
             android:ellipsize="end"
             android:maxLines="1"
             app:layout_constraintBottom_toBottomOf="@id/btnMenu"
-            app:layout_constraintEnd_toStartOf="@id/btnSync"
             app:layout_constraintStart_toEndOf="@id/btnMenu"
             app:layout_constraintTop_toTopOf="@id/btnMenu" />
-
-        <ImageView
-            android:id="@+id/btnSync"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="20dp"
-            android:background="@drawable/bg_circle_border"
-            android:elevation="4dp"
-            android:importantForAccessibility="no"
-            android:padding="8dp"
-            android:backgroundTint="#FFFFFF"
-            android:src="@android:drawable/ic_popup_sync"
-            app:layout_constraintBottom_toBottomOf="@id/tvHeaderTitle"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tvHeaderTitle"
-            app:tint="#2D6A4F" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerChat"
@@ -150,9 +130,7 @@
                         android:importantForAccessibility="no"
                         android:src="@android:drawable/ic_menu_close_clear_cancel"
                         app:tint="#FFFFFF" />
-
                 </com.google.android.material.card.MaterialCardView>
-
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -189,7 +167,6 @@
                     android:importantForAccessibility="no"
                     android:src="@drawable/round_add_24"
                     app:tint="#1A3C2E" />
-
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
@@ -256,9 +233,7 @@
                             android:importantForAccessibility="no"
                             android:src="@drawable/round_mic_24"
                             app:tint="#22C55E" />
-
                     </com.google.android.material.card.MaterialCardView>
-
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -285,14 +260,10 @@
                     android:src="@drawable/round_arrow_back_24"
                     android:rotation="180"
                     app:tint="#FFFFFF" />
-
             </com.google.android.material.card.MaterialCardView>
-
         </androidx.constraintlayout.widget.ConstraintLayout>
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ======== DRAWER PANEL (slides from left) ======== -->
     <LinearLayout
         android:id="@+id/drawerPanel"
         android:layout_width="300dp"
@@ -302,7 +273,6 @@
         android:background="#FFFFFF"
         android:fitsSystemWindows="true">
 
-        <!-- Drawer header -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -334,10 +304,8 @@
                 android:src="@drawable/round_add_24"
                 android:contentDescription="New Chat"
                 app:tint="#52B788" />
-
         </LinearLayout>
 
-        <!-- Session list -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerSessions"
             android:layout_width="match_parent"
@@ -346,7 +314,6 @@
             android:clipToPadding="false"
             android:paddingVertical="8dp" />
 
-        <!-- Empty state inside drawer -->
         <LinearLayout
             android:id="@+id/layoutDrawerEmpty"
             android:layout_width="match_parent"
@@ -370,10 +337,8 @@
                 android:text="Tap + to start a new chat"
                 android:textColor="#BBBBBB"
                 android:textSize="12sp" />
-
         </LinearLayout>
 
-        <!-- Close / Back to dashboard -->
         <LinearLayout
             android:id="@+id/btnBackToDashboard"
             android:layout_width="match_parent"
@@ -401,9 +366,6 @@
                 android:textColor="#1A3C2E"
                 android:textSize="14sp"
                 android:textStyle="bold" />
-
         </LinearLayout>
-
     </LinearLayout>
-
 </androidx.drawerlayout.widget.DrawerLayout>

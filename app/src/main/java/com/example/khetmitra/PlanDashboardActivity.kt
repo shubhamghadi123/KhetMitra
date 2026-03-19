@@ -63,9 +63,9 @@ class PlanDashboardActivity : AppCompatActivity() {
                 else R.drawable.round_delete_24
             )
             btnHeaderDelete.setCardBackgroundColor(
-                if (isNowDeleteMode) "#B71C1C".toColorInt()
-                else "#2D6A4F".toColorInt()
+                if (isNowDeleteMode) "#B71C1C".toColorInt() else "#2D6A4F".toColorInt()
             )
+            btnHeaderDelete.strokeColor = if (isNowDeleteMode) "#820E0E".toColorInt() else "#52B788".toColorInt()
         }
 
         if (langCode != TranslateLanguage.ENGLISH) {
@@ -119,6 +119,11 @@ class PlanDashboardActivity : AppCompatActivity() {
                             rvExistingPlans.adapter = adapter
                         } else {
                             adapter?.notifyDataSetChanged()
+                        }
+                        if (langCode != TranslateLanguage.ENGLISH) {
+                            rvExistingPlans.post {
+                                TranslationHelper.translateViewHierarchy(rvExistingPlans, langCode) {}
+                            }
                         }
                     }
                 }

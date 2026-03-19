@@ -127,7 +127,6 @@ class ChatbotActivity : AppCompatActivity() {
         val btnRemoveImage = findViewById<View>(R.id.btnRemoveImage)
         val btnPlus = findViewById<View>(R.id.btnPlus)
         val btnMenu = findViewById<View>(R.id.btnMenu)
-        val btnSync = findViewById<ImageView>(R.id.btnSync)
 
         btnMicCard = findViewById(R.id.btnMic)
         btnSendCard = findViewById(R.id.btnSend)
@@ -171,7 +170,6 @@ class ChatbotActivity : AppCompatActivity() {
 
         btnPlus.setOnClickListener { showAttachmentOptions() }
         btnRemoveImage.setOnClickListener { clearPreview() }
-        btnSync?.setOnClickListener { syncLatestFarmData() }
 
         etInput.addTextChangedListener(object : TextWatcher {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -202,6 +200,49 @@ class ChatbotActivity : AppCompatActivity() {
                 }
             }
         }
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
+    }
+
+    private suspend fun fetchLiveWeatherForFarms(farms: List<FarmEntry>): Map<String, String> {
+        val weatherMap = mutableMapOf<String, String>()
+        withContext(Dispatchers.IO) {
+            val deferreds = farms.map { farm ->
+                async {
+                    var summary = "Assume typical seasonal conditions."
+                    try {
+                        val cords = farm.coordinates
+                        if (cords.contains(",")) {
+                            val parts = cords.split(",")
+                            val lat = parts[0].trim().toDouble()
+                            val lon = parts[1].trim().toDouble()
+                            val response = RetrofitClient.weatherService.getForecast(lat, lon)
+                            if (response.isSuccessful && response.body() != null) {
+                                val dailyData = response.body()?.daily
+                                summary = "Live 16-day forecast JSON data: " + com.google.gson.Gson().toJson(dailyData)
+                            }
+                        }
+                    } catch (_: Exception) {
+                        Log.e("ChatbotWeather", "Failed to fetch weather for ${farm.name}")
+                    }
+                    (farm.name ?: "Unknown") to summary
+                }
+            }
+            deferreds.awaitAll().forEach { (farmName, weatherSummary) ->
+                weatherMap[farmName] = weatherSummary
+            }
+        }
+        return weatherMap
     }
 
     private fun loadSessionList() {
@@ -295,11 +336,7 @@ class ChatbotActivity : AppCompatActivity() {
         )
         activeChat = generativeModel.startChat()
 
-        val greeting = if (cachedFarms.isNotEmpty()) {
-            t("Namaste! I have loaded your farm data. How can I help you today?")
-        } else {
-            t("Namaste! I am KhetMitra AI. How can I help?")
-        }
+        val greeting = t("Namaste! I am KhetMitra AI. How can I help you today?")
         addMessage(greeting, false)
     }
 
@@ -352,16 +389,21 @@ class ChatbotActivity : AppCompatActivity() {
         """.trimIndent()
     }
 
-    private fun buildCombinedFarmContext(farms: List<FarmEntry>, monitoringData: List<FieldMonitoring>): String {
+    private fun buildCombinedFarmContext(
+        farms: List<FarmEntry>,
+        monitoringData: List<FieldMonitoring>,
+        weatherData: Map<String, String>
+    ): String {
         if (farms.isEmpty()) return "The user has not mapped any farms yet. Instruct them to use the 'Map My Field' button on the dashboard."
 
         val sb = StringBuilder()
-        sb.append("The user manages ${farms.size} farm(s). Here is the data:\n\n")
+        sb.append("The user manages ${farms.size} farm(s). Here is the comprehensive data:\n\n")
 
         for ((index, farm) in farms.withIndex()) {
             val farmName = farm.name ?: "Farm ${index + 1}"
             val crop = if (farm.crop.isNullOrBlank() || farm.crop == "Not Selected") "Unknown" else farm.crop
             val liveData = monitoringData.find { it.polygon_id == farm.polygon_id }
+            val liveWeather = weatherData[farmName] ?: "No live weather data available."
 
             sb.append("Farm ${index + 1}: '$farmName'\n")
             sb.append("- Size: ${farm.land_size}\n")
@@ -369,15 +411,18 @@ class ChatbotActivity : AppCompatActivity() {
             sb.append("- Crop: $crop\n")
 
             if (liveData != null) {
-                sb.append("  [LIVE SATELLITE DATA FOUND]\n")
+                sb.append("  [LIVE SATELLITE SOIL DATA]\n")
                 liveData.weather_condition?.let { sb.append("  - Weather: $it\n") }
                 liveData.temperature?.let { sb.append("  - Air Temp: $it°C\n") }
                 liveData.soil_moisture?.let { sb.append("  - Soil Moisture: $it\n") }
                 liveData.ndvi_score?.let { sb.append("  - Health Score (NDVI): $it\n") }
             } else {
-                sb.append("  [LIVE DATA IS MISSING]\n")
-                sb.append("  *CRITICAL INSTRUCTION: Live soil data for this farm has not been generated yet. If the user asks about current soil health, politely instruct them to go to 'Manage Field' and click 'View Soil Report' to generate data.*\n")
+                sb.append("  [LIVE SOIL DATA IS MISSING]\n")
+                sb.append("  *CRITICAL INSTRUCTION: Live soil data for this farm has not been generated yet. Advise the user to go to 'Manage Field' and click 'View Soil Report'.*\n")
             }
+
+            sb.append("  [LIVE WEATHER FORECAST]\n")
+            sb.append("  - $liveWeather\n")
             sb.append("\n")
         }
         return sb.toString()
@@ -405,9 +450,9 @@ class ChatbotActivity : AppCompatActivity() {
 
                 val userFarms = farmsDeferred.await()
                 val monitoringData = monitoringDeferred.await()
-
+                val weatherMap = fetchLiveWeatherForFarms(userFarms)
                 cachedFarms = userFarms
-                cachedFarmContext = buildCombinedFarmContext(userFarms, monitoringData)
+                cachedFarmContext = buildCombinedFarmContext(cachedFarms, monitoringData, weatherMap)
 
                 generativeModel = GenerativeModel(
                     modelName = "gemini-2.5-flash",
@@ -460,7 +505,7 @@ class ChatbotActivity : AppCompatActivity() {
 
                     if (currentSessionId == null || chatList.isEmpty()) {
                         val greeting = if (userFarms.isNotEmpty()) {
-                            t("Namaste! I have loaded your farm data. How can I help you today?")
+                            t("Namaste! I am KhetMitra AI. How can I help you today?")
                         } else {
                             t("Namaste! I am KhetMitra AI. You haven't mapped any farms yet, but you can still ask me anything!")
                         }
@@ -483,44 +528,6 @@ class ChatbotActivity : AppCompatActivity() {
                     )
                     activeChat = generativeModel.startChat()
                     addMessage(t("Namaste! I am KhetMitra AI. How can I help?"), false)
-                }
-            }
-        }
-    }
-
-    private fun syncLatestFarmData() {
-        Toast.makeText(this, t("Syncing latest soil data..."), Toast.LENGTH_SHORT).show()
-        val btnSync = findViewById<ImageView>(R.id.btnSync)
-        btnSync?.animate()?.rotationBy(360f)?.setDuration(1000)?.start()
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val user = SupabaseManager.client.auth.currentUserOrNull()
-                val currentFarmerId = user?.id ?: return@launch
-
-                val farmsDeferred = async {
-                    SupabaseManager.client.postgrest["farms"].select { filter { eq("farmer_id", currentFarmerId) } }.decodeList<FarmEntry>()
-                }
-                val monitoringDeferred = async {
-                    SupabaseManager.client.postgrest["field_monitoring"].select { filter { eq("user_id", currentFarmerId) } }.decodeList<FieldMonitoring>()
-                }
-
-                cachedFarms = farmsDeferred.await()
-                cachedFarmContext = buildCombinedFarmContext(cachedFarms, monitoringDeferred.await())
-
-                generativeModel = GenerativeModel(
-                    modelName = "gemini-2.5-flash",
-                    apiKey = BuildConfig.GEMINI_API_KEY,
-                    systemInstruction = content { text(buildSystemInstruction()) }
-                )
-                activeChat = generativeModel.startChat()
-
-                withContext(Dispatchers.Main) {
-                    addMessage(t("System: I have synced your latest soil reports!"), false)
-                }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ChatbotActivity, t("Sync failed."), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -743,15 +750,5 @@ class ChatbotActivity : AppCompatActivity() {
     private fun openSystemCamera() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         takePictureLauncher.launch(intent)
-    }
-
-    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            super.onBackPressed()
-        }
     }
 }

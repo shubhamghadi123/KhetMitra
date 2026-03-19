@@ -2,7 +2,6 @@ package com.example.khetmitra
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
@@ -11,6 +10,7 @@ import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,16 +24,20 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.Locale
 
@@ -48,6 +52,7 @@ class MarketActivity : AppCompatActivity() {
     private var selectedDistrictId: Int = -1
     private var selectedMarketId: Int = -1
     private var selectedCropId: Int = -1
+    private var isDistrictMode: Boolean = false
     private lateinit var dropdownState: AutoCompleteTextView
     private lateinit var dropdownDistrict: AutoCompleteTextView
     private lateinit var dropdownMarket: AutoCompleteTextView
@@ -56,8 +61,16 @@ class MarketActivity : AppCompatActivity() {
     private lateinit var tvMinPrice: TextView
     private lateinit var tvMaxPrice: TextView
     private lateinit var tvPriceUnit: TextView
+    private lateinit var tvPriceDate: TextView
     private lateinit var tvNoData: TextView
     private lateinit var toggleGroup: MaterialButtonToggleGroup
+    private lateinit var btnFetchPrice: MaterialButton
+    private lateinit var cardPrice: MaterialCardView
+    private lateinit var cardGraph: MaterialCardView
+    private lateinit var btnPrevPeriod: ImageView
+    private lateinit var btnNextPeriod: ImageView
+    private lateinit var tvDateRange: TextView
+    private var chartEndDate: LocalDate = LocalDate.now()
     private var langCode: String = TranslateLanguage.ENGLISH
 
     private fun t(text: String): String {
@@ -91,16 +104,63 @@ class MarketActivity : AppCompatActivity() {
         tvMinPrice       = findViewById(R.id.tvMinPrice)
         tvMaxPrice       = findViewById(R.id.tvMaxPrice)
         tvPriceUnit      = findViewById(R.id.tvPriceUnit)
+        tvPriceDate      = findViewById(R.id.tvPriceDate)
         tvNoData         = findViewById(R.id.tvNoData)
         toggleGroup      = findViewById(R.id.toggleGroup)
         lineChart        = findViewById(R.id.lineChart)
+        btnFetchPrice    = findViewById(R.id.btnFetchPrice)
+        cardPrice        = findViewById(R.id.cardPrice)
+        cardGraph        = findViewById(R.id.cardGraph)
+        btnPrevPeriod = findViewById(R.id.btnPrevPeriod)
+        btnNextPeriod = findViewById(R.id.btnNextPeriod)
+        tvDateRange   = findViewById(R.id.tvDateRange)
+
         setupChartAppearance()
         dropdownDistrict.isEnabled = false
         dropdownMarket.isEnabled   = false
+
         toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked && selectedMarketId != -1 && selectedCropId != -1)
-                loadPriceHistory(checkedId == R.id.btnWeekly)
+            if (isChecked) {
+                chartEndDate = LocalDate.now()
+                if (isDistrictMode && selectedDistrictId != -1) {
+                    loadPriceHistory(checkedId == R.id.btnWeekly, isDistrictLevel = true)
+                } else if (!isDistrictMode && selectedMarketId != -1) {
+                    loadPriceHistory(checkedId == R.id.btnWeekly, isDistrictLevel = false)
+                }
+            }
         }
+
+        btnFetchPrice.setOnClickListener {
+            chartEndDate = LocalDate.now()
+            if (selectedMarketId == -1) {
+                isDistrictMode = true
+                cardPrice.visibility = View.GONE
+                cardGraph.visibility = View.VISIBLE
+                loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly, isDistrictLevel = true)
+            } else {
+                isDistrictMode = false
+                cardPrice.visibility = View.VISIBLE
+                cardGraph.visibility = View.VISIBLE
+                refreshPriceData()
+            }
+        }
+
+        btnPrevPeriod.setOnClickListener {
+            val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
+            chartEndDate = if (isWeekly) chartEndDate.minusDays(7) else chartEndDate.minusMonths(12)
+            loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
+        }
+
+        btnNextPeriod.setOnClickListener {
+            val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
+            chartEndDate = if (isWeekly) chartEndDate.plusDays(7) else chartEndDate.plusMonths(12)
+
+            if (chartEndDate.isAfter(LocalDate.now())) {
+                chartEndDate = LocalDate.now()
+            }
+            loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
+        }
+
         if (langCode != TranslateLanguage.ENGLISH) {
             window.decorView.post {
                 TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {}
@@ -121,8 +181,18 @@ class MarketActivity : AppCompatActivity() {
     }
 
     private fun updateLangCode() {
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+    }
+
+    private fun validateFetchButton() {
+        val isReady = selectedCropId != -1 && selectedStateId != -1 && selectedDistrictId != -1
+        btnFetchPrice.isEnabled = isReady
+        if (isReady) {
+            btnFetchPrice.setBackgroundColor("#2D6A4F".toColorInt())
+        } else {
+            btnFetchPrice.setBackgroundColor("#A8D5B5".toColorInt())
+        }
     }
 
     private fun requestLocationPermission() {
@@ -132,6 +202,12 @@ class MarketActivity : AppCompatActivity() {
         val hasCoarse = ContextCompat.checkSelfPermission(this, coarse) == PackageManager.PERMISSION_GRANTED
         if (hasFine || hasCoarse) fetchLocation()
         else locationPermissionLauncher.launch(arrayOf(fine, coarse))
+    }
+
+    private fun AutoCompleteTextView.applyCustomDropdownStyle(items: List<String>) {
+        val adapter = ArrayAdapter(this@MarketActivity, R.layout.custom_spinner_dropdown_item, items)
+        this.setAdapter(adapter)
+        this.setDropDownBackgroundResource(R.drawable.bg_spinner_dropdown)
     }
 
     private fun fetchLocation() {
@@ -197,6 +273,7 @@ class MarketActivity : AppCompatActivity() {
         }
         selectedStateId = match.stateId
         dropdownState.setText(t(match.stateName), false)
+        validateFetchButton()
         lifecycleScope.launch { loadDistricts(selectedStateId) }
     }
 
@@ -210,9 +287,7 @@ class MarketActivity : AppCompatActivity() {
                 }
                 .decodeList<StateRow>()
             val names = allStates.map { t(it.stateName) }
-            dropdownState.setAdapter(
-                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
-            )
+            dropdownState.applyCustomDropdownStyle(names)
             dropdownState.setOnItemClickListener { _, _, pos, _ ->
                 selectedStateId    = allStates[pos].stateId
                 selectedDistrictId = -1
@@ -222,6 +297,7 @@ class MarketActivity : AppCompatActivity() {
                 dropdownDistrict.isEnabled = false
                 dropdownMarket.isEnabled   = false
                 clearPriceUI()
+                validateFetchButton()
                 lifecycleScope.launch { loadDistricts(selectedStateId) }
             }
         } catch (e: Exception) {
@@ -242,9 +318,7 @@ class MarketActivity : AppCompatActivity() {
                 }
                 .decodeList<DistrictRow>()
             val names = allDistricts.map { t(it.districtName) }
-            dropdownDistrict.setAdapter(
-                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
-            )
+            dropdownDistrict.applyCustomDropdownStyle(names)
             dropdownDistrict.isEnabled = true
             dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
                 selectedDistrictId = allDistricts[pos].districtId
@@ -252,6 +326,7 @@ class MarketActivity : AppCompatActivity() {
                 dropdownMarket.setText("", false)
                 dropdownMarket.isEnabled = false
                 clearPriceUI()
+                validateFetchButton()
                 lifecycleScope.launch { loadMarkets(selectedDistrictId) }
             }
         } catch (e: Exception) {
@@ -272,13 +347,12 @@ class MarketActivity : AppCompatActivity() {
                 }
                 .decodeList<MarketRow>()
             val names = allMarkets.map { t(it.marketName) }
-            dropdownMarket.setAdapter(
-                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
-            )
+            dropdownMarket.applyCustomDropdownStyle(names)
             dropdownMarket.isEnabled = true
             dropdownMarket.setOnItemClickListener { _, _, pos, _ ->
                 selectedMarketId = allMarkets[pos].marketId
-                refreshPriceData()
+                clearPriceUI()
+                validateFetchButton()
             }
         } catch (e: Exception) {
             Log.e("Market", "loadMarkets failed: ${e.message}")
@@ -295,13 +369,24 @@ class MarketActivity : AppCompatActivity() {
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
-            val names = allCrops.map { t(it.cropName) }
-            dropdownCrop.setAdapter(
-                ArrayAdapter(this, R.layout.custom_spinner_dropdown_item, names)
-            )
-            dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
-                selectedCropId = allCrops[pos].cropId
-                refreshPriceData()
+
+            val names = allCrops.map { crop ->
+                val rawName = crop.cropName
+                if (rawName.contains("(") && rawName.contains(")")) {
+                    val base = rawName.substringBefore("(")
+                    val variety = rawName.substringAfter("(").substringBefore(")")
+                    "${t(base.trim())} (${t(variety.trim())})"
+                } else {
+                    t(rawName)
+                }
+            }
+            withContext(Dispatchers.Main) {
+                dropdownCrop.applyCustomDropdownStyle(names)
+                dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
+                    selectedCropId = allCrops[pos].cropId
+                    clearPriceUI()
+                    validateFetchButton()
+                }
             }
         } catch (e: Exception) {
             Log.e("Market", "loadCrops failed: ${e.message}")
@@ -311,29 +396,41 @@ class MarketActivity : AppCompatActivity() {
     @SuppressLint("SetTextI18n")
     private fun refreshPriceData() {
         if (selectedMarketId == -1 || selectedCropId == -1) return
+
         lifecycleScope.launch {
             try {
+                val yesterday = LocalDate.now().minusDays(1).toString()
+
                 val results = SupabaseManager.client
                     .postgrest["crop_price"]
                     .select {
                         filter {
                             eq("market_id", selectedMarketId)
                             eq("crop_id", selectedCropId)
+                            lte("price_date", yesterday)
                         }
                         order("price_date", Order.DESCENDING)
                         limit(1)
                     }
                     .decodeList<CropPriceRow>()
+
                 if (results.isEmpty()) {
                     showNoData(true)
+                    tvPriceValue.text = "₹ --"
+                    tvMinPrice.text   = "₹ --"
+                    tvMaxPrice.text   = "₹ --"
+                    tvPriceUnit.text  = ""
                 } else {
                     showNoData(false)
-                    val latest = results.first()
-                    tvPriceValue.text = "₹ ${d(latest.modalPrice.toInt())}"
-                    tvMinPrice.text   = "₹ ${d(latest.minPrice.toInt())}"
-                    tvMaxPrice.text   = "₹ ${d(latest.maxPrice.toInt())}"
-                    tvPriceUnit.text  = "/ ${t(latest.priceUnit)}"
-                    loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly)
+                    val targetDayData = results.first()
+                    tvPriceValue.text = "₹ ${d(targetDayData.modalPrice.toInt())}"
+                    tvMinPrice.text   = "₹ ${d(targetDayData.minPrice.toInt())}"
+                    tvMaxPrice.text   = "₹ ${d(targetDayData.maxPrice.toInt())}"
+                    tvPriceUnit.text  = "/ ${t(targetDayData.priceUnit)}"
+                    val formattedDate = formatDateWithYear(targetDayData.priceDate)
+                    tvPriceDate.text = "${t("Price as of")} $formattedDate"
+
+                    loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly, isDistrictLevel = false)
                 }
             } catch (e: Exception) {
                 Log.e("Market", "refreshPriceData failed: ${e.message}")
@@ -342,65 +439,142 @@ class MarketActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadPriceHistory(isWeekly: Boolean) {
-        if (selectedMarketId == -1 || selectedCropId == -1) return
+    @SuppressLint("SetTextI18n")
+    private fun loadPriceHistory(isWeekly: Boolean, isDistrictLevel: Boolean = false) {
+        if (selectedCropId == -1) return
+        if (isDistrictLevel && allMarkets.isEmpty()) {
+            showNoData(true)
+            return
+        }
+
+        val endDate = chartEndDate
+        val fromDate = if (isWeekly) endDate.minusDays(6) else endDate.minusMonths(12)
+
+        tvDateRange.text = "${formatDateShort(fromDate.toString())} - ${formatDateShort(endDate.toString())}"
+
+        if (endDate.isEqual(LocalDate.now()) || endDate.isAfter(LocalDate.now())) {
+            btnNextPeriod.alpha = 0.3f
+            btnNextPeriod.isEnabled = false
+        } else {
+            btnNextPeriod.alpha = 1.0f
+            btnNextPeriod.isEnabled = true
+        }
+
         lifecycleScope.launch {
             try {
-                val today    = LocalDate.now()
-                val fromDate = if (isWeekly) today.minusDays(6) else today.minusDays(364)
-                Log.d("Chart", "Fetching: market=$selectedMarketId crop=$selectedCropId from=$fromDate to=$today")
                 var rows = SupabaseManager.client
                     .postgrest["crop_price"]
                     .select {
                         filter {
-                            eq("market_id", selectedMarketId)
                             eq("crop_id", selectedCropId)
+                            if (isDistrictLevel) {
+                                isIn("market_id", allMarkets.map { it.marketId })
+                            } else {
+                                eq("market_id", selectedMarketId)
+                            }
                             gte("price_date", fromDate.toString())
-                            lte("price_date", today.toString())
+                            lte("price_date", endDate.toString())
                         }
                         order("price_date", Order.ASCENDING)
-                        limit(if (isWeekly) 7 else 365)
                     }
                     .decodeList<CropPriceRow>()
-                Log.d("Chart", "Rows in range: ${rows.size}")
-                if (rows.isEmpty()) {
-                    Log.w("Chart", "No data in range, falling back to latest records")
+
+                if (rows.isEmpty() && !isDistrictLevel) {
                     rows = SupabaseManager.client
                         .postgrest["crop_price"]
                         .select {
                             filter {
                                 eq("market_id", selectedMarketId)
                                 eq("crop_id", selectedCropId)
+                                lte("price_date", endDate.toString())
                             }
                             order("price_date", Order.DESCENDING)
                             limit(if (isWeekly) 7 else 365)
                         }
                         .decodeList<CropPriceRow>()
                         .reversed()
-                    Log.d("Chart", "Fallback rows: ${rows.size}")
                 }
-                if (rows.isEmpty()) return@launch
-                val entries = ArrayList<Entry>()
-                val labels  = ArrayList<String>()
-                if (isWeekly) {
-                    rows.forEachIndexed { i, row ->
-                        entries.add(Entry(i.toFloat(), row.modalPrice))
-                        labels.add(formatDateShort(row.priceDate))
+
+                if (rows.isEmpty()) {
+                    showNoData(true)
+                    return@launch
+                }
+
+                val groupedByDateStr = if (isWeekly) {
+                    rows.groupBy { it.priceDate }.toSortedMap()
+                } else {
+                    rows.groupBy { it.priceDate.substring(0, 7) }.toSortedMap()
+                }
+
+                val labels = ArrayList<String>()
+                val dateToIndexMap = HashMap<String, Float>()
+                var xIndex = 0f
+
+                for ((dateStr, _) in groupedByDateStr) {
+                    labels.add(if (isWeekly) formatDateShort(dateStr) else formatMonthShort("$dateStr-01"))
+                    dateToIndexMap[dateStr] = xIndex
+                    xIndex++
+                }
+
+                val dataSets = ArrayList<ILineDataSet>()
+
+                if (isDistrictLevel) {
+                    val rowsByMarket = rows.groupBy { it.marketId }
+                    val colors = listOf("#52B788", "#1E6091", "#D9ED92", "#184E77", "#34A0A4", "#76C893")
+                    var colorIdx = 0
+
+                    for ((marketId, marketRows) in rowsByMarket) {
+                        val entries = ArrayList<Entry>()
+                        val marketGroupedByDate = if (isWeekly) marketRows.groupBy { it.priceDate } else marketRows.groupBy { it.priceDate.substring(0, 7) }
+
+                        for ((dateStr, dayRows) in marketGroupedByDate) {
+                            val avgPrice = dayRows.map { it.modalPrice }.average().toFloat()
+                            val mappedX = dateToIndexMap[dateStr] ?: 0f
+                            entries.add(Entry(mappedX, avgPrice))
+                        }
+
+                        val marketName = allMarkets.find { it.marketId == marketId }?.marketName ?: "Unknown"
+
+                        val dataSet = LineDataSet(entries, t(marketName)).apply {
+                            mode = LineDataSet.Mode.CUBIC_BEZIER
+                            val lineColor = colors[colorIdx % colors.size].toColorInt()
+                            color = lineColor
+                            setCircleColor(lineColor)
+                            lineWidth = 2.5f
+                            circleRadius = 4f
+                            setDrawValues(false)
+                            setDrawFilled(false)
+                        }
+                        dataSets.add(dataSet)
+                        colorIdx++
                     }
                 } else {
-                    rows.groupBy { it.priceDate.substring(0, 7) }
-                        .entries.sortedBy { it.key }.takeLast(12)
-                        .forEachIndexed { i, (_, rowList) ->
-                            val avg = rowList.map { it.modalPrice }.average().toFloat()
-                            entries.add(Entry(i.toFloat(), avg))
-                            labels.add(formatMonthShort(rowList.first().priceDate))
-                        }
+                    val entries = ArrayList<Entry>()
+                    for ((dateStr, dayRows) in groupedByDateStr) {
+                        val avgPrice = dayRows.map { it.modalPrice }.average().toFloat()
+                        val mappedX = dateToIndexMap[dateStr] ?: 0f
+                        entries.add(Entry(mappedX, avgPrice))
+                    }
+
+                    val dataSet = LineDataSet(entries, "Price").apply {
+                        mode = LineDataSet.Mode.CUBIC_BEZIER
+                        color = "#52B788".toColorInt()
+                        setCircleColor("#2D6A4F".toColorInt())
+                        lineWidth = 3f
+                        circleRadius = 4f
+                        setDrawValues(false)
+                        setDrawFilled(true)
+                        fillColor = "#A8D5B5".toColorInt()
+                        fillAlpha = 60
+                    }
+                    dataSets.add(dataSet)
                 }
-                Log.d("Chart", "Rendering ${entries.size} points")
-                showNoData(false)  // ensure chart is visible before drawing
-                updateChart(entries, labels)
+                showNoData(false)
+                lineChart.fitScreen()
+                updateChart(dataSets, labels, isWeekly)
             } catch (e: Exception) {
                 Log.e("Market", "loadPriceHistory failed: ${e.message}")
+                showNoData(true)
             }
         }
     }
@@ -408,9 +582,13 @@ class MarketActivity : AppCompatActivity() {
     private fun setupChartAppearance() {
         lineChart.description.isEnabled = false
         lineChart.legend.isEnabled = false
+
         lineChart.setTouchEnabled(true)
         lineChart.isDragEnabled = true
-        lineChart.setScaleEnabled(false)
+        lineChart.setScaleEnabled(true)
+        lineChart.setPinchZoom(true)
+        lineChart.isDoubleTapToZoomEnabled = false
+
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
@@ -422,37 +600,49 @@ class MarketActivity : AppCompatActivity() {
             textColor = "#555555".toColorInt()
         }
         lineChart.axisRight.isEnabled = false
+
+        val markerView = CustomMarkerView(this, R.layout.custom_marker_view)
+        markerView.chartView = lineChart
+        lineChart.marker = markerView
     }
 
-    private fun updateChart(entries: ArrayList<Entry>, labels: ArrayList<String>) {
+    private fun updateChart(dataSets: List<ILineDataSet>, labels: ArrayList<String>, isWeekly: Boolean) {
         lineChart.xAxis.apply {
             valueFormatter = IndexAxisValueFormatter(labels)
             granularity = 1f
             labelCount  = labels.size
         }
-        val dataSet = LineDataSet(entries, "Price").apply {
-            mode = LineDataSet.Mode.CUBIC_BEZIER
-            color = "#52B788".toColorInt()
-            lineWidth = 3f
-            setDrawCircles(true)
-            setCircleColor("#2D6A4F".toColorInt())
-            circleRadius = 4f
-            setDrawValues(false)
-            setDrawFilled(true)
-            fillColor = "#A8D5B5".toColorInt()
-            fillAlpha = 60
+
+        lineChart.legend.apply {
+            isEnabled = dataSets.size > 1
+            isWordWrapEnabled = true
+            textColor = "#555555".toColorInt()
+            textSize = 12f
         }
-        lineChart.data = LineData(dataSet)
+
+        lineChart.data = LineData(dataSets)
+
+        if (isWeekly) {
+            lineChart.setVisibleXRangeMaximum(7f)
+        } else {
+            lineChart.setVisibleXRangeMaximum(12f)
+        }
+
+        lineChart.moveViewToX(labels.size.toFloat())
         lineChart.animateX(500)
         lineChart.invalidate()
     }
 
     private fun clearPriceUI() {
+        cardPrice.visibility = View.GONE
+        cardGraph.visibility = View.GONE
         tvPriceValue.text = "₹ --"
         tvMinPrice.text   = "₹ --"
         tvMaxPrice.text   = "₹ --"
         tvPriceUnit.text  = ""
+        tvPriceDate.text  = ""
         lineChart.clear()
+        lineChart.fitScreen()
         lineChart.invalidate()
         showNoData(false)
     }
@@ -474,6 +664,14 @@ class MarketActivity : AppCompatActivity() {
         return try {
             val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
             t(m[date.split("-")[1].toInt()])
+        } catch (_: Exception) { date }
+    }
+
+    private fun formatDateWithYear(date: String): String {
+        return try {
+            val p = date.split("-")
+            val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+            "${d(p[2].toInt())} ${t(m[p[1].toInt()])} ${d(p[0])}"
         } catch (_: Exception) { date }
     }
 }

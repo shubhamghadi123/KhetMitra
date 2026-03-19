@@ -7,11 +7,20 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 class PlanStageAdapter(
     private val stages: List<FarmPlanStage>,
+    private var langCode: String = TranslateLanguage.ENGLISH,
     private val onStageClick: (FarmPlanStage) -> Unit
 ) : RecyclerView.Adapter<PlanStageAdapter.StageViewHolder>() {
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
+    }
+
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     class StageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val ivStageIcon: ImageView = view.findViewById(R.id.ivStageIcon)
@@ -33,8 +42,22 @@ class PlanStageAdapter(
             holder.ivStageIcon.setColorFilter(stage.cardColor)
         }
 
-        holder.tvStageTitle.text = stage.stageTitle
-        holder.tvStageSub.text = "⏱️ Duration: ${stage.durationText}  •  💪 Effort: ${stage.effortPercent}%"
+        val safeTitles = arrayOf(
+            stage.stageTitle,
+            t("1. Soil Preparation"),
+            t("2. Sowing & Planting"),
+            t("3. Crop Maintenance"),
+            t("4. Fertilizing & Irrigation"),
+            t("5. Harvesting")
+        )
+        holder.tvStageTitle.text = if (stage.stageNumber in 1..5) safeTitles[stage.stageNumber] else stage.stageTitle
+
+        val durationLabel = t("Duration")
+        val effortLabel = t("Effort")
+        val translatedDuration = stage.durationText.replace("Days", t("days")).replace("Day", t("days"))
+
+        holder.tvStageSub.text = "⏱️ $durationLabel: ${d(translatedDuration)}  •  💪 $effortLabel: ${d(stage.effortPercent)}%"
+
         holder.itemView.setOnClickListener {
             onStageClick(stage)
         }

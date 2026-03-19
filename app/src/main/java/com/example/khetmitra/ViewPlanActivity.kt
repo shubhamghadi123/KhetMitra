@@ -9,13 +9,25 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.gson.Gson
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 class ViewPlanActivity : AppCompatActivity() {
+    private var langCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
+    }
+
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_view_plan)
+
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+        langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener {
             finish()
@@ -29,19 +41,45 @@ class ViewPlanActivity : AppCompatActivity() {
         val farmName = intent.getStringExtra("FARM_NAME") ?: ""
         val cropName = intent.getStringExtra("CROP_NAME") ?: ""
 
-        tvPlanHeader.text = "$cropName Plan for $farmName"
+        val translatedFarm = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
+        val translatedCrop = t(cropName)
+        val finalHeaderText = t("[CROP] Plan for [FARM]")
+            .replace("[CROP]", translatedCrop)
+            .replace("[FARM]", d(translatedFarm))
 
+        var planStagesToLoad: List<FarmPlanStage>? = null
         if (!planJson.isNullOrEmpty()) {
             try {
                 val planResponse = Gson().fromJson(planJson, FarmPlanResponse::class.java)
                 planResponse.stages.forEach { applyUIStyling(it) }
-                rvSavedPlanStages.adapter = PlanStageAdapter(planResponse.stages) { clickedStage ->
+                planStagesToLoad = planResponse.stages
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        if (langCode != TranslateLanguage.ENGLISH) {
+            window.decorView.post {
+                TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {
+                    tvPlanHeader.text = finalHeaderText
+
+                    planStagesToLoad?.let { stages ->
+                        rvSavedPlanStages.adapter = PlanStageAdapter(stages, langCode) { clickedStage ->
+                            val intent = android.content.Intent(this@ViewPlanActivity, StageDetailActivity::class.java)
+                            intent.putExtra("STAGE_JSON", Gson().toJson(clickedStage))
+                            startActivity(intent)
+                        }
+                    }
+                }
+            }
+        } else {
+            tvPlanHeader.text = finalHeaderText
+            planStagesToLoad?.let { stages ->
+                rvSavedPlanStages.adapter = PlanStageAdapter(stages, langCode) { clickedStage ->
                     val intent = android.content.Intent(this@ViewPlanActivity, StageDetailActivity::class.java)
                     intent.putExtra("STAGE_JSON", Gson().toJson(clickedStage))
                     startActivity(intent)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
@@ -53,8 +91,7 @@ class ViewPlanActivity : AppCompatActivity() {
             3 -> { stage.iconRes = R.drawable.ic_tools; stage.cardColor = "#6FA7C7".toColorInt() }
             4 -> { stage.iconRes = R.drawable.ic_fertilizer; stage.cardColor = "#74A582".toColorInt() }
             5 -> { stage.iconRes = R.drawable.ic_harvest; stage.cardColor = "#DDA255".toColorInt() }
-            else -> { stage.iconRes = android.R.drawable.ic_menu_info_details; stage.cardColor =
-                "#999999".toColorInt() }
+            else -> { stage.iconRes = android.R.drawable.ic_menu_info_details; stage.cardColor = "#999999".toColorInt() }
         }
     }
 }

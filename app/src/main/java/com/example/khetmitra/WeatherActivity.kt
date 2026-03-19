@@ -25,6 +25,7 @@ import com.airbnb.lottie.LottieAnimationView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.Dispatchers
@@ -108,9 +109,10 @@ class WeatherActivity : BaseActivity() {
             swipeRefreshLayout.isRefreshing = false
             return
         }
+        val cts = CancellationTokenSource()
         fusedLocationClient.getCurrentLocation(
-            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-            null
+            Priority.PRIORITY_HIGH_ACCURACY,
+            cts.token
         ).addOnSuccessListener { location: Location? ->
             if (location != null) {
                 val latLon = "${location.latitude},${location.longitude}"
@@ -599,83 +601,118 @@ class WeatherActivity : BaseActivity() {
     private fun agriculturalInsightsUI(data: OpenMeteoResponse, isMph: Boolean) {
         val insightList = mutableListOf<InsightModel>()
         val windSymbol = if (isMph) t("m/h") else t("km/h")
-        val todayRain        = data.daily.precipitation_probability_max.firstOrNull() ?: 0
-        val windSpeedMetric  = data.current.wind_speed_10m
-        val windSpeedDisplay = convertWind(windSpeedMetric, isMph)
+
+        // Data Extraction
+        val todayRain           = data.daily.precipitation_probability_max.firstOrNull() ?: 0
+        val windSpeedMetric     = data.current.wind_speed_10m
+        val windSpeedDisplay    = convertWind(windSpeedMetric, isMph)
         val currentSoilMoisture = data.hourly.soil_moisture_3_9cm.firstOrNull() ?: 0.0
+        val todayMaxTemp        = data.daily.temperature_2m_max.firstOrNull() ?: 0.0
+        val todayMinTemp        = data.daily.temperature_2m_min.firstOrNull() ?: 0.0
+
         var hasAlert = false
 
-        // 1. Rain Alert
+        // 1. Extreme Temperature Alerts (Heatwave / Frost)
+        if (todayMaxTemp > 38.0) {
+            insightList.add(InsightModel(
+                title       = t("Heat Stress Alert"),
+                description = "${t("Extreme heat")} (${d(todayMaxTemp.toInt())}°). ${t("Ensure adequate soil moisture and avoid afternoon spraying")}.",
+                imageRes    = R.drawable.soilmoisture_image,
+                tag         = "advisory"
+            ))
+            hasAlert = true
+        } else if (todayMinTemp < 5.0) {
+            insightList.add(InsightModel(
+                title       = t("Frost Warning"),
+                description = "${t("Temperatures dropping to")} ${d(todayMinTemp.toInt())}°. ${t("Apply light irrigation to protect crops from frost")}.",
+                imageRes    = R.drawable.soilirrigation_image,
+                tag         = "irrigation"
+            ))
+            hasAlert = true
+        }
+
+        // 2. Rain Alert
         if (todayRain > 50) {
             insightList.add(InsightModel(
                 title       = t("Rainfall Alert"),
-                description = "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying pesticides")}.",
+                description = "${t("High chance of rain")} (${d(todayRain)}%). ${t("Delay spraying fertilizers and pesticides")}.",
                 imageRes    = R.drawable.rain_image,
                 tag         = "rain"
             ))
             hasAlert = true
         }
 
-        // 2. Wind Alert
+        // 3. Wind Alert
         if (windSpeedMetric > 15) {
             insightList.add(InsightModel(
                 title       = t("Spraying Alert"),
-                description = "${t("Wind is too strong")} (${d(windSpeedDisplay)} $windSymbol). ${t("Avoid spraying pesticides")}.",
+                description = "${t("Wind is too strong")} (${d(windSpeedDisplay)} $windSymbol). ${t("Avoid spraying to prevent chemical drift")}.",
                 imageRes    = R.drawable.wind_warning_image,
                 tag         = "wind"
             ))
             hasAlert = true
         }
 
-        // 3. Wet Soil Alert
+        // 4. Wet Soil Alert
         if (currentSoilMoisture > 0.35) {
             insightList.add(InsightModel(
                 title       = t("Soil Status"),
-                description = "${t("Soil is likely wet")}. ${t("Avoid heavy machinery")}.",
+                description = "${t("Soil is currently wet")}. ${t("Avoid heavy machinery to prevent soil compaction")}.",
                 imageRes    = R.drawable.wetsoil_image,
                 tag         = "soil"
             ))
             hasAlert = true
         }
 
-        // 4. All Clear
+        // 5. All Clear Logic
         if (!hasAlert) {
-            insightList.add(InsightModel(
-                title       = t("Today's Activity"),
-                description = "${t("Conditions are clear")}. ${t("Good time for irrigation")}.",
-                imageRes    = R.drawable.spraying_image,
-                tag         = "irrigation"
-            ))
+            if (currentSoilMoisture < 0.20) {
+                insightList.add(InsightModel(
+                    title       = t("Today's Activity"),
+                    description = "${t("Conditions are clear but soil is dry")}. ${t("Perfect time to irrigate")}.",
+                    imageRes    = R.drawable.irrigation_image,
+                    tag         = "irrigation"
+                ))
+            } else {
+                insightList.add(InsightModel(
+                    title       = t("Today's Activity"),
+                    description = "${t("Conditions are ideal")}. ${t("Good time for general field maintenance and spraying")}.",
+                    imageRes    = R.drawable.spraying_image,
+                    tag         = "advisory"
+                ))
+            }
         }
 
-        // 5. Future Forecast
+        // 6. Future Forecast
         var heavyRainDay: String? = null
         val lookaheadDays = 14
+        val maxDaysToScan = minOf(data.daily.precipitation_probability_max.size, lookaheadDays + 1)
 
-        for (i in 1 until minOf(data.daily.precipitation_probability_max.size, lookaheadDays + 1)) {
+        for (i in 1 until maxDaysToScan) {
             if (data.daily.precipitation_probability_max[i] > 60) {
-                if (heavyRainDay == null) heavyRainDay = getDayName(data.daily.time[i])
+                heavyRainDay = getDayName(data.daily.time[i])
+                break
             }
         }
 
         if (heavyRainDay != null) {
             insightList.add(InsightModel(
                 title       = t("Upcoming Weather"),
-                description = "${t("Heavy rain expected on")} ${t(heavyRainDay)}. ${t("Plan drainage")}.",
+                description = "${t("Heavy rain expected on")} ${t(heavyRainDay)}. ${t("Ensure proper field drainage")}.",
                 imageRes    = R.drawable.rain_image,
                 tag         = "rain"
             ))
         } else {
             insightList.add(InsightModel(
                 title       = t("Upcoming Weather"),
-                description = "${t("No rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Perfect time to irrigate")}.",
+                description = "${t("No heavy rain in the next")} ${d(lookaheadDays)} ${t("days")}. ${t("Plan irrigation accordingly")}.",
                 imageRes    = R.drawable.irrigation_image,
                 tag         = "irrigation"
             ))
         }
 
-        // 6 & 7. Monthly / Next-month advice
-        val calendar          = Calendar.getInstance()
+        // 7. Monthly Advice
+        val calendar = Calendar.getInstance()
         val currentMonthIndex = calendar.get(Calendar.MONTH)
 
         fun getSeasonalTip(monthIndex: Int): String {
@@ -698,19 +735,12 @@ class WeatherActivity : BaseActivity() {
 
         fun seasonalTag(monthIndex: Int): String {
             return when (monthIndex % 12) {
-                0  -> "advisory"
-                1  -> "pest"
-                2  -> "harvest"
-                3  -> "planting"
-                4  -> "soil"
-                5  -> "planting"
-                6  -> "advisory"
-                7  -> "pest"
-                8  -> "harvest"
-                9  -> "soil"
-                10 -> "planting"
-                11 -> "advisory"
-                else -> "advisory"
+                0, 6, 11 -> "advisory"
+                1, 7     -> "pest"
+                2, 8     -> "harvest"
+                3, 5, 10 -> "planting"
+                4, 9     -> "soil"
+                else     -> "advisory"
             }
         }
 

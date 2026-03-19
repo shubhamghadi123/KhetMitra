@@ -49,7 +49,6 @@
             android:importantForAccessibility="no"
             android:src="@drawable/round_arrow_back_24"
             app:tint="#FFFFFF" />
-
     </com.google.android.material.card.MaterialCardView>
 
     <TextView
@@ -98,7 +97,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="15dp"
                 android:text="Select your region and crop to get the latest APMC market prices."
                 android:textColor="#555555"
                 android:textSize="13sp"
@@ -154,7 +153,6 @@
                             android:textColor="#111111"
                             android:textSize="15sp"
                             tools:ignore="LabelFor" />
-
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -182,7 +180,6 @@
                             android:textColor="#111111"
                             android:textSize="15sp"
                             tools:ignore="LabelFor" />
-
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -210,15 +207,14 @@
                             android:textColor="#111111"
                             android:textSize="15sp"
                             tools:ignore="LabelFor" />
-
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:hint="Market (Mandi)"
+                        android:layout_marginBottom="16dp"
+                        android:hint="Market (Mandi) - Optional"
                         app:boxCornerRadiusBottomEnd="14dp"
                         app:boxCornerRadiusBottomStart="14dp"
                         app:boxCornerRadiusTopEnd="14dp"
@@ -238,8 +234,18 @@
                             android:textColor="#111111"
                             android:textSize="15sp"
                             tools:ignore="LabelFor" />
-
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFetchPrice"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:text="Fetch Price"
+                        android:enabled="false"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        app:cornerRadius="14dp"
+                        app:backgroundTint="#2D6A4F" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -249,6 +255,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
+                android:visibility="gone"
                 app:cardBackgroundColor="#1A3C2E"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
@@ -289,7 +296,6 @@
                             android:textColor="#52B788"
                             android:textSize="26sp"
                             android:textStyle="bold" />
-
                     </com.google.android.material.card.MaterialCardView>
 
                     <TextView
@@ -312,7 +318,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
                         android:layout_marginTop="2dp"
-                        android:text="₹ 2,500"
+                        android:text="₹ --"
                         android:textColor="#FFFFFF"
                         android:textSize="30sp"
                         android:textStyle="bold"
@@ -325,7 +331,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:layout_marginBottom="4dp"
-                        android:text="/ quintal"
+                        android:text=""
                         android:textColor="#A8D5B5"
                         android:textSize="13sp"
                         app:layout_constraintBottom_toBottomOf="@id/tvPriceValue"
@@ -370,12 +376,11 @@
                                     android:id="@+id/tvMinPrice"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="₹ 2,100"
+                                    android:text="₹ --"
                                     android:textColor="#FFFFFF"
                                     android:textSize="16sp"
                                     android:textStyle="bold"
                                     tools:ignore="HardcodedText" />
-
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
@@ -406,17 +411,26 @@
                                     android:id="@+id/tvMaxPrice"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="₹ 2,900"
+                                    android:text="₹ --"
                                     android:textColor="#FFFFFF"
                                     android:textSize="16sp"
                                     android:textStyle="bold"
                                     tools:ignore="HardcodedText" />
-
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
-
                     </LinearLayout>
 
+                    <TextView
+                        android:id="@+id/tvPriceDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="15dp"
+                        android:text=""
+                        android:textColor="#A8D5B5"
+                        android:textSize="12sp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/layoutMinMax" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -425,6 +439,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="14dp"
+                android:visibility="gone"
                 app:cardBackgroundColor="#FFFFFF"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
@@ -443,9 +458,10 @@
                         android:layout_marginBottom="14dp">
 
                         <TextView
+                            android:id="@+id/tvGraphTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="📈  Price Trends"
+                            android:text="📈 Price Trends"
                             android:textColor="#1A3C2E"
                             android:textSize="15sp"
                             android:textStyle="bold"
@@ -484,15 +500,59 @@
                                 android:textSize="12sp"
                                 app:strokeColor="#52B788"
                                 app:cornerRadius="10dp" />
-
                         </com.google.android.material.button.MaterialButtonToggleGroup>
-
                     </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp">
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutChartNav"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:id="@+id/btnPrevPeriod"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:importantForAccessibility="no"
+                            android:padding="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/round_arrow_forward_ios_24"
+                            android:rotation="180"
+                            app:tint="#2D6A4F" />
+
+                        <TextView
+                            android:id="@+id/tvDateRange"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="Mar 10 - Mar 17"
+                            android:textColor="#555555"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/btnNextPeriod"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:importantForAccessibility="no" android:padding="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/round_arrow_forward_ios_24"
+                            app:tint="#2D6A4F" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tvNoData"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="280dp"
                         android:gravity="center"
                         android:visibility="gone"
                         android:text="No price data available\nfor this selection"
@@ -503,10 +563,9 @@
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/lineChart"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp" />
+                        android:layout_height="280dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

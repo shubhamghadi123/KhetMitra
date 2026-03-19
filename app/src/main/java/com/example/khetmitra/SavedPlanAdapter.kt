@@ -8,13 +8,22 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.RecyclerView
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 class SavedPlanAdapter(
     private val plans: List<SavedFarmPlan>,
+    private var langCode: String = TranslateLanguage.ENGLISH,
     private val onClick: (SavedFarmPlan) -> Unit,
     private val onDeleteClick: (SavedFarmPlan, Int) -> Unit
 ) : RecyclerView.Adapter<SavedPlanAdapter.PlanViewHolder>() {
     private var isDeleteMode = false
+
+    private fun t(text: String): String {
+        if (langCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, langCode) ?: text
+    }
+
+    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
     @SuppressLint("NotifyDataSetChanged")
     fun toggleDeleteMode(): Boolean {
@@ -39,8 +48,10 @@ class SavedPlanAdapter(
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: PlanViewHolder, position: Int) {
         val plan = plans[position]
-        holder.tvFarmName.text = plan.farm_name
-        holder.tvCropName.text = "Crop: ${plan.crop_name}"
+
+        val translatedFarm = plan.farm_name.replace("Farm", t("Farm")).replace("Field", t("Field"))
+        holder.tvFarmName.text = d(translatedFarm)
+        holder.tvCropName.text = t("Crop: [CROP]").replace("[CROP]", t(plan.crop_name))
 
         if (isDeleteMode) {
             holder.ivActionIcon.setImageResource(R.drawable.round_delete_24)

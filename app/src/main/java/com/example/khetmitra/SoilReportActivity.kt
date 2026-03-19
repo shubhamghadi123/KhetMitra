@@ -267,11 +267,14 @@ class SoilReportActivity : AppCompatActivity() {
     private fun updateSoilUI(soilData: SoilDataResponse, humidity: Double?, ndviScore: Double?) {
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)")
+
         val moisturePercent = (soilData.moisture * 100).toInt()
         tvMoistureValue.text = "${d(moisturePercent)}%"
         findViewById<LinearProgressIndicator>(R.id.progressMoisture).progress = moisturePercent
+
         val surfaceCelsius = (soilData.t0  - 273.15).toInt()
         val depthCelsius   = (soilData.t10 - 273.15).toInt()
+
         if (tempUnitPref == "Fahrenheit (°F)") {
             val surfaceF = (surfaceCelsius * 9.0 / 5.0) + 32
             val depthF = (depthCelsius * 9.0 / 5.0) + 32
@@ -281,10 +284,15 @@ class SoilReportActivity : AppCompatActivity() {
             tvSurfaceTemp.text = "${d(surfaceCelsius)}${t("°C")}"
             tvDepthTemp.text   = "${d(depthCelsius)}${t("°C")}"
         }
+
         tvHumidity.text = if (humidity != null) "${d(humidity.toInt())}%" else "--"
+
         tvNdviScore.text = if (ndviScore != null)
             d(String.format("%.2f", ndviScore))
         else "--"
+
+        // 1. WATERING (IRRIGATION) LOGIC
+
         val (alertText, alertTextColor, alertBg) = when {
             moisturePercent < 20   -> Triple(
                 t("Alert: Moisture is critically low. Immediate irrigation is highly recommended."),
@@ -303,13 +311,39 @@ class SoilReportActivity : AppCompatActivity() {
         tvIrrigationAlert.setTextColor(alertTextColor.toColorInt())
         findViewById<MaterialCardView>(R.id.cardIrrigationAlert)
             .setCardBackgroundColor(alertBg.toColorInt())
-        tvSowingAdvice.text = when {
+
+        // 2. FERTILIZER LOGIC
+
+        val fertilizerAdvice = when {
+            moisturePercent < 20 -> t("Soil is too dry. Avoid fertilizing now to prevent root burn. Irrigate first.")
+            moisturePercent > 70 -> t("Soil is very wet. Avoid fertilizing to prevent nutrient leaching and runoff.")
+            else -> t("Moisture levels are optimal for applying granular fertilizers.")
+        }
+
+        // 3. PESTICIDE / FUNGICIDE LOGIC
+
+        val pesticideAdvice = when {
+            humidity != null && humidity > 75.0 && surfaceCelsius in 20..32 ->
+                t("High humidity and warm temperatures increase fungal & pest risk. Consider preventive spraying.")
+            ndviScore != null && ndviScore < 0.4 ->
+                t("Low crop health detected. Inspect field for pest damage or diseases before spraying.")
+            else ->
+                t("Weather conditions are stable. Apply pesticides only if active pest damage is visible.")
+        }
+
+        // 4. SOWING LOGIC
+
+        val sowingAdvice = when {
             depthCelsius < 20      -> t("Soil is quite cool. Sowing might have delayed germination.")
-            depthCelsius in 20..30 -> {
-                d(t("Perfect temperature conditions for sowing most crops at 10cm depth."))
-            }
+            depthCelsius in 20..30 -> t("Perfect temperature conditions for sowing most crops at 10cm depth.")
             else                   -> t("Soil is quite hot. Ensure adequate moisture if sowing.")
         }
+
+        // 5. COMBINE INTO ACTION PLAN
+
+        tvSowingAdvice.text = "🌱 ${t("Sowing")}:\n$sowingAdvice\n\n" +
+                "🧪 ${t("Fertilizer")}:\n$fertilizerAdvice\n\n" +
+                "🛡️ ${t("Pesticide")}:\n$pesticideAdvice"
     }
 
     private fun loadSatelliteImage(url: String?) {
