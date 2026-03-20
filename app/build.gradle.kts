@@ -90,6 +90,7 @@ dependencies {
 
     implementation("com.google.mlkit:text-recognition:16.0.0")
     implementation("com.google.mlkit:translate:17.0.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.retrofit2:retrofit:3.0.0")

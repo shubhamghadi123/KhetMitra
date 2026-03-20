@@ -1,8 +1,8 @@
 package com.example.khetmitra
 
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.ColorUtils
@@ -31,14 +31,15 @@ class StageDetailActivity : AppCompatActivity() {
 
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
 
-        val layoutDetailHeader = findViewById<LinearLayout>(R.id.layoutDetailHeader)
+        val cardHeaderContainer = findViewById<MaterialCardView>(R.id.cardHeaderContainer)
+        val cardDetailIcon = findViewById<MaterialCardView>(R.id.cardDetailIcon)
         val ivDetailIcon = findViewById<ImageView>(R.id.ivDetailIcon)
         val tvDetailTitle = findViewById<TextView>(R.id.tvDetailTitle)
         val tvDetailSteps = findViewById<TextView>(R.id.tvDetailSteps)
-
         val tvDetailDuration = findViewById<TextView>(R.id.tvDetailDuration)
         val tvDetailEffort = findViewById<TextView>(R.id.tvDetailEffort)
         val tvDetailCriticality = findViewById<TextView>(R.id.tvDetailCriticality)
+        val viewDetailGlow = findViewById<View>(R.id.viewDetailGlow)
 
         val stageJson = intent.getStringExtra("STAGE_JSON")
 
@@ -49,11 +50,15 @@ class StageDetailActivity : AppCompatActivity() {
 
                 val baseColor = stage.cardColor
                 val darkColor = ColorUtils.blendARGB(baseColor, android.graphics.Color.BLACK, 0.45f)
-                val lightColor = ColorUtils.blendARGB(baseColor, android.graphics.Color.WHITE, 0.92f)
+                val lightColor = ColorUtils.blendARGB(baseColor, android.graphics.Color.WHITE, 0.85f)
 
-                layoutDetailHeader.setBackgroundColor(baseColor)
+                cardHeaderContainer.setCardBackgroundColor(baseColor)
+                viewDetailGlow.background?.mutate()?.setTint(baseColor)
+
                 ivDetailIcon.setImageResource(if (stage.iconRes != 0) stage.iconRes else android.R.drawable.ic_menu_info_details)
                 ivDetailIcon.setColorFilter(darkColor)
+                cardDetailIcon.setCardBackgroundColor(lightColor)
+                cardDetailIcon.strokeWidth = 0
 
                 val formattedSteps = stage.steps.joinToString(separator = "\n\n") { "• $it" }
 
@@ -67,16 +72,23 @@ class StageDetailActivity : AppCompatActivity() {
                 )
                 val finalTitle = if (stage.stageNumber in 1..5) safeTitles[stage.stageNumber] else stage.stageTitle
 
-                val durationText = stage.durationText.replace("Days", t("days")).replace("Day", t("days"))
-                val pillDuration = "⏱️ ${t("Duration")}: ${d(durationText)}"
+                val localDaysValue = d(stage.durationInDays)
+                val localDaysLabel = t("days")
+                val pillDuration = "⏱️ ${t("Duration")}: $localDaysValue $localDaysLabel"
                 val pillEffort   = "💪 ${t("Effort")}: ${d(stage.effortPercent)}%"
                 val pillRisk     = "⚠️ ${t("Risk")}: ${if (stage.criticality > 70) t("High") else t("Normal")}"
 
                 tvDetailTitle.text = finalTitle
                 tvDetailSteps.text = formattedSteps
+
                 setupPill(tvDetailDuration, pillDuration, lightColor, darkColor)
                 setupPill(tvDetailEffort, pillEffort, lightColor, darkColor)
                 setupPill(tvDetailCriticality, pillRisk, lightColor, darkColor)
+
+                tvDetailTitle.tag = "skip_translation"
+                tvDetailDuration.tag = "skip_translation"
+                tvDetailEffort.tag = "skip_translation"
+                tvDetailCriticality.tag = "skip_translation"
 
                 if (langCode != TranslateLanguage.ENGLISH) {
                     window.decorView.post {

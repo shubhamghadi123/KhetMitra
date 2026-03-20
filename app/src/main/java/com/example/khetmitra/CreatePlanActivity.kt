@@ -340,7 +340,7 @@ class CreatePlanActivity : AppCompatActivity() {
                         "string (MAX 8 WORDS. Extremely concise step 1)", 
                         "string (MAX 8 WORDS. Extremely concise step 2)"
                       ],
-                      "durationText": "string (e.g., '5 Days')",
+                      "durationInDays": 5, //it will be days
                       "effortPercent": 20,
                       "criticality": 80
                     }

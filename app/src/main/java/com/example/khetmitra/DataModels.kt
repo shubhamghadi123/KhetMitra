@@ -134,7 +134,7 @@ data class FarmPlanStage(
     val stageNumber: Int,
     val stageTitle: String,
     val steps: List<String>,
-    val durationText: String,
+    val durationInDays: Int,
     val effortPercent: Int,
     val criticality: Int,
     @Transient var iconRes: Int = 0,

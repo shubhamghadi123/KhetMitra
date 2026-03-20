@@ -54,9 +54,11 @@ class PlanStageAdapter(
 
         val durationLabel = t("Duration")
         val effortLabel = t("Effort")
-        val translatedDuration = stage.durationText.replace("Days", t("days")).replace("Day", t("days"))
+        val localDaysValue = d(stage.durationInDays)
+        val localDaysLabel = t("days")
+        val pillDuration = "⏱️ ${t("Duration")}: $localDaysValue $localDaysLabel"
 
-        holder.tvStageSub.text = "⏱️ $durationLabel: ${d(translatedDuration)}  •  💪 $effortLabel: ${d(stage.effortPercent)}%"
+        holder.tvStageSub.text = "⏱️ $durationLabel: ${d(pillDuration)}  •  💪 $effortLabel: ${d(stage.effortPercent)}%"
 
         holder.itemView.setOnClickListener {
             onStageClick(stage)

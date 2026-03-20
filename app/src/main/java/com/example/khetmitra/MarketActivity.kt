@@ -35,9 +35,8 @@ import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.util.Locale
 
@@ -317,17 +316,44 @@ class MarketActivity : AppCompatActivity() {
                     order("district_name", Order.ASCENDING)
                 }
                 .decodeList<DistrictRow>()
-            val names = allDistricts.map { t(it.districtName) }
-            dropdownDistrict.applyCustomDropdownStyle(names)
-            dropdownDistrict.isEnabled = true
-            dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
-                selectedDistrictId = allDistricts[pos].districtId
-                selectedMarketId   = -1
-                dropdownMarket.setText("", false)
-                dropdownMarket.isEnabled = false
-                clearPriceUI()
-                validateFetchButton()
-                lifecycleScope.launch { loadMarkets(selectedDistrictId) }
+
+            val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(langCode)
+                .build()
+            val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+
+            val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                allDistricts.map { district ->
+                    val rawName = district.districtName
+                    val manualTranslation = t(rawName)
+
+                    if (langCode != TranslateLanguage.ENGLISH &&
+                        Regex("[a-zA-Z]").containsMatchIn(manualTranslation)) {
+                        try {
+                            client.translate(manualTranslation).await()
+                        } catch (_: Exception) {
+                            manualTranslation
+                        }
+                    } else {
+                        manualTranslation
+                    }
+                }
+            }
+
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                dropdownDistrict.applyCustomDropdownStyle(translatedNames)
+                dropdownDistrict.isEnabled = true
+                dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
+                    selectedDistrictId = allDistricts[pos].districtId
+                    selectedMarketId   = -1
+                    dropdownMarket.setText("", false)
+                    dropdownMarket.isEnabled = false
+                    clearPriceUI()
+                    validateFetchButton()
+                    lifecycleScope.launch { loadMarkets(selectedDistrictId) }
+                }
+                client.close()
             }
         } catch (e: Exception) {
             Log.e("Market", "loadDistricts failed: ${e.message}")
@@ -346,13 +372,38 @@ class MarketActivity : AppCompatActivity() {
                     order("market_name", Order.ASCENDING)
                 }
                 .decodeList<MarketRow>()
-            val names = allMarkets.map { t(it.marketName) }
-            dropdownMarket.applyCustomDropdownStyle(names)
-            dropdownMarket.isEnabled = true
-            dropdownMarket.setOnItemClickListener { _, _, pos, _ ->
-                selectedMarketId = allMarkets[pos].marketId
-                clearPriceUI()
-                validateFetchButton()
+
+            val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(langCode)
+                .build()
+            val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+            val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                allMarkets.map { market ->
+                    val rawName = market.marketName
+                    val manualTranslation = t(rawName)
+                    if (langCode != TranslateLanguage.ENGLISH &&
+                        Regex("[a-zA-Z]").containsMatchIn(manualTranslation)) {
+                        try {
+                            client.translate(manualTranslation).await()
+                        } catch (_: Exception) {
+                            manualTranslation
+                        }
+                    } else {
+                        manualTranslation
+                    }
+                }
+            }
+
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                dropdownMarket.applyCustomDropdownStyle(translatedNames)
+                dropdownMarket.isEnabled = true
+                dropdownMarket.setOnItemClickListener { _, _, pos, _ ->
+                    selectedMarketId = allMarkets[pos].marketId
+                    clearPriceUI()
+                    validateFetchButton()
+                }
+                client.close()
             }
         } catch (e: Exception) {
             Log.e("Market", "loadMarkets failed: ${e.message}")
@@ -369,24 +420,11 @@ class MarketActivity : AppCompatActivity() {
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
-
-            val names = allCrops.map { crop ->
-                val rawName = crop.cropName
-                if (rawName.contains("(") && rawName.contains(")")) {
-                    val base = rawName.substringBefore("(")
-                    val variety = rawName.substringAfter("(").substringBefore(")")
-                    "${t(base.trim())} (${t(variety.trim())})"
-                } else {
-                    t(rawName)
-                }
-            }
-            withContext(Dispatchers.Main) {
-                dropdownCrop.applyCustomDropdownStyle(names)
-                dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
-                    selectedCropId = allCrops[pos].cropId
-                    clearPriceUI()
-                    validateFetchButton()
-                }
+            val names = allCrops.map { t(it.cropName) }
+            dropdownCrop.applyCustomDropdownStyle(names)
+            dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
+                selectedCropId = allCrops[pos].cropId
+                refreshPriceData()
             }
         } catch (e: Exception) {
             Log.e("Market", "loadCrops failed: ${e.message}")
