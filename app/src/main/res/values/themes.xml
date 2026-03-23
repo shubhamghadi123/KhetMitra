@@ -1,11 +1,20 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+<resources>
     <style name="Base.Theme.KhetMitra" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:windowIsTranslucent">true</item>
     </style>
 
-    <style name="CircleImage"> <item name="cornerFamily">rounded</item> <item name="cornerSize">50%</item> </style>
+    <style name="CircleImage">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="Theme.SplashHide" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+
+        <item name="windowSplashScreenAnimatedIcon">@drawable/transparent_logo</item>
+
+        <item name="postSplashScreenTheme">@style/Theme.KhetMitra</item>
+    </style>
 
     <style name="Theme.KhetMitra" parent="Base.Theme.KhetMitra" />
 </resources>

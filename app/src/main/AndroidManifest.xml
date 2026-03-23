@@ -32,12 +32,18 @@
         </provider>
 
         <activity
-            android:name=".LanguageSelectionActivity"
-            android:exported="true">
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SplashHide">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".LanguageSelectionActivity"
+            android:exported="false">
         </activity>
 
         <activity

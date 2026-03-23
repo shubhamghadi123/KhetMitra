@@ -190,6 +190,13 @@ class ChatbotActivity : AppCompatActivity() {
             Toast.makeText(this, t("Voice typing coming soon..."), Toast.LENGTH_SHORT).show()
         }
 
+        if (currentLangCode != TranslateLanguage.ENGLISH) {
+            window.decorView.post {
+                TranslationHelper.translateViewHierarchy(window.decorView.rootView, currentLangCode) {
+                }
+            }
+        }
+
         val autoOpenCamera = intent.getBooleanExtra("AUTO_OPEN_CAMERA", false)
         if (autoOpenCamera) {
             window.decorView.post {
@@ -628,7 +635,7 @@ class ChatbotActivity : AppCompatActivity() {
                     }
 
                     val textToSave = query.ifEmpty {
-                        if (imageToSend != null) "[Image sent]" else "[File: $fileNameSnapshot]"
+                        if (imageToSend != null) "[${t("Image sent")}]" else "[${t("File")}: $fileNameSnapshot]"
                     }
 
                     ChatHistoryManager.saveMessage(

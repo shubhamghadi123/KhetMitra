@@ -223,7 +223,8 @@
                         app:trackColor="#E3F2FD"
                         app:trackCornerRadius="4dp"
                         app:trackThickness="8dp"
-                        tools:progress="13" />
+                        tools:progress="13"
+                        app:trackStopIndicatorSize="0dp"/>
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardIrrigationAlert"
@@ -426,13 +427,6 @@
                     android:padding="14dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="💡"
-                        android:textSize="16sp"
-                        android:layout_marginEnd="10dp" />
-
-                    <TextView
                         android:id="@+id/tvSowingAdvice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -614,14 +608,13 @@
                     <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="250dp"
-                        android:background="#E8EDE0">
+                        android:background="#E0E0E0">
 
-                        <ImageView
+                        <com.example.khetmitra.PolygonCropImageView
                             android:id="@+id/ivSatelliteImage"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
-                            android:importantForAccessibility="no" />
+                            android:scaleType="centerCrop" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -656,7 +649,8 @@
                             <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFA500" />
                             <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FF4500"
                                 tools:ignore="TooManyViews" />
-                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#DC143C" />
+                            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#DC143C"
+                                tools:ignore="TooManyViews" />
                             <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#8B0000" />
                         </LinearLayout>
 

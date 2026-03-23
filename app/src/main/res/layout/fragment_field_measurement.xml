@@ -5,7 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F7F0">
+    android:background="#F4F7F0"
+    tools:ignore="HardcodedText">
 
     <com.mapbox.maps.MapView
         android:id="@+id/mapView"
@@ -22,31 +23,31 @@
         <View
             android:id="@+id/headerBg"
             android:layout_width="match_parent"
-            android:layout_height="80dp"
+            android:layout_height="100dp"
             android:background="#1A3C2E"
             app:layout_constraintTop_toTopOf="parent" />
 
         <View
-            android:layout_width="90dp"
-            android:layout_height="90dp"
+            android:layout_width="110dp"
+            android:layout_height="110dp"
             android:background="@drawable/bg_circle_glow_green"
             android:alpha="0.15"
-            android:layout_marginEnd="-28dp"
-            android:layout_marginTop="-28dp"
+            android:layout_marginEnd="-35dp"
+            android:layout_marginTop="-35dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/btnBack"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="18dp"
-            android:layout_marginTop="22dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="42dp"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
             app:cardBackgroundColor="#2D6A4F"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="13dp"
             app:cardElevation="0dp"
             app:strokeColor="#52B788"
             app:strokeWidth="1dp"
@@ -54,8 +55,8 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:src="@drawable/round_arrow_back_24"
                 android:importantForAccessibility="no"
@@ -67,31 +68,29 @@
             android:id="@+id/tvHeaderTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="13dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="20dp"
             android:text="Map Your Field"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toTopOf="@id/tvHeaderSub"
             app:layout_constraintStart_toEndOf="@id/btnBack"
             app:layout_constraintTop_toTopOf="@id/btnBack"
-            app:layout_constraintVertical_chainStyle="packed"
-            tools:ignore="HardcodedText" />
+            app:layout_constraintVertical_chainStyle="packed" />
 
         <TextView
             android:id="@+id/tvHeaderSub"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="13dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="20dp"
             android:text="Tap corners or walk the boundary"
             android:textColor="#A8D5B5"
             android:textSize="12sp"
             app:layout_constraintBottom_toBottomOf="@id/btnBack"
             app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle"
-            tools:ignore="HardcodedText" />
+            app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardAreaDisplay"
@@ -292,7 +291,8 @@
                             android:gravity="center"
                             android:orientation="horizontal"
                             android:paddingVertical="14dp"
-                            android:paddingHorizontal="12dp">
+                            android:paddingHorizontal="12dp"
+                            tools:ignore="UseCompoundDrawables">
 
                             <ImageView
                                 android:id="@+id/ivWalkIcon"

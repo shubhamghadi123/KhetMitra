@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,10 +22,19 @@ class ChatHistoryActivity : AppCompatActivity() {
     private lateinit var adapter: DrawerSessionAdapter
     private lateinit var recycler: RecyclerView
     private lateinit var layoutEmpty: LinearLayout
+    private var currentLangCode: String = TranslateLanguage.ENGLISH
+
+    private fun t(text: String): String {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return text
+        return TranslationHelper.getManualTranslation(text, currentLangCode) ?: text
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_history)
+
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+        currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
         recycler = findViewById(R.id.recyclerSessions)
         layoutEmpty = findViewById(R.id.layoutEmpty)
@@ -41,6 +51,12 @@ class ChatHistoryActivity : AppCompatActivity() {
 
         findViewById<ExtendedFloatingActionButton>(R.id.fabNewChat).setOnClickListener {
             openChat(null)
+        }
+
+        if (currentLangCode != TranslateLanguage.ENGLISH) {
+            window.decorView.post {
+                TranslationHelper.translateViewHierarchy(window.decorView.rootView, currentLangCode) {}
+            }
         }
     }
 
@@ -62,7 +78,7 @@ class ChatHistoryActivity : AppCompatActivity() {
                 }
             } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ChatHistoryActivity, "Failed to load history", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@ChatHistoryActivity, t("Failed to load history"), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -78,9 +94,9 @@ class ChatHistoryActivity : AppCompatActivity() {
 
     private fun confirmDelete(session: ChatSession) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Chat")
-            .setMessage("Delete \"${session.title}\"? This cannot be undone.")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(t("Delete Chat"))
+            .setMessage("${t("Delete")} ${session.title}? ${t("This cannot be undone.")}")
+            .setPositiveButton(t("Delete")) { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         ChatHistoryManager.deleteSession(session.id)
@@ -88,7 +104,7 @@ class ChatHistoryActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(t("Cancel"), null)
             .show()
     }
 }

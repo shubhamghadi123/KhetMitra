@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -38,9 +37,11 @@ class SoilReportActivity : AppCompatActivity() {
     private lateinit var tvNdviScore: TextView
     private lateinit var tvSowingAdvice: TextView
     private lateinit var toggleGroupImagery: MaterialButtonToggleGroup
-    private lateinit var ivSatelliteImage: ImageView
+    private lateinit var ivSatelliteImage: PolygonCropImageView
     private var ndviUrl: String? = null
     private var trueColorUrl: String? = null
+    private var actualFarmShape: List<List<Double>> = emptyList()
+    private var downloadedBoxShape: List<List<Double>> = emptyList()
 
     fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -52,6 +53,7 @@ class SoilReportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_soil_report)
+
         val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         langCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
 
@@ -69,7 +71,6 @@ class SoilReportActivity : AppCompatActivity() {
         ivSatelliteImage    = findViewById(R.id.ivSatelliteImage)
 
         findViewById<TextView>(R.id.tvSoilDepthLabel)?.text = t("Soil (10cm)")
-
         findViewById<MaterialCardView>(R.id.btnBack).setOnClickListener { finish() }
 
         toggleGroupImagery.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -84,9 +85,11 @@ class SoilReportActivity : AppCompatActivity() {
         val farmName        = intent.getStringExtra("FARM_NAME") ?: "My Farm"
         val farmSize        = intent.getStringExtra("FARM_SIZE") ?: ""
         val coordinatesJson = intent.getStringExtra("FARM_COORDINATES") ?: "[]"
+
         val translatedFarmName = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
         val translatedSize     = farmSize.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
         val finalSubtitle      = "${d(translatedFarmName)} • ${d(translatedSize)}"
+
         tvFarmSubtitle.text = finalSubtitle
 
         if (langCode != TranslateLanguage.ENGLISH) {
@@ -96,6 +99,7 @@ class SoilReportActivity : AppCompatActivity() {
                 ) { tvFarmSubtitle.text = finalSubtitle }
             }
         }
+
         fetchAgroData(farmName, coordinatesJson)
     }
 
@@ -120,6 +124,9 @@ class SoilReportActivity : AppCompatActivity() {
                 if (polygonPoints.first() != polygonPoints.last())
                     polygonPoints.add(polygonPoints.first())
 
+                actualFarmShape = polygonPoints.toList()
+                downloadedBoxShape = polygonPoints.toList()
+
                 val apiKey = BuildConfig.AGRO_API_KEY
                 var polyId: String
 
@@ -127,7 +134,6 @@ class SoilReportActivity : AppCompatActivity() {
                     polyId = existingPolyId
                     Log.d("Khetmitra", "Using existing polygon_id: $polyId")
                 } else {
-                    // WE DON'T HAVE AN ID YET: Create it on Agromonitoring
                     var finalCoordinates: List<List<List<Double>>> = listOf(polygonPoints.toList())
                     var polygonRequest = PolygonRequest(
                         name    = farmName,
@@ -135,6 +141,7 @@ class SoilReportActivity : AppCompatActivity() {
                     )
 
                     var polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
+
                     if (polyResponse.isSuccessful && polyResponse.body() != null) {
                         polyId = polyResponse.body()!!.id
                     } else if (polyResponse.code() == 422) {
@@ -148,12 +155,15 @@ class SoilReportActivity : AppCompatActivity() {
                             val cLon = sumLon / polygonPoints.size
                             val cLat = sumLat / polygonPoints.size
                             val off = 0.0006
-                            val box = listOf(
+                            val expandedBox = listOf(
                                 listOf(cLon - off, cLat - off), listOf(cLon + off, cLat - off),
                                 listOf(cLon + off, cLat + off), listOf(cLon - off, cLat + off),
                                 listOf(cLon - off, cLat - off)
                             )
-                            finalCoordinates = listOf(box)
+
+                            downloadedBoxShape = expandedBox
+                            finalCoordinates = listOf(expandedBox)
+
                             polygonRequest = PolygonRequest(
                                 name     = "$farmName (Expanded)",
                                 geo_json = GeoJson(geometry = Geometry(coordinates = finalCoordinates))
@@ -167,11 +177,6 @@ class SoilReportActivity : AppCompatActivity() {
                                     "'([a-z0-9]+)'".toRegex().find(secondError)?.groupValues?.get(1)
                                         ?: throw Exception("Expanded box duplicated, couldn't extract ID.")
                                 else throw Exception("Server Rejected Expanded Box: $secondError")
-                            }
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@SoilReportActivity,
-                                    t("Field is small. Showing expanded regional satellite view."),
-                                    Toast.LENGTH_LONG).show()
                             }
                         } else {
                             throw Exception("Server Rejected: $errorStr")
@@ -200,10 +205,16 @@ class SoilReportActivity : AppCompatActivity() {
 
                 val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
                 var airHumidity: Double? = null
+                var airTempCelsius: Double? = null
+                var weatherCondition: String? = null
+
                 try {
                     val weatherResponse = AgroRetrofitClient.api.getCurrentWeather(polyId, apiKey)
                     if (weatherResponse.isSuccessful && weatherResponse.body() != null) {
-                        airHumidity = weatherResponse.body()!!.main.humidity
+                        val wBody = weatherResponse.body()!!
+                        airHumidity = wBody.main.humidity
+                        airTempCelsius = wBody.main.temp - 273.15
+                        weatherCondition = wBody.weather.firstOrNull()?.main
                     }
                 } catch (e: Exception) {
                     Log.e("AgroAPI", "Weather failed: ${e.message}")
@@ -238,9 +249,9 @@ class SoilReportActivity : AppCompatActivity() {
                     saveAgromonitoringData(
                         fieldName  = farmName,
                         polyId     = polyId,
-                        temp       = null,
+                        temp       = airTempCelsius,
                         hum        = airHumidity,
-                        condition  = null,
+                        condition  = weatherCondition,
                         soilMoist  = soilBody.moisture,
                         soilTemp   = soilBody.t10 - 273.15,
                         ndviScore  = finalNdviScore
@@ -248,8 +259,9 @@ class SoilReportActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
-                    if (soilResponse.isSuccessful && soilResponse.body() != null)
+                    if (soilResponse.isSuccessful && soilResponse.body() != null) {
                         updateSoilUI(soilResponse.body()!!, airHumidity, finalNdviScore)
+                    }
                     loadSatelliteImage(ndviUrl)
                     layoutLoading.visibility = View.GONE
                     layoutContent.visibility = View.VISIBLE
@@ -286,13 +298,9 @@ class SoilReportActivity : AppCompatActivity() {
         }
 
         tvHumidity.text = if (humidity != null) "${d(humidity.toInt())}%" else "--"
-
-        tvNdviScore.text = if (ndviScore != null)
-            d(String.format("%.2f", ndviScore))
-        else "--"
+        tvNdviScore.text = if (ndviScore != null) d(String.format("%.2f", ndviScore)) else "--"
 
         // 1. WATERING (IRRIGATION) LOGIC
-
         val (alertText, alertTextColor, alertBg) = when {
             moisturePercent < 20   -> Triple(
                 t("Alert: Moisture is critically low. Immediate irrigation is highly recommended."),
@@ -309,11 +317,9 @@ class SoilReportActivity : AppCompatActivity() {
         }
         tvIrrigationAlert.text = alertText
         tvIrrigationAlert.setTextColor(alertTextColor.toColorInt())
-        findViewById<MaterialCardView>(R.id.cardIrrigationAlert)
-            .setCardBackgroundColor(alertBg.toColorInt())
+        findViewById<MaterialCardView>(R.id.cardIrrigationAlert).setCardBackgroundColor(alertBg.toColorInt())
 
         // 2. FERTILIZER LOGIC
-
         val fertilizerAdvice = when {
             moisturePercent < 20 -> t("Soil is too dry. Avoid fertilizing now to prevent root burn. Irrigate first.")
             moisturePercent > 70 -> t("Soil is very wet. Avoid fertilizing to prevent nutrient leaching and runoff.")
@@ -321,7 +327,6 @@ class SoilReportActivity : AppCompatActivity() {
         }
 
         // 3. PESTICIDE / FUNGICIDE LOGIC
-
         val pesticideAdvice = when {
             humidity != null && humidity > 75.0 && surfaceCelsius in 20..32 ->
                 t("High humidity and warm temperatures increase fungal & pest risk. Consider preventive spraying.")
@@ -332,15 +337,13 @@ class SoilReportActivity : AppCompatActivity() {
         }
 
         // 4. SOWING LOGIC
-
         val sowingAdvice = when {
             depthCelsius < 20      -> t("Soil is quite cool. Sowing might have delayed germination.")
-            depthCelsius in 20..30 -> t("Perfect temperature conditions for sowing most crops at 10cm depth.")
+            depthCelsius in 20..30 -> d(t("Perfect temperature conditions for sowing most crops at 10cm depth."))
             else                   -> t("Soil is quite hot. Ensure adequate moisture if sowing.")
         }
 
         // 5. COMBINE INTO ACTION PLAN
-
         tvSowingAdvice.text = "🌱 ${t("Sowing")}:\n$sowingAdvice\n\n" +
                 "🧪 ${t("Fertilizer")}:\n$fertilizerAdvice\n\n" +
                 "🛡️ ${t("Pesticide")}:\n$pesticideAdvice"
@@ -348,9 +351,13 @@ class SoilReportActivity : AppCompatActivity() {
 
     private fun loadSatelliteImage(url: String?) {
         if (!url.isNullOrEmpty()) {
+            ivSatelliteImage.setFarmMask(
+                expandedBox = downloadedBoxShape,
+                exactFarmPoints = actualFarmShape
+            )
             Glide.with(this)
                 .load(url.replace("http://", "https://"))
-                .centerCrop()
+                .fitCenter()
                 .into(ivSatelliteImage)
         }
     }
