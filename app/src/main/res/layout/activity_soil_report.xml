@@ -506,6 +506,7 @@
                             android:layout_height="wrap_content"
                             android:text="NDVI"
                             android:textColor="#A8D5B5"
+                            android:gravity="center"
                             android:textSize="10sp"
                             tools:ignore="SmallSp" />
 
@@ -516,6 +517,7 @@
                             android:textColor="#FFFFFF"
                             android:textSize="16sp"
                             android:textStyle="bold"
+                            android:gravity="center"
                             tools:text="0.74" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

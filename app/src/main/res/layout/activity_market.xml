@@ -549,6 +549,47 @@
                             app:tint="#2D6A4F" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:id="@+id/tvMarketTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:id="@+id/btnPrevMarket"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:importantForAccessibility="no"
+                            android:padding="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/round_arrow_forward_ios_24"
+                            android:rotation="180"
+                            app:tint="#2D6A4F" />
+
+                        <TextView
+                            android:id="@+id/tvMarketName"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="Mumbai APMC"
+                            android:textColor="#555555"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/btnNextMarket"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:importantForAccessibility="no" android:padding="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/round_arrow_forward_ios_24"
+                            app:tint="#2D6A4F" />
+                    </LinearLayout>
+
                     <TextView
                         android:id="@+id/tvNoData"
                         android:layout_width="match_parent"

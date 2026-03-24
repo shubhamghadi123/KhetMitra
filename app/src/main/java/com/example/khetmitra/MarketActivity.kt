@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,6 +36,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
@@ -69,8 +71,15 @@ class MarketActivity : AppCompatActivity() {
     private lateinit var btnPrevPeriod: ImageView
     private lateinit var btnNextPeriod: ImageView
     private lateinit var tvDateRange: TextView
+    private lateinit var marketTitleLayout: LinearLayout
+    private lateinit var tvMarketName: TextView
+    private lateinit var btnPrevMarket: ImageView
+    private lateinit var btnNextMarket: ImageView
     private var chartEndDate: LocalDate = LocalDate.now()
     private var langCode: String = TranslateLanguage.ENGLISH
+    private var currentMarketIndex = 0
+    private var currentRequestId = 0
+    private var priceHistoryJob: Job? = null
 
     private fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -110,9 +119,13 @@ class MarketActivity : AppCompatActivity() {
         btnFetchPrice    = findViewById(R.id.btnFetchPrice)
         cardPrice        = findViewById(R.id.cardPrice)
         cardGraph        = findViewById(R.id.cardGraph)
-        btnPrevPeriod = findViewById(R.id.btnPrevPeriod)
-        btnNextPeriod = findViewById(R.id.btnNextPeriod)
-        tvDateRange   = findViewById(R.id.tvDateRange)
+        btnPrevPeriod    = findViewById(R.id.btnPrevPeriod)
+        btnNextPeriod    = findViewById(R.id.btnNextPeriod)
+        tvDateRange      = findViewById(R.id.tvDateRange)
+        marketTitleLayout = findViewById(R.id.tvMarketTitle)
+        tvMarketName = findViewById(R.id.tvMarketName)
+        btnPrevMarket = findViewById(R.id.btnPrevMarket)
+        btnNextMarket = findViewById(R.id.btnNextMarket)
 
         setupChartAppearance()
         dropdownDistrict.isEnabled = false
@@ -133,11 +146,13 @@ class MarketActivity : AppCompatActivity() {
             chartEndDate = LocalDate.now()
             if (selectedMarketId == -1) {
                 isDistrictMode = true
+                marketTitleLayout.visibility = View.VISIBLE
                 cardPrice.visibility = View.GONE
                 cardGraph.visibility = View.VISIBLE
                 loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly, isDistrictLevel = true)
             } else {
                 isDistrictMode = false
+                marketTitleLayout.visibility = View.GONE
                 cardPrice.visibility = View.VISIBLE
                 cardGraph.visibility = View.VISIBLE
                 refreshPriceData()
@@ -146,18 +161,46 @@ class MarketActivity : AppCompatActivity() {
 
         btnPrevPeriod.setOnClickListener {
             val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
-            chartEndDate = if (isWeekly) chartEndDate.minusDays(7) else chartEndDate.minusMonths(12)
+            chartEndDate = if (isWeekly)
+                chartEndDate.minusDays(7)
+            else
+                chartEndDate.minusMonths(12)
             loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
         }
 
         btnNextPeriod.setOnClickListener {
             val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
-            chartEndDate = if (isWeekly) chartEndDate.plusDays(7) else chartEndDate.plusMonths(12)
-
+            chartEndDate = if (isWeekly)
+                chartEndDate.plusDays(7)
+            else
+                chartEndDate.plusMonths(12)
             if (chartEndDate.isAfter(LocalDate.now())) {
                 chartEndDate = LocalDate.now()
             }
             loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
+        }
+
+        btnPrevMarket.setOnClickListener {
+            if (isDistrictMode && allMarkets.isNotEmpty()) {
+                currentMarketIndex =
+                    if (currentMarketIndex > 0) currentMarketIndex - 1
+                    else allMarkets.size - 1
+                loadPriceHistory(
+                    toggleGroup.checkedButtonId == R.id.btnWeekly,
+                    true
+                )
+            }
+        }
+
+        btnNextMarket.setOnClickListener {
+            if (isDistrictMode && allMarkets.isNotEmpty()) {
+                currentMarketIndex =
+                    (currentMarketIndex + 1) % allMarkets.size
+                loadPriceHistory(
+                    toggleGroup.checkedButtonId == R.id.btnWeekly,
+                    true
+                )
+            }
         }
 
         if (langCode != TranslateLanguage.ENGLISH) {
@@ -187,11 +230,7 @@ class MarketActivity : AppCompatActivity() {
     private fun validateFetchButton() {
         val isReady = selectedCropId != -1 && selectedStateId != -1 && selectedDistrictId != -1
         btnFetchPrice.isEnabled = isReady
-        if (isReady) {
-            btnFetchPrice.setBackgroundColor("#2D6A4F".toColorInt())
-        } else {
-            btnFetchPrice.setBackgroundColor("#A8D5B5".toColorInt())
-        }
+        btnFetchPrice.setBackgroundColor(if (isReady) "#2D6A4F".toColorInt() else "#A8D5B5".toColorInt())
     }
 
     private fun requestLocationPermission() {
@@ -325,19 +364,12 @@ class MarketActivity : AppCompatActivity() {
 
             val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 allDistricts.map { district ->
-                    val rawName = district.districtName
-                    val manualTranslation = t(rawName)
-
+                    val manualTranslation = t(district.districtName)
                     if (langCode != TranslateLanguage.ENGLISH &&
                         Regex("[a-zA-Z]").containsMatchIn(manualTranslation)) {
-                        try {
-                            client.translate(manualTranslation).await()
-                        } catch (_: Exception) {
-                            manualTranslation
-                        }
-                    } else {
-                        manualTranslation
-                    }
+                        try { client.translate(manualTranslation).await() }
+                        catch (_: Exception) { manualTranslation }
+                    } else manualTranslation
                 }
             }
 
@@ -345,6 +377,7 @@ class MarketActivity : AppCompatActivity() {
                 dropdownDistrict.applyCustomDropdownStyle(translatedNames)
                 dropdownDistrict.isEnabled = true
                 dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
+                    currentMarketIndex = 0
                     selectedDistrictId = allDistricts[pos].districtId
                     selectedMarketId   = -1
                     dropdownMarket.setText("", false)
@@ -378,20 +411,15 @@ class MarketActivity : AppCompatActivity() {
                 .setTargetLanguage(langCode)
                 .build()
             val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+
             val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 allMarkets.map { market ->
-                    val rawName = market.marketName
-                    val manualTranslation = t(rawName)
+                    val manualTranslation = t(market.marketName)
                     if (langCode != TranslateLanguage.ENGLISH &&
                         Regex("[a-zA-Z]").containsMatchIn(manualTranslation)) {
-                        try {
-                            client.translate(manualTranslation).await()
-                        } catch (_: Exception) {
-                            manualTranslation
-                        }
-                    } else {
-                        manualTranslation
-                    }
+                        try { client.translate(manualTranslation).await() }
+                        catch (_: Exception) { manualTranslation }
+                    } else manualTranslation
                 }
             }
 
@@ -415,8 +443,8 @@ class MarketActivity : AppCompatActivity() {
             allCrops = SupabaseManager.client
                 .postgrest["crops"]
                 .select {
-                    filter { eq("status", 1)}
-                    filter { eq("crop_group_id", 1)}
+                    filter { eq("status", 1) }
+                    filter { eq("crop_group_id", 1) }
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
@@ -460,13 +488,12 @@ class MarketActivity : AppCompatActivity() {
                     tvPriceUnit.text  = ""
                 } else {
                     showNoData(false)
-                    val targetDayData = results.first()
-                    tvPriceValue.text = "₹ ${d(targetDayData.modalPrice.toInt())}"
-                    tvMinPrice.text   = "₹ ${d(targetDayData.minPrice.toInt())}"
-                    tvMaxPrice.text   = "₹ ${d(targetDayData.maxPrice.toInt())}"
-                    tvPriceUnit.text  = "/ ${t(targetDayData.priceUnit)}"
-                    val formattedDate = formatDateWithYear(targetDayData.priceDate)
-                    tvPriceDate.text = "${t("Price as of")} $formattedDate"
+                    val row = results.first()
+                    tvPriceValue.text = "₹ ${d(row.modalPrice.toInt())}"
+                    tvMinPrice.text   = "₹ ${d(row.minPrice.toInt())}"
+                    tvMaxPrice.text   = "₹ ${d(row.maxPrice.toInt())}"
+                    tvPriceUnit.text  = "/ ${t(row.priceUnit)}"
+                    tvPriceDate.text  = "${t("Price as of")} ${formatDateWithYear(row.priceDate)}"
 
                     loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly, isDistrictLevel = false)
                 }
@@ -485,31 +512,49 @@ class MarketActivity : AppCompatActivity() {
             return
         }
 
-        val endDate = chartEndDate
+        currentRequestId++
+        val requestId = currentRequestId
+        val endDate  = chartEndDate
         val fromDate = if (isWeekly) endDate.minusDays(6) else endDate.minusMonths(12)
 
-        tvDateRange.text = "${formatDateShort(fromDate.toString())} - ${formatDateShort(endDate.toString())}"
-
-        if (endDate.isEqual(LocalDate.now()) || endDate.isAfter(LocalDate.now())) {
-            btnNextPeriod.alpha = 0.3f
-            btnNextPeriod.isEnabled = false
+        if (isWeekly) {
+            tvDateRange.text = "${formatDateShort(fromDate.toString())} - ${formatDateShort(endDate.toString())}"
         } else {
-            btnNextPeriod.alpha = 1.0f
-            btnNextPeriod.isEnabled = true
+            tvDateRange.text = "${d(fromDate.year)} - ${d(endDate.year)}"
         }
 
-        lifecycleScope.launch {
+        btnNextPeriod.alpha     = if (endDate >= LocalDate.now()) 0.3f else 1.0f
+        btnNextPeriod.isEnabled = endDate < LocalDate.now()
+
+        priceHistoryJob?.cancel()
+
+        lineChart.clear()
+        lineChart.fitScreen()
+        lineChart.invalidate()
+        showNoData(false)
+
+        priceHistoryJob = lifecycleScope.launch {
             try {
-                var rows = SupabaseManager.client
+                val marketIdToUse = if (isDistrictLevel) {
+                    allMarkets.getOrNull(currentMarketIndex)?.marketId ?: return@launch
+                } else {
+                    selectedMarketId
+                }
+
+                val marketName = if (isDistrictLevel) {
+                    allMarkets.getOrNull(currentMarketIndex)?.marketName ?: ""
+                } else {
+                    allMarkets.find { it.marketId == selectedMarketId }?.marketName ?: ""
+                }
+
+                tvMarketName.text = "${t(marketName)} (${currentMarketIndex + 1}/${allMarkets.size})"
+
+                val rows = SupabaseManager.client
                     .postgrest["crop_price"]
                     .select {
                         filter {
                             eq("crop_id", selectedCropId)
-                            if (isDistrictLevel) {
-                                isIn("market_id", allMarkets.map { it.marketId })
-                            } else {
-                                eq("market_id", selectedMarketId)
-                            }
+                            eq("market_id", marketIdToUse)
                             gte("price_date", fromDate.toString())
                             lte("price_date", endDate.toString())
                         }
@@ -517,100 +562,65 @@ class MarketActivity : AppCompatActivity() {
                     }
                     .decodeList<CropPriceRow>()
 
-                if (rows.isEmpty() && !isDistrictLevel) {
-                    rows = SupabaseManager.client
-                        .postgrest["crop_price"]
-                        .select {
-                            filter {
-                                eq("market_id", selectedMarketId)
-                                eq("crop_id", selectedCropId)
-                                lte("price_date", endDate.toString())
-                            }
-                            order("price_date", Order.DESCENDING)
-                            limit(if (isWeekly) 7 else 365)
-                        }
-                        .decodeList<CropPriceRow>()
-                        .reversed()
+                if (requestId != currentRequestId) return@launch
+
+                val filteredRows = rows.filter {
+                    val date = LocalDate.parse(it.priceDate)
+                    !date.isBefore(fromDate) && !date.isAfter(endDate)
                 }
 
-                if (rows.isEmpty()) {
+                if (filteredRows.isEmpty()) {
                     showNoData(true)
                     return@launch
                 }
 
-                val groupedByDateStr = if (isWeekly) {
-                    rows.groupBy { it.priceDate }.toSortedMap()
+                val grouped = if (isWeekly) {
+                    filteredRows.groupBy { it.priceDate }.toSortedMap()
                 } else {
-                    rows.groupBy { it.priceDate.substring(0, 7) }.toSortedMap()
+                    filteredRows.groupBy { it.priceDate.substring(0, 7) }.toSortedMap()
                 }
 
                 val labels = ArrayList<String>()
-                val dateToIndexMap = HashMap<String, Float>()
+                val entries = ArrayList<Entry>()
+
                 var xIndex = 0f
 
-                for ((dateStr, _) in groupedByDateStr) {
-                    labels.add(if (isWeekly) formatDateShort(dateStr) else formatMonthShort("$dateStr-01"))
-                    dateToIndexMap[dateStr] = xIndex
+                for ((dateStr, dayRows) in grouped) {
+
+                    if (isWeekly) {
+                        labels.add(formatDateShort(dateStr))
+                    } else {
+                        labels.add(formatMonthYear("$dateStr-01"))
+                    }
+
+                    val avg = dayRows.map { it.modalPrice }.average().toFloat()
+                    entries.add(Entry(xIndex, avg))
+
                     xIndex++
                 }
 
-                val dataSets = ArrayList<ILineDataSet>()
+                if (requestId != currentRequestId) return@launch
 
-                if (isDistrictLevel) {
-                    val rowsByMarket = rows.groupBy { it.marketId }
-                    val colors = listOf("#52B788", "#1E6091", "#D9ED92", "#184E77", "#34A0A4", "#76C893")
-                    var colorIdx = 0
-
-                    for ((marketId, marketRows) in rowsByMarket) {
-                        val entries = ArrayList<Entry>()
-                        val marketGroupedByDate = if (isWeekly) marketRows.groupBy { it.priceDate } else marketRows.groupBy { it.priceDate.substring(0, 7) }
-
-                        for ((dateStr, dayRows) in marketGroupedByDate) {
-                            val avgPrice = dayRows.map { it.modalPrice }.average().toFloat()
-                            val mappedX = dateToIndexMap[dateStr] ?: 0f
-                            entries.add(Entry(mappedX, avgPrice))
-                        }
-
-                        val marketName = allMarkets.find { it.marketId == marketId }?.marketName ?: "Unknown"
-
-                        val dataSet = LineDataSet(entries, t(marketName)).apply {
-                            mode = LineDataSet.Mode.CUBIC_BEZIER
-                            val lineColor = colors[colorIdx % colors.size].toColorInt()
-                            color = lineColor
-                            setCircleColor(lineColor)
-                            lineWidth = 2.5f
-                            circleRadius = 4f
-                            setDrawValues(false)
-                            setDrawFilled(false)
-                        }
-                        dataSets.add(dataSet)
-                        colorIdx++
-                    }
-                } else {
-                    val entries = ArrayList<Entry>()
-                    for ((dateStr, dayRows) in groupedByDateStr) {
-                        val avgPrice = dayRows.map { it.modalPrice }.average().toFloat()
-                        val mappedX = dateToIndexMap[dateStr] ?: 0f
-                        entries.add(Entry(mappedX, avgPrice))
-                    }
-
-                    val dataSet = LineDataSet(entries, "Price").apply {
-                        mode = LineDataSet.Mode.CUBIC_BEZIER
-                        color = "#52B788".toColorInt()
-                        setCircleColor("#2D6A4F".toColorInt())
-                        lineWidth = 3f
-                        circleRadius = 4f
-                        setDrawValues(false)
-                        setDrawFilled(true)
-                        fillColor = "#A8D5B5".toColorInt()
-                        fillAlpha = 60
-                    }
-                    dataSets.add(dataSet)
+                val dataSet = LineDataSet(entries, "Price").apply {
+                    mode = LineDataSet.Mode.CUBIC_BEZIER
+                    color = "#52B788".toColorInt()
+                    setCircleColor("#2D6A4F".toColorInt())
+                    lineWidth = 3f
+                    circleRadius = 4f
+                    setDrawValues(false)
+                    setDrawFilled(true)
+                    fillColor = "#A8D5B5".toColorInt()
+                    fillAlpha = 60
                 }
+
+                if (requestId != currentRequestId) return@launch
+
                 showNoData(false)
                 lineChart.fitScreen()
-                updateChart(dataSets, labels, isWeekly)
+                updateChart(listOf(dataSet), labels, isWeekly)
+
             } catch (e: Exception) {
+                if (requestId != currentRequestId) return@launch
                 Log.e("Market", "loadPriceHistory failed: ${e.message}")
                 showNoData(true)
             }
@@ -619,14 +629,14 @@ class MarketActivity : AppCompatActivity() {
 
     private fun setupChartAppearance() {
         lineChart.description.isEnabled = false
-        lineChart.legend.isEnabled = false
-
+        lineChart.legend.isEnabled      = false
         lineChart.setTouchEnabled(true)
-        lineChart.isDragEnabled = true
+        lineChart.isDragEnabled         = true
         lineChart.setScaleEnabled(true)
         lineChart.setPinchZoom(true)
         lineChart.isDoubleTapToZoomEnabled = false
 
+        lineChart.xAxis.labelRotationAngle = -45f
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
@@ -647,31 +657,24 @@ class MarketActivity : AppCompatActivity() {
     private fun updateChart(dataSets: List<ILineDataSet>, labels: ArrayList<String>, isWeekly: Boolean) {
         lineChart.xAxis.apply {
             valueFormatter = IndexAxisValueFormatter(labels)
-            granularity = 1f
-            labelCount  = labels.size
+            granularity    = 1f
+            labelCount     = labels.size
         }
-
         lineChart.legend.apply {
-            isEnabled = dataSets.size > 1
+            isEnabled        = dataSets.size > 1
             isWordWrapEnabled = true
-            textColor = "#555555".toColorInt()
-            textSize = 12f
+            textColor        = "#555555".toColorInt()
+            textSize         = 12f
         }
-
         lineChart.data = LineData(dataSets)
-
-        if (isWeekly) {
-            lineChart.setVisibleXRangeMaximum(7f)
-        } else {
-            lineChart.setVisibleXRangeMaximum(12f)
-        }
-
+        lineChart.setVisibleXRangeMaximum(if (isWeekly) 7f else 12f)
         lineChart.moveViewToX(labels.size.toFloat())
         lineChart.animateX(500)
         lineChart.invalidate()
     }
 
     private fun clearPriceUI() {
+        priceHistoryJob?.cancel()
         cardPrice.visibility = View.GONE
         cardGraph.visibility = View.GONE
         tvPriceValue.text = "₹ --"
@@ -698,11 +701,16 @@ class MarketActivity : AppCompatActivity() {
         } catch (_: Exception) { date }
     }
 
-    private fun formatMonthShort(date: String): String {
+    private fun formatMonthYear(date: String): String {
         return try {
-            val m = listOf("","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-            t(m[date.split("-")[1].toInt()])
-        } catch (_: Exception) { date }
+            val parts = date.split("-")
+            val year = parts[0]
+            val month = parts[1].toInt()
+            val months = listOf("", "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+            "${t(months[month])} ${d(year)}"
+        } catch (_: Exception) {
+            date
+        }
     }
 
     private fun formatDateWithYear(date: String): String {
