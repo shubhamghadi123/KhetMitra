@@ -36,9 +36,11 @@ import com.google.android.material.card.MaterialCardView
 import com.google.mlkit.nl.translate.TranslateLanguage
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.Locale
 
@@ -49,11 +51,8 @@ class MarketActivity : AppCompatActivity() {
     private var allDistricts: List<DistrictRow> = emptyList()
     private var allMarkets: List<MarketRow> = emptyList()
     private var allCrops: List<CropRow> = emptyList()
-
-    // NEW: Memory cache for district markets with actual data
     private var activeDistrictMarkets: List<MarketRow> = emptyList()
     private var districtPriceData: Map<Int, List<CropPriceRow>> = emptyMap()
-
     private var selectedStateId: Int = -1
     private var selectedDistrictId: Int = -1
     private var selectedMarketId: Int = -1
@@ -149,7 +148,7 @@ class MarketActivity : AppCompatActivity() {
 
         btnFetchPrice.setOnClickListener {
             chartEndDate = LocalDate.now()
-            currentMarketIndex = 0 // IMPORTANT: Reset to first market when fetching new data
+            currentMarketIndex = 0
 
             if (selectedMarketId == -1) {
                 isDistrictMode = true
@@ -181,7 +180,6 @@ class MarketActivity : AppCompatActivity() {
             loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
         }
 
-        // UPGRADED: Instantly draw the chart from memory instead of hitting the database!
         btnPrevMarket.setOnClickListener {
             if (isDistrictMode && activeDistrictMarkets.isNotEmpty()) {
                 currentMarketIndex = if (currentMarketIndex > 0) currentMarketIndex - 1 else activeDistrictMarkets.size - 1
@@ -371,7 +369,7 @@ class MarketActivity : AppCompatActivity() {
                 .build()
             val client = com.google.mlkit.nl.translate.Translation.getClient(options)
 
-            val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val translatedNames = withContext(Dispatchers.IO) {
                 allDistricts.map { district ->
                     val manualTranslation = t(district.districtName)
                     if (langCode != TranslateLanguage.ENGLISH &&
@@ -382,7 +380,7 @@ class MarketActivity : AppCompatActivity() {
                 }
             }
 
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            withContext(Dispatchers.Main) {
                 dropdownDistrict.applyCustomDropdownStyle(translatedNames)
                 dropdownDistrict.isEnabled = true
                 dropdownDistrict.setOnItemClickListener { _, _, pos, _ ->
@@ -421,7 +419,7 @@ class MarketActivity : AppCompatActivity() {
                 .build()
             val client = com.google.mlkit.nl.translate.Translation.getClient(options)
 
-            val translatedNames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val translatedNames = withContext(Dispatchers.IO) {
                 allMarkets.map { market ->
                     val manualTranslation = t(market.marketName)
                     if (langCode != TranslateLanguage.ENGLISH &&
@@ -432,7 +430,7 @@ class MarketActivity : AppCompatActivity() {
                 }
             }
 
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            withContext(Dispatchers.Main) {
                 dropdownMarket.applyCustomDropdownStyle(translatedNames)
                 dropdownMarket.isEnabled = true
                 dropdownMarket.setOnItemClickListener { _, _, pos, _ ->
@@ -513,7 +511,6 @@ class MarketActivity : AppCompatActivity() {
         }
     }
 
-    // UPGRADED: Now fetches all data at once and intelligently filters out empty markets
     @SuppressLint("SetTextI18n")
     private fun loadPriceHistory(isWeekly: Boolean, isDistrictLevel: Boolean = false) {
         if (selectedCropId == -1) return
@@ -545,7 +542,6 @@ class MarketActivity : AppCompatActivity() {
 
         priceHistoryJob = lifecycleScope.launch {
             try {
-                // Fetch ALL relevant markets in one powerful query
                 val rows = if (isDistrictLevel) {
                     val marketIds = allMarkets.map { it.marketId }
                     if (marketIds.isEmpty()) return@launch
@@ -584,10 +580,7 @@ class MarketActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // Group the data by market so it's ready in memory
                 districtPriceData = filteredRows.groupBy { it.marketId }
-
-                // The Magic: Filter our master list to ONLY include markets that successfully returned data!
                 activeDistrictMarkets = if (isDistrictLevel) {
                     allMarkets.filter { districtPriceData.containsKey(it.marketId) }
                 } else {
@@ -600,12 +593,9 @@ class MarketActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // Safety: Reset index if the date changed and fewer markets have data
                 if (currentMarketIndex >= activeDistrictMarkets.size) {
                     currentMarketIndex = 0
                 }
-
-                // Call the new drawing function
                 drawChartForCurrentMarket(isWeekly)
 
             } catch (e: Exception) {
@@ -616,7 +606,6 @@ class MarketActivity : AppCompatActivity() {
         }
     }
 
-    // NEW: Instantly draw charts from memory for the currently selected valid market
     @SuppressLint("SetTextI18n")
     private fun drawChartForCurrentMarket(isWeekly: Boolean) {
         if (activeDistrictMarkets.isEmpty()) {
@@ -627,8 +616,28 @@ class MarketActivity : AppCompatActivity() {
         val currentMarket = activeDistrictMarkets[currentMarketIndex]
         val marketRows = districtPriceData[currentMarket.marketId] ?: emptyList()
 
-        // Update the header to perfectly reflect the number of VALID markets (e.g., 2/2 instead of 2/6)
-        tvMarketName.text = "${t(currentMarket.marketName)} (${currentMarketIndex + 1}/${activeDistrictMarkets.size})"
+        val rawName = currentMarket.marketName
+        val countText = "(${d(currentMarketIndex + 1)}/${d(activeDistrictMarkets.size)})"
+
+        tvMarketName.text = "${t(rawName)} $countText"
+        if (langCode != TranslateLanguage.ENGLISH && Regex("[a-zA-Z]").containsMatchIn(rawName)) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+                        .setSourceLanguage(TranslateLanguage.ENGLISH)
+                        .setTargetLanguage(langCode)
+                        .build()
+                    val client = com.google.mlkit.nl.translate.Translation.getClient(options)
+                    val translatedName = client.translate(rawName).await()
+                    withContext(Dispatchers.Main) {
+                        tvMarketName.text = "$translatedName $countText"
+                    }
+                    client.close()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
 
         if (marketRows.isEmpty()) {
             showNoData(true)
@@ -682,17 +691,21 @@ class MarketActivity : AppCompatActivity() {
         lineChart.setScaleEnabled(true)
         lineChart.setPinchZoom(true)
         lineChart.isDoubleTapToZoomEnabled = false
+        lineChart.clipToPadding = false
 
         lineChart.xAxis.labelRotationAngle = -45f
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             textColor = "#555555".toColorInt()
+            setAvoidFirstLastClipping(true)
         }
         lineChart.axisLeft.apply {
             setDrawGridLines(true)
             gridColor = "#E8EDE0".toColorInt()
             textColor = "#555555".toColorInt()
+            spaceTop = 15f
+            spaceBottom = 15f
         }
         lineChart.axisRight.isEnabled = false
 
