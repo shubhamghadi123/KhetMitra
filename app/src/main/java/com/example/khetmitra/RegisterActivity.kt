@@ -1,6 +1,7 @@
 package com.example.khetmitra
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -343,26 +344,58 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    @Suppress("DEPRECATION")
+    @SuppressLint("MissingPermission")
     private fun fetchLocationAndAutoSelectState() {
         if (locationAutoSelectDone || stateList.isEmpty()) return
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+
+        val cts = com.google.android.gms.tasks.CancellationTokenSource()
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            cts.token
+        ).addOnSuccessListener { location ->
+            if (location != null) {
+                processLocationForState(location)
+            } else {
+                getLastKnownLocationForState()
+            }
+        }.addOnFailureListener {
+            getLastKnownLocationForState()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastKnownLocationForState() {
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val addresses = Geocoder(this@RegisterActivity, Locale.getDefault()).getFromLocation(location.latitude, location.longitude, 1)
-                        if (!addresses.isNullOrEmpty()) {
-                            val detectedState = addresses[0].adminArea
-                            if (detectedState != null) {
-                                withContext(Dispatchers.Main) {
-                                    selectStateInSpinner(detectedState)
-                                    locationAutoSelectDone = true
-                                }
-                            }
+                processLocationForState(location)
+            }
+        }.addOnFailureListener {
+            Log.e("RegisterActivity", "Both current and last location failed.")
+        }
+    }
+
+    private fun processLocationForState(location: android.location.Location) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val addresses = Geocoder(this@RegisterActivity, Locale.getDefault())
+                    .getFromLocation(location.latitude, location.longitude, 1)
+
+                if (!addresses.isNullOrEmpty()) {
+                    val detectedState = addresses[0].adminArea
+                    if (detectedState != null) {
+                        withContext(Dispatchers.Main) {
+                            selectStateInSpinner(detectedState)
+                            locationAutoSelectDone = true
                         }
-                    } catch (e: Exception) { Log.e("RegisterActivity", "Geocoder failed: ${e.message}") }
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("RegisterActivity", "Geocoder failed: ${e.message}")
             }
         }
     }

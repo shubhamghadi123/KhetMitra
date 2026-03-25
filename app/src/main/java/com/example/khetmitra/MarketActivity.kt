@@ -49,6 +49,11 @@ class MarketActivity : AppCompatActivity() {
     private var allDistricts: List<DistrictRow> = emptyList()
     private var allMarkets: List<MarketRow> = emptyList()
     private var allCrops: List<CropRow> = emptyList()
+
+    // NEW: Memory cache for district markets with actual data
+    private var activeDistrictMarkets: List<MarketRow> = emptyList()
+    private var districtPriceData: Map<Int, List<CropPriceRow>> = emptyMap()
+
     private var selectedStateId: Int = -1
     private var selectedDistrictId: Int = -1
     private var selectedMarketId: Int = -1
@@ -144,6 +149,8 @@ class MarketActivity : AppCompatActivity() {
 
         btnFetchPrice.setOnClickListener {
             chartEndDate = LocalDate.now()
+            currentMarketIndex = 0 // IMPORTANT: Reset to first market when fetching new data
+
             if (selectedMarketId == -1) {
                 isDistrictMode = true
                 marketTitleLayout.visibility = View.VISIBLE
@@ -161,45 +168,31 @@ class MarketActivity : AppCompatActivity() {
 
         btnPrevPeriod.setOnClickListener {
             val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
-            chartEndDate = if (isWeekly)
-                chartEndDate.minusDays(7)
-            else
-                chartEndDate.minusMonths(12)
+            chartEndDate = if (isWeekly) chartEndDate.minusDays(7) else chartEndDate.minusMonths(12)
             loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
         }
 
         btnNextPeriod.setOnClickListener {
             val isWeekly = toggleGroup.checkedButtonId == R.id.btnWeekly
-            chartEndDate = if (isWeekly)
-                chartEndDate.plusDays(7)
-            else
-                chartEndDate.plusMonths(12)
+            chartEndDate = if (isWeekly) chartEndDate.plusDays(7) else chartEndDate.plusMonths(12)
             if (chartEndDate.isAfter(LocalDate.now())) {
                 chartEndDate = LocalDate.now()
             }
             loadPriceHistory(isWeekly, isDistrictLevel = isDistrictMode)
         }
 
+        // UPGRADED: Instantly draw the chart from memory instead of hitting the database!
         btnPrevMarket.setOnClickListener {
-            if (isDistrictMode && allMarkets.isNotEmpty()) {
-                currentMarketIndex =
-                    if (currentMarketIndex > 0) currentMarketIndex - 1
-                    else allMarkets.size - 1
-                loadPriceHistory(
-                    toggleGroup.checkedButtonId == R.id.btnWeekly,
-                    true
-                )
+            if (isDistrictMode && activeDistrictMarkets.isNotEmpty()) {
+                currentMarketIndex = if (currentMarketIndex > 0) currentMarketIndex - 1 else activeDistrictMarkets.size - 1
+                drawChartForCurrentMarket(toggleGroup.checkedButtonId == R.id.btnWeekly)
             }
         }
 
         btnNextMarket.setOnClickListener {
-            if (isDistrictMode && allMarkets.isNotEmpty()) {
-                currentMarketIndex =
-                    (currentMarketIndex + 1) % allMarkets.size
-                loadPriceHistory(
-                    toggleGroup.checkedButtonId == R.id.btnWeekly,
-                    true
-                )
+            if (isDistrictMode && activeDistrictMarkets.isNotEmpty()) {
+                currentMarketIndex = (currentMarketIndex + 1) % activeDistrictMarkets.size
+                drawChartForCurrentMarket(toggleGroup.checkedButtonId == R.id.btnWeekly)
             }
         }
 
@@ -249,21 +242,37 @@ class MarketActivity : AppCompatActivity() {
     }
 
     private fun fetchLocation() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
 
         val cts = CancellationTokenSource()
-        fusedLocationClient
-            .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
-            .addOnSuccessListener { location: Location? ->
-                if (location != null) reverseGeocode(location.latitude, location.longitude)
-                else Toast.makeText(this, t("Could not get location. Select manually."), Toast.LENGTH_SHORT).show()
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            cts.token
+        ).addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                reverseGeocode(location.latitude, location.longitude)
+            } else {
+                getLastKnownLocation()
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Location error: ${it.message}", Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener {
+            getLastKnownLocation()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastKnownLocation() {
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                reverseGeocode(location.latitude, location.longitude)
+            } else {
+                Toast.makeText(this, t("Could not get location. Select manually."), Toast.LENGTH_SHORT).show()
             }
+        }.addOnFailureListener {
+            Toast.makeText(this, t("Could not get location. Select manually."), Toast.LENGTH_SHORT).show()
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -504,6 +513,7 @@ class MarketActivity : AppCompatActivity() {
         }
     }
 
+    // UPGRADED: Now fetches all data at once and intelligently filters out empty markets
     @SuppressLint("SetTextI18n")
     private fun loadPriceHistory(isWeekly: Boolean, isDistrictLevel: Boolean = false) {
         if (selectedCropId == -1) return
@@ -535,32 +545,30 @@ class MarketActivity : AppCompatActivity() {
 
         priceHistoryJob = lifecycleScope.launch {
             try {
-                val marketIdToUse = if (isDistrictLevel) {
-                    allMarkets.getOrNull(currentMarketIndex)?.marketId ?: return@launch
-                } else {
-                    selectedMarketId
-                }
-
-                val marketName = if (isDistrictLevel) {
-                    allMarkets.getOrNull(currentMarketIndex)?.marketName ?: ""
-                } else {
-                    allMarkets.find { it.marketId == selectedMarketId }?.marketName ?: ""
-                }
-
-                tvMarketName.text = "${t(marketName)} (${currentMarketIndex + 1}/${allMarkets.size})"
-
-                val rows = SupabaseManager.client
-                    .postgrest["crop_price"]
-                    .select {
+                // Fetch ALL relevant markets in one powerful query
+                val rows = if (isDistrictLevel) {
+                    val marketIds = allMarkets.map { it.marketId }
+                    if (marketIds.isEmpty()) return@launch
+                    SupabaseManager.client.postgrest["crop_price"].select {
                         filter {
                             eq("crop_id", selectedCropId)
-                            eq("market_id", marketIdToUse)
+                            isIn("market_id", marketIds)
                             gte("price_date", fromDate.toString())
                             lte("price_date", endDate.toString())
                         }
                         order("price_date", Order.ASCENDING)
-                    }
-                    .decodeList<CropPriceRow>()
+                    }.decodeList<CropPriceRow>()
+                } else {
+                    SupabaseManager.client.postgrest["crop_price"].select {
+                        filter {
+                            eq("crop_id", selectedCropId)
+                            eq("market_id", selectedMarketId)
+                            gte("price_date", fromDate.toString())
+                            lte("price_date", endDate.toString())
+                        }
+                        order("price_date", Order.ASCENDING)
+                    }.decodeList<CropPriceRow>()
+                }
 
                 if (requestId != currentRequestId) return@launch
 
@@ -570,54 +578,35 @@ class MarketActivity : AppCompatActivity() {
                 }
 
                 if (filteredRows.isEmpty()) {
+                    activeDistrictMarkets = emptyList()
+                    districtPriceData = emptyMap()
                     showNoData(true)
                     return@launch
                 }
 
-                val grouped = if (isWeekly) {
-                    filteredRows.groupBy { it.priceDate }.toSortedMap()
+                // Group the data by market so it's ready in memory
+                districtPriceData = filteredRows.groupBy { it.marketId }
+
+                // The Magic: Filter our master list to ONLY include markets that successfully returned data!
+                activeDistrictMarkets = if (isDistrictLevel) {
+                    allMarkets.filter { districtPriceData.containsKey(it.marketId) }
                 } else {
-                    filteredRows.groupBy { it.priceDate.substring(0, 7) }.toSortedMap()
+                    val m = allMarkets.find { it.marketId == selectedMarketId }
+                    if (m != null) listOf(m) else emptyList()
                 }
 
-                val labels = ArrayList<String>()
-                val entries = ArrayList<Entry>()
-
-                var xIndex = 0f
-
-                for ((dateStr, dayRows) in grouped) {
-
-                    if (isWeekly) {
-                        labels.add(formatDateShort(dateStr))
-                    } else {
-                        labels.add(formatMonthYear("$dateStr-01"))
-                    }
-
-                    val avg = dayRows.map { it.modalPrice }.average().toFloat()
-                    entries.add(Entry(xIndex, avg))
-
-                    xIndex++
+                if (activeDistrictMarkets.isEmpty()) {
+                    showNoData(true)
+                    return@launch
                 }
 
-                if (requestId != currentRequestId) return@launch
-
-                val dataSet = LineDataSet(entries, "Price").apply {
-                    mode = LineDataSet.Mode.CUBIC_BEZIER
-                    color = "#52B788".toColorInt()
-                    setCircleColor("#2D6A4F".toColorInt())
-                    lineWidth = 3f
-                    circleRadius = 4f
-                    setDrawValues(false)
-                    setDrawFilled(true)
-                    fillColor = "#A8D5B5".toColorInt()
-                    fillAlpha = 60
+                // Safety: Reset index if the date changed and fewer markets have data
+                if (currentMarketIndex >= activeDistrictMarkets.size) {
+                    currentMarketIndex = 0
                 }
 
-                if (requestId != currentRequestId) return@launch
-
-                showNoData(false)
-                lineChart.fitScreen()
-                updateChart(listOf(dataSet), labels, isWeekly)
+                // Call the new drawing function
+                drawChartForCurrentMarket(isWeekly)
 
             } catch (e: Exception) {
                 if (requestId != currentRequestId) return@launch
@@ -625,6 +614,64 @@ class MarketActivity : AppCompatActivity() {
                 showNoData(true)
             }
         }
+    }
+
+    // NEW: Instantly draw charts from memory for the currently selected valid market
+    @SuppressLint("SetTextI18n")
+    private fun drawChartForCurrentMarket(isWeekly: Boolean) {
+        if (activeDistrictMarkets.isEmpty()) {
+            showNoData(true)
+            return
+        }
+
+        val currentMarket = activeDistrictMarkets[currentMarketIndex]
+        val marketRows = districtPriceData[currentMarket.marketId] ?: emptyList()
+
+        // Update the header to perfectly reflect the number of VALID markets (e.g., 2/2 instead of 2/6)
+        tvMarketName.text = "${t(currentMarket.marketName)} (${currentMarketIndex + 1}/${activeDistrictMarkets.size})"
+
+        if (marketRows.isEmpty()) {
+            showNoData(true)
+            return
+        }
+
+        val grouped = if (isWeekly) {
+            marketRows.groupBy { it.priceDate }.toSortedMap()
+        } else {
+            marketRows.groupBy { it.priceDate.substring(0, 7) }.toSortedMap()
+        }
+
+        val labels = ArrayList<String>()
+        val entries = ArrayList<Entry>()
+        var xIndex = 0f
+
+        for ((dateStr, dayRows) in grouped) {
+            if (isWeekly) {
+                labels.add(formatDateShort(dateStr))
+            } else {
+                labels.add(formatMonthYear("$dateStr-01"))
+            }
+            val avg = dayRows.map { it.modalPrice }.average().toFloat()
+            entries.add(Entry(xIndex, avg))
+            xIndex++
+        }
+
+        val dataSet = LineDataSet(entries, "Price").apply {
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            color = "#52B788".toColorInt()
+            setCircleColor("#2D6A4F".toColorInt())
+            lineWidth = 3f
+            circleRadius = 4f
+            setDrawValues(false)
+            setDrawFilled(true)
+            fillColor = "#A8D5B5".toColorInt()
+            fillAlpha = 60
+        }
+
+        lineChart.clear()
+        lineChart.fitScreen()
+        showNoData(false)
+        updateChart(listOf(dataSet), labels, isWeekly)
     }
 
     private fun setupChartAppearance() {
