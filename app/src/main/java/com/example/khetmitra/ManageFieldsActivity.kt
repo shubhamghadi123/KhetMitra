@@ -45,6 +45,7 @@ class ManageFieldsActivity : AppCompatActivity() {
     private lateinit var ivHeaderEditIcon: ImageView
     private var cropOptions: List<String> = listOf("Not Selected")
     private var translatedCropOptionsList: List<String> = emptyList()
+    private val translatedFarmNames = mutableMapOf<String, String>()
 
     fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -169,6 +170,21 @@ class ManageFieldsActivity : AppCompatActivity() {
                 val fetchedFarms = SupabaseManager.client.postgrest["farms"]
                     .select { filter { eq("farmer_id", user.id) } }
                     .decodeList<FarmEntry>()
+
+                fetchedFarms.map { farm ->
+                    async {
+                        val rawName = farm.name ?: ""
+                        val farmId = farm.id ?: ""
+
+                        if (rawName.matches(Regex("Farm \\d+"))) {
+                            val num = rawName.substringAfter("Farm ")
+                            translatedFarmNames[farmId] = "${t("Farm")} ${d(num)}"
+                        } else {
+                            translatedFarmNames[farmId] = translateDynamicText(rawName)
+                        }
+                    }
+                }.awaitAll()
+
                 withContext(Dispatchers.Main) {
                     farmsList.clear()
                     farmsList.addAll(fetchedFarms)
@@ -336,11 +352,7 @@ class ManageFieldsActivity : AppCompatActivity() {
                 holder.layoutFieldSize.suffixText = null
             }
             // Field name
-            val rawName = field.name ?: "Farm ${position + 1}"
-            val isAutoName = rawName.matches(Regex("Farm \\d+"))
-            val translatedName = if (isAutoName) {
-                "${t("Farm")} ${d(rawName.substringAfter("Farm "))}"
-            } else t(rawName)
+            val translatedName = translatedFarmNames[field.id] ?: field.name ?: "Unknown"
             holder.tvSoilType.setText(t(field.soil_type))
             holder.layoutFieldSize.hint = t("Field Size")
             holder.layoutSoilType.hint = t("Soil Type")
@@ -411,8 +423,9 @@ class ManageFieldsActivity : AppCompatActivity() {
                         val selectedCrop = if (matchIndex != -1) cropOptions[matchIndex] else "Not Selected"
                         val newNameNative = holder.etFieldName.text.toString().takeIf { it.isNotBlank() } ?: translatedName
                         Toast.makeText(this@ManageFieldsActivity, t("Saving..."), Toast.LENGTH_SHORT).show()
+                        translatedFarmNames[field.id!!] = newNameNative
                         translateToEnglish(newNameNative, langCode) { englishName ->
-                            updateFieldInDatabase(field.id!!, englishName, field.soil_type, selectedCrop, holder.adapterPosition) {
+                            updateFieldInDatabase(field.id, englishName, field.soil_type, selectedCrop, holder.adapterPosition) {
                                 editingRows.remove(field.id)
                             }
                         }

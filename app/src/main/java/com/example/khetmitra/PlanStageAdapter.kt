@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.graphics.toColorInt // 👉 Make sure this is imported!
 import androidx.recyclerview.widget.RecyclerView
 import com.google.mlkit.nl.translate.TranslateLanguage
 
@@ -22,8 +23,20 @@ class PlanStageAdapter(
 
     private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
 
+    private fun getStyleForStage(stageNumber: Int): Pair<Int, Int> {
+        return when (stageNumber) {
+            1 -> Pair(R.drawable.ic_tractor, "#D28F6B".toColorInt()) // Soil Prep (Brown)
+            2 -> Pair(R.drawable.ic_seeds, "#74A582".toColorInt())   // Sowing (Green)
+            3 -> Pair(R.drawable.round_water_drop_24, "#6FA7C7".toColorInt()) // Watering (Blue)
+            4 -> Pair(R.drawable.ic_fertilizer, "#74A582".toColorInt()) // Fertilizer (Green)
+            5 -> Pair(R.drawable.round_bug_report_24, "#E57373".toColorInt()) // Pests (Red)
+            else -> Pair(R.drawable.ic_harvest, "#DDA255".toColorInt()) // Harvest/Storage (Gold)
+        }
+    }
+
     class StageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val ivStageIcon: ImageView = view.findViewById(R.id.ivStageIcon)
+        val cardIconBg: com.google.android.material.card.MaterialCardView = view.findViewById(R.id.cardIconBg)
         val tvStageTitle: TextView = view.findViewById(R.id.tvStageTitle)
         val tvStageSub: TextView = view.findViewById(R.id.tvStageSub)
     }
@@ -37,29 +50,19 @@ class PlanStageAdapter(
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: StageViewHolder, position: Int) {
         val stage = stages[position]
-        holder.ivStageIcon.setImageResource(if (stage.iconRes != 0) stage.iconRes else android.R.drawable.ic_menu_info_details)
-        if (stage.cardColor != 0) {
-            holder.ivStageIcon.setColorFilter(stage.cardColor)
-        }
+        val (iconRes, baseColor) = getStyleForStage(stage.stageNumber)
+        val lightColor = androidx.core.graphics.ColorUtils.blendARGB(baseColor, android.graphics.Color.WHITE, 0.85f)
 
-        val safeTitles = arrayOf(
-            stage.stageTitle,
-            t("1. Soil Preparation"),
-            t("2. Sowing & Planting"),
-            t("3. Crop Maintenance"),
-            t("4. Fertilizing & Irrigation"),
-            t("5. Harvesting")
-        )
-        holder.tvStageTitle.text = if (stage.stageNumber in 1..5) safeTitles[stage.stageNumber] else stage.stageTitle
+        holder.ivStageIcon.setImageResource(iconRes)
+        holder.ivStageIcon.setColorFilter(baseColor)
+        holder.cardIconBg.setCardBackgroundColor(lightColor)
+        holder.tvStageTitle.text = stage.stageTitle
 
         val durationLabel = t("Duration")
-        val effortLabel = t("Effort")
         val localDaysValue = d(stage.durationInDays)
         val localDaysLabel = t("days")
-        val pillDuration = "⏱️ ${t("Duration")}: $localDaysValue $localDaysLabel"
 
-        holder.tvStageSub.text = "⏱️ $durationLabel: ${d(pillDuration)}  •  💪 $effortLabel: ${d(stage.effortPercent)}%"
-
+        holder.tvStageSub.text = "⏱️ $durationLabel: $localDaysValue $localDaysLabel"
         holder.itemView.setOnClickListener {
             onStageClick(stage)
         }

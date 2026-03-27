@@ -15,11 +15,17 @@ import com.google.ai.client.generativeai.type.generationConfig
 import com.google.android.material.card.MaterialCardView
 import com.google.gson.Gson
 import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 class CreatePlanActivity : AppCompatActivity() {
@@ -64,8 +70,10 @@ class CreatePlanActivity : AppCompatActivity() {
 
         if (langCode != TranslateLanguage.ENGLISH) {
             window.decorView.post {
-                TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {
-                    translateHints()
+                lifecycleScope.launch {
+                    TranslationHelper.translateViewHierarchy(window.decorView.rootView, langCode) {
+                        translateHints()
+                    }
                 }
             }
         }
@@ -96,17 +104,31 @@ class CreatePlanActivity : AppCompatActivity() {
             farmsList = SupabaseManager.client.postgrest["farms"]
                 .select { filter { eq("farmer_id", user.id) } }
                 .decodeList<FarmEntry>()
-            val names = farmsList.map { farm ->
-                val farmName = farm.name ?: "Unnamed Farm"
-                val translatedFarmName = farmName.replace("Farm", t("Farm")).replace("Field", t("Field"))
-                if (farm.land_size.isNotBlank()) {
-                    val translatedSize = farm.land_size.replace("Guntas", t("Guntas")).replace("Acres", t("Acres"))
 
-                    "${d(translatedFarmName)} (${d(translatedSize)})"
-                } else {
-                    d(translatedFarmName)
-                }
+            val names = coroutineScope {
+                farmsList.map { farm: FarmEntry ->
+                    async {
+                        val rawName = farm.name ?: t("Unnamed Farm")
+
+                        val translatedFarmName = if (rawName.matches(Regex("Farm \\d+"))) {
+                            "${t("Farm")} ${d(rawName.substringAfter("Farm "))}"
+                        } else {
+                            translateDynamicText(rawName)
+                        }
+
+                        if (farm.land_size.isNotBlank()) {
+                            val translatedSize = farm.land_size
+                                .replace("Guntas", t("Guntas"))
+                                .replace("Acres", t("Acres"))
+
+                            "$translatedFarmName (${d(translatedSize)})"
+                        } else {
+                            translatedFarmName
+                        }
+                    }
+                }.awaitAll()
             }
+
             withContext(Dispatchers.Main) {
                 spinnerFarm.applyCustomStyle(names)
                 spinnerFarm.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -193,7 +215,12 @@ class CreatePlanActivity : AppCompatActivity() {
                 var lat = 19.07
                 var lon = 72.87
                 try {
-                    val cords = selectedFarm!!.coordinates
+                    val cords = selectedFarm?.coordinates ?: ""
+                    if (cords.contains(",")) {
+                        val parts = cords.split(",")
+                        lat = parts[0].trim().toDoubleOrNull() ?: lat
+                        lon = parts[1].trim().toDoubleOrNull() ?: lon
+                    }
                     val parts = cords.split(",")
                     lat = parts[0].trim().toDouble()
                     lon = parts[1].trim().toDouble()
@@ -312,7 +339,7 @@ class CreatePlanActivity : AppCompatActivity() {
                 else -> "English"
             }
             val prompt = """
-                You are an expert agronomist in India. Generate a highly detailed, end-to-end crop management plan.
+                You are an expert Krishi Vigyan Kendra (KVK) agronomist in India. Generate a highly practical, cost-effective, end-to-end crop management plan tailored to Indian farming realities.
                 
                 CONTEXT:
                 - Crop: $cropName
@@ -320,37 +347,41 @@ class CreatePlanActivity : AppCompatActivity() {
                 - Soil Type: $soilType
                 - Upcoming Weather: $weatherSummary
                 - Current Field Status: $liveFieldData
-                - Language: $languageName
+                - Target Language: $languageName
                 
                 INSTRUCTIONS:
-                1. Output STRICTLY as a JSON object. Do not include markdown formatting.
-                2. ALL string values MUST be translated into $languageName.
-                3. Create exactly 5 stages: Soil Preparation, Cropping/Sowing, Maintaining, Fertilizing, Harvesting.
-                4. CRITICAL: The "steps" array MUST be extremely short, punchy bullet points. NEVER write paragraphs. MAXIMUM 8 WORDS PER STEP.
+                1. STRICT JSON ONLY: Output ONLY valid JSON. Start directly with { and end with }.
+                2. TRANSLATION: ALL string values for 'stageTitle', 'steps', 'keyRiskWarning', and 'estimatedYield' MUST be written in fluent, natural $languageName.
+                3. NUMBERS ONLY: The 'totalDurationDays' MUST be a string containing ONLY numbers and hyphens (e.g., '120-150'). DO NOT include the word 'days' or 'दिवस'.
+                4. DYNAMIC STAGES: Create a biologically accurate, chronological crop cycle tailored specifically to $cropName. Generate between 5 to 8 distinct stages.
+                5. DEPTH & DETAIL: The "steps" array MUST provide highly detailed, comprehensive, and actionable advice. Each step should be 1 to 3 sentences long. Explain *how* to do the task and *why* it is important. Include specific names of fertilizers, pesticides, precise quantities per Acre/Guntha, and traditional/organic alternatives where highly effective.
                 
                 EXPECTED JSON SCHEMA:
                 {
-                  "estimatedYield": "string (e.g., '12-15 Quintals')",
-                  "totalDurationDays": "string (e.g., '120 Days')",
+                  "estimatedYield": "string (e.g., '12-15 Quintals/Acre')",
+                  "totalDurationDays": "string (Numbers and hyphens ONLY. NO WORDS. e.g., '120-150')",
+                  "keyRiskWarning": "string",
                   "stages": [
                     {
                       "stageNumber": 1,
-                      "stageTitle": "string (e.g., '1. SOIL PREPARATION')",
+                      "stageTitle": "string",
                       "steps": [
-                        "string (MAX 8 WORDS. Extremely concise step 1)", 
-                        "string (MAX 8 WORDS. Extremely concise step 2)"
+                        "string (Detailed explanation. e.g., 'Perform deep summer ploughing to expose soil-borne pests to the hot sun. Follow up with two cross-harrowings to achieve a fine tilth suitable for healthy seed germination.')", 
+                        "string (e.g., 'Apply 5-6 tonnes of well-rotted Farm Yard Manure (FYM) or compost per acre evenly across the field before the last harrowing to improve soil moisture retention and fertility.')"
                       ],
-                      "durationInDays": 5, //it will be days
-                      "effortPercent": 20,
-                      "criticality": 80
+                      "durationInDays": 5
                     }
                   ]
                 }
             """.trimIndent()
             val response = generativeModel.generateContent(prompt)
-            val jsonText = response.text ?: "{}"
+            val rawText = response.text ?: "{}"
+            val jsonText = rawText.replace("```json", "")
+                .replace("```", "")
+                .trim()
+
             val planResponse = Gson().fromJson(jsonText, FarmPlanResponse::class.java)
-            planResponse.stages.forEach { applyUIStyling(it) }
+            planResponse.stages?.forEach { applyUIStyling(it) }
             planResponse
         } catch (e: Exception) {
             e.printStackTrace()
@@ -360,14 +391,53 @@ class CreatePlanActivity : AppCompatActivity() {
 
     private fun applyUIStyling(stage: FarmPlanStage) {
         when (stage.stageNumber) {
-            1 -> { stage.iconRes = R.drawable.ic_tractor; stage.cardColor = "#D28F6B".toColorInt() }
-            2 -> { stage.iconRes = R.drawable.ic_seeds; stage.cardColor = "#74A582".toColorInt() }
-            3 -> { stage.iconRes = R.drawable.ic_tools; stage.cardColor = "#6FA7C7".toColorInt() }
-            4 -> { stage.iconRes = R.drawable.ic_fertilizer; stage.cardColor = "#74A582".toColorInt() }
-            5 -> { stage.iconRes = R.drawable.ic_harvest; stage.cardColor = "#DDA255".toColorInt()
+            1 -> { // Soil Prep
+                stage.iconRes = R.drawable.ic_tractor
+                stage.cardColor = "#D28F6B".toColorInt()
             }
-            else -> { stage.iconRes = android.R.drawable.ic_menu_info_details; stage.cardColor =
-                "#999999".toColorInt() }
+            2 -> { // Sowing/Planting
+                stage.iconRes = R.drawable.ic_seeds
+                stage.cardColor = "#74A582".toColorInt()
+            }
+            3 -> { // Watering/Maintenance
+                stage.iconRes = R.drawable.round_water_drop_24
+                stage.cardColor = "#6FA7C7".toColorInt()
+            }
+            4 -> { // Fertilizing
+                stage.iconRes = R.drawable.ic_fertilizer
+                stage.cardColor = "#74A582".toColorInt()
+            }
+            5 -> { // Pest Control (Optional mid-stage)
+                stage.iconRes = R.drawable.round_bug_report_24
+                stage.cardColor = "#E57373".toColorInt()
+            }
+            else -> { // Final stage (Harvesting) or generic
+                stage.iconRes = R.drawable.ic_harvest
+                stage.cardColor = "#DDA255".toColorInt()
+            }
         }
     }
+
+    private suspend fun translateDynamicText(text: String): String =
+        suspendCancellableCoroutine<String> { continuation ->
+            if (langCode == TranslateLanguage.ENGLISH) {
+                continuation.resumeWith(Result.success(text))
+                return@suspendCancellableCoroutine
+            }
+            val options = TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(langCode)
+                .build()
+            val client = Translation.getClient(options)
+
+            client.downloadModelIfNeeded().addOnSuccessListener {
+                client.translate(text)
+                    .addOnSuccessListener { result: String ->
+                        continuation.resumeWith(Result.success(result))
+                    }
+                    .addOnFailureListener { continuation.resumeWith(Result.success(text)) }
+            }.addOnFailureListener {
+                continuation.resumeWith(Result.success(text))
+            }
+        }
 }

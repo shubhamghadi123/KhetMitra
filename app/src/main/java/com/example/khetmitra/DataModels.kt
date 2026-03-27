@@ -127,6 +127,7 @@ data class RibbonData(
 data class FarmPlanResponse(
     val estimatedYield: String,
     val totalDurationDays: String,
+    val keyRiskWarning: String,
     val stages: List<FarmPlanStage>
 )
 
@@ -135,8 +136,6 @@ data class FarmPlanStage(
     val stageTitle: String,
     val steps: List<String>,
     val durationInDays: Int,
-    val effortPercent: Int,
-    val criticality: Int,
     @Transient var iconRes: Int = 0,
     @Transient var cardColor: Int = 0
 )

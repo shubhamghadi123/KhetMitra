@@ -331,7 +331,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                 }
             } catch (e: Exception) {
                 if (e !is kotlinx.coroutines.CancellationException) {
-                    withContext(Dispatchers.Main) { Toast.makeText(safeContext, "Error: ${e.message}", Toast.LENGTH_LONG).show() }
+                    withContext(Dispatchers.Main) { Toast.makeText(safeContext, "${t("Error:")} ${e.message}", Toast.LENGTH_LONG).show() }
                 }
             }
         }

@@ -39,6 +39,10 @@ class StageDetailActivity : AppCompatActivity() {
         val tvDetailDuration = findViewById<TextView>(R.id.tvDetailDuration)
         val tvDetailEffort = findViewById<TextView>(R.id.tvDetailEffort)
         val tvDetailCriticality = findViewById<TextView>(R.id.tvDetailCriticality)
+
+        (tvDetailEffort.parent as? View)?.visibility = View.GONE
+        (tvDetailCriticality.parent as? View)?.visibility = View.GONE
+
         val viewDetailGlow = findViewById<View>(R.id.viewDetailGlow)
 
         val stageJson = intent.getStringExtra("STAGE_JSON")
@@ -46,6 +50,7 @@ class StageDetailActivity : AppCompatActivity() {
         if (!stageJson.isNullOrEmpty()) {
             try {
                 val stage = Gson().fromJson(stageJson, FarmPlanStage::class.java)
+
                 applyUIStyling(stage)
 
                 val baseColor = stage.cardColor
@@ -61,34 +66,18 @@ class StageDetailActivity : AppCompatActivity() {
                 cardDetailIcon.strokeWidth = 0
 
                 val formattedSteps = stage.steps.joinToString(separator = "\n\n") { "• $it" }
-
-                val safeTitles = arrayOf(
-                    stage.stageTitle,
-                    t("1. Soil Preparation"),
-                    t("2. Sowing & Planting"),
-                    t("3. Crop Maintenance"),
-                    t("4. Fertilizing & Irrigation"),
-                    t("5. Harvesting")
-                )
-                val finalTitle = if (stage.stageNumber in 1..5) safeTitles[stage.stageNumber] else stage.stageTitle
-
+                val finalTitle = stage.stageTitle
                 val localDaysValue = d(stage.durationInDays)
                 val localDaysLabel = t("days")
                 val pillDuration = "⏱️ ${t("Duration")}: $localDaysValue $localDaysLabel"
-                val pillEffort   = "💪 ${t("Effort")}: ${d(stage.effortPercent)}%"
-                val pillRisk     = "⚠️ ${t("Risk")}: ${if (stage.criticality > 70) t("High") else t("Normal")}"
 
                 tvDetailTitle.text = finalTitle
                 tvDetailSteps.text = formattedSteps
 
                 setupPill(tvDetailDuration, pillDuration, lightColor, darkColor)
-                setupPill(tvDetailEffort, pillEffort, lightColor, darkColor)
-                setupPill(tvDetailCriticality, pillRisk, lightColor, darkColor)
 
                 tvDetailTitle.tag = "skip_translation"
                 tvDetailDuration.tag = "skip_translation"
-                tvDetailEffort.tag = "skip_translation"
-                tvDetailCriticality.tag = "skip_translation"
 
                 if (langCode != TranslateLanguage.ENGLISH) {
                     window.decorView.post {
@@ -96,8 +85,6 @@ class StageDetailActivity : AppCompatActivity() {
                             tvDetailTitle.text = finalTitle
                             tvDetailSteps.text = formattedSteps
                             tvDetailDuration.text = pillDuration
-                            tvDetailEffort.text = pillEffort
-                            tvDetailCriticality.text = pillRisk
                         }
                     }
                 }
@@ -119,12 +106,30 @@ class StageDetailActivity : AppCompatActivity() {
 
     private fun applyUIStyling(stage: FarmPlanStage) {
         when (stage.stageNumber) {
-            1 -> { stage.iconRes = R.drawable.ic_tractor; stage.cardColor = "#D28F6B".toColorInt() }
-            2 -> { stage.iconRes = R.drawable.ic_seeds; stage.cardColor = "#74A582".toColorInt() }
-            3 -> { stage.iconRes = R.drawable.ic_tools; stage.cardColor = "#6FA7C7".toColorInt() }
-            4 -> { stage.iconRes = R.drawable.ic_fertilizer; stage.cardColor = "#74A582".toColorInt() }
-            5 -> { stage.iconRes = R.drawable.ic_harvest; stage.cardColor = "#DDA255".toColorInt() }
-            else -> { stage.iconRes = android.R.drawable.ic_menu_info_details; stage.cardColor = "#999999".toColorInt() }
+            1 -> { // Soil Prep
+                stage.iconRes = R.drawable.ic_tractor
+                stage.cardColor = "#D28F6B".toColorInt()
+            }
+            2 -> { // Sowing/Planting
+                stage.iconRes = R.drawable.ic_seeds
+                stage.cardColor = "#74A582".toColorInt()
+            }
+            3 -> { // Watering/Maintenance
+                stage.iconRes = R.drawable.round_water_drop_24
+                stage.cardColor = "#6FA7C7".toColorInt()
+            }
+            4 -> { // Fertilizing
+                stage.iconRes = R.drawable.ic_fertilizer
+                stage.cardColor = "#74A582".toColorInt()
+            }
+            5 -> { // Pest Control
+                stage.iconRes = R.drawable.round_bug_report_24
+                stage.cardColor = "#E57373".toColorInt()
+            }
+            else -> { // Harvesting/Storage
+                stage.iconRes = R.drawable.ic_harvest
+                stage.cardColor = "#DDA255".toColorInt()
+            }
         }
     }
 }
