@@ -287,7 +287,7 @@ class WeatherActivity : BaseActivity() {
 
     private fun isMph(prefs: SharedPreferences): Boolean {
         val windUnitPref = prefs.getString("WindUnit", "km/h") ?: "km/h"
-        return windUnitPref.contains("mph")
+        return windUnitPref == "m/h" || windUnitPref == "mph"
     }
 
     private fun convertTemp(celsius: Double, isFahrenheit: Boolean): Int {

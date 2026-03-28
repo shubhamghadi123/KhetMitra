@@ -110,7 +110,8 @@ data class CropPriceRow(
     @SerialName("max_price") val maxPrice: Float,
     @SerialName("modal_price") val modalPrice: Float,
     @SerialName("price_unit") val priceUnit: String,
-    @SerialName("price_date") val priceDate: String
+    @SerialName("price_date") val priceDate: String,
+    @SerialName("arrival_quantity") val arrivalQuantity: Double = 0.0
 )
 
 @Serializable

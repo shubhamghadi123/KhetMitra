@@ -7,6 +7,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.toColorInt
+import com.example.khetmitra.TranslationHelper.convertDigits
 import com.google.android.material.card.MaterialCardView
 import com.google.gson.Gson
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -20,7 +21,7 @@ class StageDetailActivity : AppCompatActivity() {
         return TranslationHelper.getManualTranslation(text, langCode) ?: text
     }
 
-    private fun d(num: Any): String = TranslationHelper.convertDigits(num.toString(), langCode)
+    private fun d(num: Any): String = convertDigits(num.toString(), langCode)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,8 +66,10 @@ class StageDetailActivity : AppCompatActivity() {
                 cardDetailIcon.setCardBackgroundColor(lightColor)
                 cardDetailIcon.strokeWidth = 0
 
-                val formattedSteps = stage.steps.joinToString(separator = "\n\n") { "• $it" }
-                val finalTitle = stage.stageTitle
+                val formattedSteps = stage.steps.joinToString(separator = "\n\n") {
+                    "• ${convertDigits(it, langCode)}"
+                }
+                val finalTitle = convertDigits(stage.stageTitle, langCode)
                 val localDaysValue = d(stage.durationInDays)
                 val localDaysLabel = t("days")
                 val pillDuration = "⏱️ ${t("Duration")}: $localDaysValue $localDaysLabel"

@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
@@ -66,8 +67,10 @@ class MarketActivity : AppCompatActivity() {
     private lateinit var tvMinPrice: TextView
     private lateinit var tvMaxPrice: TextView
     private lateinit var tvPriceUnit: TextView
+    private lateinit var tvQuantity: TextView
+    private lateinit var tvQuantityUnit: TextView
     private lateinit var tvPriceDate: TextView
-    private lateinit var tvNoData: TextView
+    private lateinit var tvNoDataMarket: LinearLayout
     private lateinit var toggleGroup: MaterialButtonToggleGroup
     private lateinit var btnFetchPrice: MaterialButton
     private lateinit var cardPrice: MaterialCardView
@@ -84,6 +87,7 @@ class MarketActivity : AppCompatActivity() {
     private var currentMarketIndex = 0
     private var currentRequestId = 0
     private var priceHistoryJob: Job? = null
+    private var translateMarketJob: Job? = null
 
     private fun t(text: String): String {
         if (langCode == TranslateLanguage.ENGLISH) return text
@@ -116,8 +120,10 @@ class MarketActivity : AppCompatActivity() {
         tvMinPrice       = findViewById(R.id.tvMinPrice)
         tvMaxPrice       = findViewById(R.id.tvMaxPrice)
         tvPriceUnit      = findViewById(R.id.tvPriceUnit)
+        tvQuantity = findViewById(R.id.tvQuantity)
+        tvQuantityUnit = findViewById(R.id.tvQuantityUnit)
         tvPriceDate      = findViewById(R.id.tvPriceDate)
-        tvNoData         = findViewById(R.id.tvNoData)
+        tvNoDataMarket = findViewById(R.id.tvNoDataMarket)
         toggleGroup      = findViewById(R.id.toggleGroup)
         lineChart        = findViewById(R.id.lineChart)
         btnFetchPrice    = findViewById(R.id.btnFetchPrice)
@@ -159,8 +165,6 @@ class MarketActivity : AppCompatActivity() {
             } else {
                 isDistrictMode = false
                 marketTitleLayout.visibility = View.GONE
-                cardPrice.visibility = View.VISIBLE
-                cardGraph.visibility = View.VISIBLE
                 refreshPriceData()
             }
         }
@@ -455,11 +459,16 @@ class MarketActivity : AppCompatActivity() {
                     order("crop_name", Order.ASCENDING)
                 }
                 .decodeList<CropRow>()
+
             val names = allCrops.map { t(it.cropName) }
-            dropdownCrop.applyCustomDropdownStyle(names)
-            dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
-                selectedCropId = allCrops[pos].cropId
-                refreshPriceData()
+
+            withContext(Dispatchers.Main) {
+                dropdownCrop.applyCustomDropdownStyle(names)
+                dropdownCrop.setOnItemClickListener { _, _, pos, _ ->
+                    selectedCropId = allCrops[pos].cropId
+                    clearPriceUI()
+                    validateFetchButton()
+                }
             }
         } catch (e: Exception) {
             Log.e("Market", "loadCrops failed: ${e.message}")
@@ -472,7 +481,7 @@ class MarketActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val yesterday = LocalDate.now().minusDays(1).toString()
+                val today = LocalDate.now().toString()
 
                 val results = SupabaseManager.client
                     .postgrest["crop_price"]
@@ -480,7 +489,7 @@ class MarketActivity : AppCompatActivity() {
                         filter {
                             eq("market_id", selectedMarketId)
                             eq("crop_id", selectedCropId)
-                            lte("price_date", yesterday)
+                            lte("price_date", today)
                         }
                         order("price_date", Order.DESCENDING)
                         limit(1)
@@ -488,24 +497,39 @@ class MarketActivity : AppCompatActivity() {
                     .decodeList<CropPriceRow>()
 
                 if (results.isEmpty()) {
+                    cardPrice.visibility = View.GONE
+                    cardGraph.visibility = View.GONE
                     showNoData(true)
                     tvPriceValue.text = "₹ --"
                     tvMinPrice.text   = "₹ --"
                     tvMaxPrice.text   = "₹ --"
                     tvPriceUnit.text  = ""
                 } else {
+                    cardGraph.visibility = View.VISIBLE
+                    cardPrice.visibility = View.VISIBLE
                     showNoData(false)
                     val row = results.first()
                     tvPriceValue.text = "₹ ${d(row.modalPrice.toInt())}"
                     tvMinPrice.text   = "₹ ${d(row.minPrice.toInt())}"
                     tvMaxPrice.text   = "₹ ${d(row.maxPrice.toInt())}"
-                    tvPriceUnit.text  = "/ ${t(row.priceUnit)}"
+                    val unit = row.priceUnit
+                        .removePrefix("Rs./")
+                        .removePrefix("rs./")
+                        .trim()
+                    tvPriceUnit.text = "/ ${t(unit)}"
                     tvPriceDate.text  = "${t("Price as of")} ${formatDateWithYear(row.priceDate)}"
+                    if (row.arrivalQuantity > 0) {
+                        tvQuantity.text = d(row.arrivalQuantity.toInt())
+                    } else {
+                        tvQuantity.text = t("N/A")
+                        tvQuantityUnit.visibility = View.GONE
+                    }
 
                     loadPriceHistory(toggleGroup.checkedButtonId == R.id.btnWeekly, isDistrictLevel = false)
                 }
             } catch (e: Exception) {
                 Log.e("Market", "refreshPriceData failed: ${e.message}")
+                cardPrice.visibility = View.GONE
                 showNoData(true)
             }
         }
@@ -621,7 +645,8 @@ class MarketActivity : AppCompatActivity() {
 
         tvMarketName.text = "${t(rawName)} $countText"
         if (langCode != TranslateLanguage.ENGLISH && Regex("[a-zA-Z]").containsMatchIn(rawName)) {
-            lifecycleScope.launch(Dispatchers.IO) {
+            translateMarketJob?.cancel()
+            translateMarketJob = lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
                         .setSourceLanguage(TranslateLanguage.ENGLISH)
@@ -693,13 +718,17 @@ class MarketActivity : AppCompatActivity() {
         lineChart.isDoubleTapToZoomEnabled = false
         lineChart.clipToPadding = false
 
+        lineChart.extraBottomOffset = 15f
+        lineChart.extraLeftOffset = 15f
+        lineChart.extraRightOffset = 15f
         lineChart.xAxis.labelRotationAngle = -45f
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             textColor = "#555555".toColorInt()
-            setAvoidFirstLastClipping(true)
+            setAvoidFirstLastClipping(false)
         }
+
         lineChart.axisLeft.apply {
             setDrawGridLines(true)
             gridColor = "#E8EDE0".toColorInt()
@@ -741,6 +770,8 @@ class MarketActivity : AppCompatActivity() {
         tvMinPrice.text   = "₹ --"
         tvMaxPrice.text   = "₹ --"
         tvPriceUnit.text  = ""
+        tvQuantity.text = "--"
+        tvQuantityUnit.visibility = View.VISIBLE
         tvPriceDate.text  = ""
         lineChart.clear()
         lineChart.fitScreen()
@@ -749,8 +780,15 @@ class MarketActivity : AppCompatActivity() {
     }
 
     private fun showNoData(show: Boolean) {
-        tvNoData.visibility  = if (show) View.VISIBLE else View.GONE
-        lineChart.visibility = if (show) View.GONE    else View.VISIBLE
+        if (show && cardPrice.isVisible) {
+            tvNoDataMarket.visibility = View.GONE
+            lineChart.visibility = View.VISIBLE
+            lineChart.clear()
+            lineChart.invalidate()
+        } else {
+            tvNoDataMarket.visibility = if (show) View.VISIBLE else View.GONE
+            lineChart.visibility = if (show) View.GONE else View.VISIBLE
+        }
     }
 
     private fun formatDateShort(date: String): String {
