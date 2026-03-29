@@ -718,9 +718,9 @@ class MarketActivity : AppCompatActivity() {
         lineChart.isDoubleTapToZoomEnabled = false
         lineChart.clipToPadding = false
 
-        lineChart.extraBottomOffset = 15f
-        lineChart.extraLeftOffset = 15f
-        lineChart.extraRightOffset = 15f
+        lineChart.extraBottomOffset = 10f
+        lineChart.extraLeftOffset = 0f
+        lineChart.extraRightOffset = 5f
         lineChart.xAxis.labelRotationAngle = -45f
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
@@ -735,6 +735,12 @@ class MarketActivity : AppCompatActivity() {
             textColor = "#555555".toColorInt()
             spaceTop = 15f
             spaceBottom = 15f
+            granularity = 1f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getAxisLabel(value: Float, axis: com.github.mikephil.charting.components.AxisBase?): String {
+                    return d(value.toInt())
+                }
+            }
         }
         lineChart.axisRight.isEnabled = false
 
