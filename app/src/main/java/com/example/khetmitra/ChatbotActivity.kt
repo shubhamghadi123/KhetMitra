@@ -399,44 +399,71 @@ class ChatbotActivity : AppCompatActivity() {
     private fun buildCombinedFarmContext(
         farms: List<FarmEntry>,
         monitoringData: List<FieldMonitoring>,
-        weatherData: Map<String, String>
+        weatherData: Map<String, String>,
+        farmPlans: List<SavedFarmPlan>,
+        cropPrices: List<CropPriceRow>
     ): String {
-        if (farms.isEmpty()) return "The user has not mapped any farms yet. Instruct them to use the 'Map My Field' button on the dashboard."
-
         val sb = StringBuilder()
-        sb.append("The user manages ${farms.size} farm(s). Here is the comprehensive data:\n\n")
 
-        for ((index, farm) in farms.withIndex()) {
-            val farmName = farm.name ?: "Farm ${index + 1}"
-            val crop = if (farm.crop.isNullOrBlank() || farm.crop == "Not Selected") "Unknown" else farm.crop
-            val liveData = monitoringData.find { it.polygon_id == farm.polygon_id }
-            val liveWeather = weatherData[farmName] ?: "No live weather data available."
+        if (farms.isEmpty()) {
+            sb.append("The user has not mapped any farms yet. Instruct them to use the 'Map My Field' button on the dashboard.\n\n")
+        } else {
+            sb.append("The user manages ${farms.size} farm(s). Here is the comprehensive data:\n\n")
 
-            sb.append("Farm ${index + 1}: '$farmName'\n")
-            sb.append("- Size: ${farm.land_size}\n")
-            sb.append("- Soil Type: ${farm.soil_type}\n")
-            sb.append("- Crop: $crop\n")
+            for ((index, farm) in farms.withIndex()) {
+                val farmName = farm.name ?: "Farm ${index + 1}"
+                val crop = if (farm.crop.isNullOrBlank() || farm.crop == "Not Selected") "Unknown" else farm.crop
+                val liveData = monitoringData.find { it.polygon_id == farm.polygon_id }
+                val liveWeather = weatherData[farmName] ?: "No live weather data available."
 
-            if (liveData != null) {
-                sb.append("  [LIVE SATELLITE SOIL DATA]\n")
-                liveData.weather_condition?.let { sb.append("  - Weather: $it\n") }
-                liveData.temperature?.let { sb.append("  - Air Temp: $it°C\n") }
-                liveData.soil_moisture?.let { sb.append("  - Soil Moisture: $it\n") }
-                liveData.ndvi_score?.let { sb.append("  - Health Score (NDVI): $it\n") }
-            } else {
-                sb.append("  [LIVE SOIL DATA IS MISSING]\n")
-                sb.append("  *CRITICAL INSTRUCTION: Live soil data for this farm has not been generated yet. Advise the user to go to 'Manage Field' and click 'View Soil Report'.*\n")
+                sb.append("Farm ${index + 1}: '$farmName'\n")
+                sb.append("- Size: ${farm.land_size}\n")
+                sb.append("- Soil Type: ${farm.soil_type}\n")
+                sb.append("- Crop: $crop\n")
+
+                if (liveData != null) {
+                    sb.append("  [LIVE SATELLITE SOIL DATA]\n")
+                    liveData.weather_condition?.let { sb.append("  - Weather: $it\n") }
+                    liveData.temperature?.let { sb.append("  - Air Temp: $it°C\n") }
+                    liveData.soil_moisture?.let { sb.append("  - Soil Moisture: $it\n") }
+                    liveData.ndvi_score?.let { sb.append("  - Health Score (NDVI): $it\n") }
+                } else {
+                    sb.append("  [LIVE SOIL DATA IS MISSING]\n")
+                    sb.append("  *CRITICAL INSTRUCTION: Live soil data for this farm has not been generated yet. Advise the user to go to 'Manage Field' and click 'View Soil Report'.*\n")
+                }
+
+                sb.append("  [LIVE WEATHER FORECAST]\n")
+                sb.append("  - $liveWeather\n\n")
             }
-
-            sb.append("  [LIVE WEATHER FORECAST]\n")
-            sb.append("  - $liveWeather\n")
-            sb.append("\n")
         }
+
+        if (farmPlans.isNotEmpty()) {
+            sb.append("### [ACTIVE FARM PLANS (JSON FORMAT)]\n")
+            sb.append("The user has generated the following AI crop plans. Use this data if they ask about their schedule, tasks, or budgets:\n")
+            for (plan in farmPlans) {
+                sb.append("- Farm: ${plan.farm_name}, Crop: ${plan.crop_name}\n")
+                sb.append("  Plan JSON: ${plan.plan_json}\n\n")
+            }
+        }
+
+        if (cropPrices.isNotEmpty()) {
+            sb.append("### [LATEST LOCAL MARKET PRICES]\n")
+            sb.append("Here are the latest crop prices in the user's local district markets. Advise them on selling based on these modal prices:\n")
+            for (price in cropPrices) {
+                sb.append("- Crop: ${price.cropName} | Market: ${price.marketName}\n")
+                sb.append("  Min: ₹${price.minPrice}, Max: ₹${price.maxPrice}, Modal (Average): ₹${price.modalPrice} (Date: ${price.priceDate})\n")
+            }
+            sb.append("\n")
+        } else {
+            sb.append("### [LATEST LOCAL MARKET PRICES]\n")
+            sb.append("No local market prices are currently available in the database for the user's district.\n\n")
+        }
+
         return sb.toString()
     }
 
     private fun initializeSmartChatbot() {
-        etInput.hint = t("Loading farm data...")
+        etInput.hint = t("Loading farm & market data...")
         etInput.isEnabled = false
         btnMicCard.isEnabled = false
 
@@ -446,20 +473,50 @@ class ChatbotActivity : AppCompatActivity() {
                 val currentFarmerId = user?.id ?: ""
                 Log.d("KhetMitra", "Fetching data for Farmer: $currentFarmerId")
 
+                val profileDeferred = async {
+                    SupabaseManager.client.postgrest["farmers"]
+                        .select { filter { eq("id", currentFarmerId) } }
+                        .decodeSingleOrNull<FarmerProfile>()
+                }
+
                 val farmsDeferred = async {
                     SupabaseManager.client.postgrest["farms"]
                         .select { filter { eq("farmer_id", currentFarmerId) } }.decodeList<FarmEntry>()
                 }
+
                 val monitoringDeferred = async {
                     SupabaseManager.client.postgrest["field_monitoring"]
                         .select { filter { eq("user_id", currentFarmerId) } }.decodeList<FieldMonitoring>()
                 }
 
+                val plansDeferred = async {
+                    SupabaseManager.client.postgrest["farm_plans"]
+                        .select { filter { eq("farmer_id", currentFarmerId) } }
+                        .decodeList<SavedFarmPlan>()
+                }
+
+                val userProfile = profileDeferred.await()
                 val userFarms = farmsDeferred.await()
                 val monitoringData = monitoringDeferred.await()
+                val farmPlans = plansDeferred.await()
+
+                val userDistrict = userProfile?.district
+                val marketPrices = if (!userDistrict.isNullOrEmpty() && userDistrict != "Unknown") {
+                    try {
+                        SupabaseManager.client.postgrest["crop_price"]
+                            .select { filter { ilike("district_name", "%$userDistrict%") } }
+                            .decodeList<CropPriceRow>()
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
+                }
+
                 val weatherMap = fetchLiveWeatherForFarms(userFarms)
                 cachedFarms = userFarms
-                cachedFarmContext = buildCombinedFarmContext(cachedFarms, monitoringData, weatherMap)
+
+                cachedFarmContext = buildCombinedFarmContext(cachedFarms, monitoringData, weatherMap, farmPlans, marketPrices)
 
                 generativeModel = GenerativeModel(
                     modelName = "gemini-2.5-flash",
@@ -519,7 +576,8 @@ class ChatbotActivity : AppCompatActivity() {
                         addMessage(greeting, false)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("KhetMitra", "Failed to initialize AI", e)
                 withContext(Dispatchers.Main) {
                     etInput.hint = t("Ask anything...")
                     etInput.isEnabled = true

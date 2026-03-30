@@ -356,7 +356,7 @@ class WeatherActivity : BaseActivity() {
         val windSpeed = d(convertWind(current.wind_speed_10m, useMph))
         tvWind.text = "$windSpeed $windSymbol"
         val dewPoint = d(convertTemp(current.dew_point_2m, useFahrenheit))
-        tvDewPoint.text = "$dewPoint°"
+        tvDewPoint.text = "$dewPoint$tempSymbol"
         updateAqiPill(tvAqi, aqiIndex)
         val initialSummary = generateQuickSummary(data, aqiIndex, useFahrenheit)
         tvSummaryBody.text = initialSummary
