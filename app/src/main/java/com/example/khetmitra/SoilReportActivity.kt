@@ -104,10 +104,11 @@ class SoilReportActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    private fun fetchAgroData(farmName: String, coordinatesJson: String) {
+    private fun fetchAgroData(farmName: String, coordinatesJson: String, forceNewPolygon: Boolean = false) {
         layoutLoading.visibility = View.VISIBLE
         layoutContent.visibility = View.GONE
-        val existingPolyId = intent.getStringExtra("POLYGON_ID")
+
+        val existingPolyId = if (forceNewPolygon) null else intent.getStringExtra("POLYGON_ID")
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -129,6 +130,7 @@ class SoilReportActivity : AppCompatActivity() {
 
                 val apiKey = BuildConfig.AGRO_API_KEY
                 var polyId: String
+                var isNewlyCreated = false
 
                 if (!existingPolyId.isNullOrEmpty()) {
                     polyId = existingPolyId
@@ -144,6 +146,7 @@ class SoilReportActivity : AppCompatActivity() {
 
                     if (polyResponse.isSuccessful && polyResponse.body() != null) {
                         polyId = polyResponse.body()!!.id
+                        isNewlyCreated = true
                     } else if (polyResponse.code() == 422) {
                         val errorStr = polyResponse.errorBody()?.string() ?: ""
                         if (errorStr.contains("duplicated")) {
@@ -154,7 +157,7 @@ class SoilReportActivity : AppCompatActivity() {
                             polygonPoints.forEach { sumLon += it[0]; sumLat += it[1] }
                             val cLon = sumLon / polygonPoints.size
                             val cLat = sumLat / polygonPoints.size
-                            val off = 0.0006
+                            val off = 0.00048
                             val expandedBox = listOf(
                                 listOf(cLon - off, cLat - off), listOf(cLon + off, cLat - off),
                                 listOf(cLon + off, cLat + off), listOf(cLon - off, cLat + off),
@@ -170,6 +173,7 @@ class SoilReportActivity : AppCompatActivity() {
                             )
                             polyResponse = AgroRetrofitClient.api.createPolygon(apiKey, polygonRequest)
                             polyId = if (polyResponse.isSuccessful && polyResponse.body() != null) {
+                                isNewlyCreated = true
                                 polyResponse.body()!!.id
                             } else {
                                 val secondError = polyResponse.errorBody()?.string() ?: ""
@@ -191,19 +195,63 @@ class SoilReportActivity : AppCompatActivity() {
                             SupabaseManager.client.postgrest["farms"].update(
                                 { set("polygon_id", polyId) }
                             ) {
-                                filter {
-                                    eq("farmer_id", user.id)
-                                    eq("name", farmName)
-                                }
+                                filter { eq("farmer_id", user.id); eq("name", farmName) }
                             }
-                            Log.d("Khetmitra", "Successfully synced polygon_id $polyId to master farms table!")
                         }
                     } catch (e: Exception) {
-                        Log.e("Khetmitra", "Failed to sync polygon_id to master table: ${e.message}")
+                        Log.e("Khetmitra", "Failed to sync polygon_id: ${e.message}")
                     }
                 }
 
-                val soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
+                if (isNewlyCreated) {
+                    Log.d("Khetmitra", "New polygon created. Giving server an initial 4 seconds to process...")
+                    kotlinx.coroutines.delay(4000)
+                }
+
+                var soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
+                var retryCount = 0
+
+                while ((!soilResponse.isSuccessful || soilResponse.body() == null) && retryCount < 3) {
+                    val code = soilResponse.code()
+                    if (code == 404 || code == 400) {
+                        retryCount++
+                        Log.d("Khetmitra", "Server still calculating (Attempt $retryCount/3). Waiting 3 more seconds...")
+                        kotlinx.coroutines.delay(3000)
+                        soilResponse = AgroRetrofitClient.api.getSoilData(polyId, apiKey)
+                    } else {
+                        break
+                    }
+                }
+
+                if (!soilResponse.isSuccessful || soilResponse.body() == null) {
+                    val errorBody = soilResponse.errorBody()?.string() ?: "Unknown"
+                    Log.e("Khetmitra", "Soil API Failed permanently. Code: ${soilResponse.code()}, Body: $errorBody")
+
+                    if (soilResponse.code() == 404 || soilResponse.code() == 400) {
+                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                        if (user != null) {
+                            SupabaseManager.client.postgrest["farms"].update(
+                                { set("polygon_id", null as String?) }
+                            ) {
+                                filter { eq("farmer_id", user.id); eq("name", farmName) }
+                            }
+                        }
+
+                        if (!forceNewPolygon) {
+                            Log.d("Khetmitra", "Polygon rejected. Auto-retrying with a fresh polygon...")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@SoilReportActivity, t("Refreshing satellite connection..."), Toast.LENGTH_SHORT).show()
+                            }
+                            fetchAgroData(farmName, coordinatesJson, true)
+                            return@launch
+                        } else {
+                            throw Exception(t("AgroMonitoring API is temporarily unavailable for this location. Please try again later."))
+                        }
+                    } else {
+                        throw Exception("AgroMonitoring API Error: ${soilResponse.code()}")
+                    }
+                }
+
                 var airHumidity: Double? = null
                 var airTempCelsius: Double? = null
                 var weatherCondition: String? = null
@@ -225,51 +273,58 @@ class SoilReportActivity : AppCompatActivity() {
                 val imageResponse = AgroRetrofitClient.api.getSatelliteImages(polyId, startTime, endTime, apiKey)
                 var finalNdviScore: Double? = null
 
-                if (imageResponse.isSuccessful && !imageResponse.body().isNullOrEmpty()) {
-                    val latestImage = imageResponse.body()!!.maxByOrNull { it.dt }
-                    if (latestImage != null) {
-                        ndviUrl      = latestImage.image.ndvi
-                        trueColorUrl = latestImage.image.truecolor
-                        val statUrl = latestImage.stats?.ndvi
-                        if (statUrl != null) {
-                            try {
-                                val secureStatUrl = statUrl.replace("http://", "https://")
-                                val statResponse = AgroRetrofitClient.api.getNdviStats(secureStatUrl)
-                                if (statResponse.isSuccessful && statResponse.body() != null)
-                                    finalNdviScore = statResponse.body()!!.mean
-                            } catch (e: Exception) {
-                                Log.e("AgroAPI", "NDVI Stat fetch failed: ${e.message}")
+                if (imageResponse.isSuccessful) {
+                    val images = imageResponse.body()
+                    if (!images.isNullOrEmpty()) {
+                        val latestImage = images.maxByOrNull { it.dt }
+                        if (latestImage != null) {
+                            ndviUrl = latestImage.image.ndvi
+                            trueColorUrl = latestImage.image.truecolor
+                            val statUrl = latestImage.stats?.ndvi
+                            if (statUrl != null) {
+                                try {
+                                    val secureStatUrl = statUrl.replace("http://", "https://")
+                                    val statResponse = AgroRetrofitClient.api.getNdviStats(secureStatUrl)
+                                    if (statResponse.isSuccessful && statResponse.body() != null)
+                                        finalNdviScore = statResponse.body()!!.mean
+                                } catch (e: Exception) {
+                                    Log.e("AgroAPI", "NDVI Stat fetch failed: ${e.message}")
+                                }
                             }
                         }
+                    } else {
+                        Log.w("Khetmitra", "No clear satellite images available for the last 30 days.")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@SoilReportActivity, t("Live weather loaded. Recent satellite images are unavailable due to cloud cover."), Toast.LENGTH_LONG).show()
+                        }
                     }
+                } else {
+                    Log.e("Khetmitra", "Satellite image fetch failed completely.")
                 }
 
-                if (soilResponse.isSuccessful && soilResponse.body() != null) {
-                    val soilBody = soilResponse.body()!!
-                    saveAgromonitoringData(
-                        fieldName  = farmName,
-                        polyId     = polyId,
-                        temp       = airTempCelsius,
-                        hum        = airHumidity,
-                        condition  = weatherCondition,
-                        soilMoist  = soilBody.moisture,
-                        soilTemp   = soilBody.t10 - 273.15,
-                        ndviScore  = finalNdviScore
-                    )
-                }
+                val soilBody = soilResponse.body()!!
+                saveAgromonitoringData(
+                    fieldName  = farmName,
+                    polyId     = polyId,
+                    temp       = airTempCelsius,
+                    hum        = airHumidity,
+                    condition  = weatherCondition,
+                    soilMoist  = soilBody.moisture,
+                    soilTemp   = soilBody.t10 - 273.15,
+                    ndviScore  = finalNdviScore
+                )
 
                 withContext(Dispatchers.Main) {
-                    if (soilResponse.isSuccessful && soilResponse.body() != null) {
-                        updateSoilUI(soilResponse.body()!!, airHumidity, finalNdviScore)
-                    }
+                    updateSoilUI(soilBody, airHumidity, finalNdviScore)
                     loadSatelliteImage(ndviUrl)
                     layoutLoading.visibility = View.GONE
                     layoutContent.visibility = View.VISIBLE
                 }
             } catch (e: Exception) {
+                Log.e("SoilReportError", "Data Fetch Failed: ", e)
                 withContext(Dispatchers.Main) {
                     layoutLoading.visibility = View.GONE
-                    Toast.makeText(this@SoilReportActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SoilReportActivity, e.message, Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -343,8 +398,36 @@ class SoilReportActivity : AppCompatActivity() {
             else                   -> t("Soil is quite hot. Ensure adequate moisture if sowing.")
         }
 
-        // 5. COMBINE INTO ACTION PLAN
-        tvSowingAdvice.text = "🌱 ${t("Sowing")}:\n$sowingAdvice\n\n" +
+        // 5. NDVI & SMART COMBINED LOGIC
+        var smartAnalysis = ""
+        if (ndviScore != null) {
+            // A. Base NDVI Scale Logic
+            val ndviStage = when {
+                ndviScore < 0.0 -> t("NDVI indicates water, concrete, or bare rock.")
+                ndviScore <= 0.2 -> t("NDVI indicates bare soil, dead crops, or early seedlings.")
+                ndviScore <= 0.5 -> t("NDVI indicates sparse vegetation or highly stressed crops.")
+                else -> t("NDVI indicates dense, lush, healthy crops.")
+            }
+
+            // B. Cross-Referenced AI Logic
+            val combinedInsight = when {
+                ndviScore <= 0.5 && moisturePercent < 20 ->
+                    t("Looks like this area is drying out. Time to irrigate.")
+                ndviScore <= 0.5 && moisturePercent > 60 ->
+                    t("Soil is wet, but plants are stressed. Check for pests or fungus.")
+                else -> ""
+            }
+
+            smartAnalysis = "📊 ${t("Smart Analysis")}:\n$ndviStage\n"
+            if (combinedInsight.isNotEmpty()) {
+                smartAnalysis += "⚠️ $combinedInsight\n"
+            }
+            smartAnalysis += "\n"
+        }
+
+        // 6. COMBINE INTO MASTER ACTION PLAN
+        tvSowingAdvice.text = smartAnalysis +
+                "🌱 ${t("Sowing")}:\n$sowingAdvice\n\n" +
                 "🧪 ${t("Fertilizer")}:\n$fertilizerAdvice\n\n" +
                 "🛡️ ${t("Pesticide")}:\n$pesticideAdvice"
     }
