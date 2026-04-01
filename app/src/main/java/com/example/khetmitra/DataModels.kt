@@ -3,11 +3,24 @@ package com.example.khetmitra
 import android.graphics.Bitmap
 import android.net.Uri
 
-// DASHBOARD MODEL (Fixes Unresolved Reference)
+// DASHBOARD MODEL
 data class DataModels(
     val title: String,
     val subtitle: String,
-    val iconDrawable: Int
+    val iconRes: Int,
+    val tag: String,
+    val bgColor: Int,
+    val accentColor: Int,
+    val emoji: String,
+    val textColor: Int
+)
+
+data class CardTheme(
+    val bgColor: Int,
+    val accentColor: Int,
+    val emoji: String,
+    val tag: String,
+    val textColor: Int
 )
 
 // --- OPEN-METEO API MODELS ---
@@ -55,7 +68,7 @@ data class AirQualityResponse(
 )
 
 data class CurrentAQI(
-    val us_aqi: Int // This gives values like 45, 120, 300 (Raw AQI)
+    val us_aqi: Int
 )
 
 // UI MODELS (For RecyclerViews)
@@ -76,7 +89,16 @@ data class HourlyModel(
 data class InsightModel(
     val title: String,
     val description: String,
-    val imageRes: Int
+    val imageRes: Int,
+    val tag: String = ""
+)
+
+data class TagStyle(
+    val emoji: String,
+    val label: String,
+    val textColor: Int,
+    val bgColor: Int,
+    val strokeColor: Int
 )
 
 data class ChatMessage(
@@ -85,5 +107,35 @@ data class ChatMessage(
     val imageBitmap: Bitmap? = null,
     val fileUri: Uri? = null,
     val isImage: Boolean = true,
-    val fileName: String = ""
+    val fileName: String = "",
+    val isLoading: Boolean = false,
+    val imageUrl: String? = null
+)
+
+data class SoilType(
+    val id: Int,
+    val nameEn: String,
+    val textureRes: Int,
+    val hexColor: String
+)
+
+data class RibbonData(
+    val result: String,
+    val soilType: String
+)
+
+data class FarmPlanResponse(
+    val estimatedYield: String,
+    val totalDurationDays: String,
+    val keyRiskWarning: String,
+    val stages: List<FarmPlanStage>
+)
+
+data class FarmPlanStage(
+    val stageNumber: Int,
+    val stageTitle: String,
+    val steps: List<String>,
+    val durationInDays: Int,
+    @Transient var iconRes: Int = 0,
+    @Transient var cardColor: Int = 0
 )

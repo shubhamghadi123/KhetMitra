@@ -20,24 +20,103 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.KhetMitra">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
-            android:name=".ChatbotActivity"
-            android:exported="false" />
-        <activity
-            android:name=".MarketActivity"
-            android:exported="false" />
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SplashHide">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".LanguageSelectionActivity"
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".ForgotPasswordActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ResetPasswordVerifyActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ManageFieldsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SoilReportActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".HelpSupportActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".FAQActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
         <activity
             android:name=".WeatherActivity"
             android:exported="false" />
-    </application>
 
+        <activity
+            android:name=".PlanDashboardActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ViewPlanActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".StageDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".CreatePlanActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ChatbotActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MarketActivity"
+            android:exported="false" />
+    </application>
 </manifest>

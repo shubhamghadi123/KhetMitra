@@ -1,119 +1,371 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
-
-    <View
-        android:id="@+id/headerBg"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="#E0E0E0"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/btnBack"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="45dp"
-        android:background="@drawable/bg_circle_border"
-        android:elevation="4dp"
-        android:padding="8dp"
-        android:src="@drawable/round_arrow_back_24"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:tint="#333333"
-        tools:ignore="ContentDescription" />
-
-    <TextView
-        android:id="@+id/tvHeaderTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="@string/chatbot_title"
-        android:textColor="#333333"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/btnBack"
-        app:layout_constraintStart_toEndOf="@id/btnBack"
-        app:layout_constraintTop_toTopOf="@id/btnBack" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerChat"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:padding="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/layoutInputArea"
-        app:layout_constraintTop_toBottomOf="@id/headerBg" />
+    tools:ignore="HardcodedText">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layoutInputArea"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="16dp"
-        app:layout_constraintBottom_toBottomOf="parent">
+        android:layout_height="match_parent"
+        android:background="#F4F7F0">
 
-        <FrameLayout
-            android:id="@+id/btnPlus"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_circle_border"
-            app:layout_constraintBottom_toBottomOf="parent"
+        <View
+            android:id="@+id/headerBg"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:background="#1A3C2E"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:background="@drawable/bg_circle_glow_green"
+            android:alpha="0.15"
+            android:layout_marginEnd="-30dp"
+            android:layout_marginTop="-30dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="42dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="#2D6A4F"
+            app:cardCornerRadius="13dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#52B788"
+            app:strokeWidth="1dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:importantForAccessibility="no"
-                android:src="@drawable/round_add_24"
-                app:tint="#000000" />
+                android:src="@drawable/round_menu_24"
+                app:tint="#FFFFFF" />
+        </com.google.android.material.card.MaterialCardView>
 
-        </FrameLayout>
-
-        <EditText
-            android:id="@+id/etMessageInput"
+        <TextView
+            android:id="@+id/tvHeaderTitle"
             android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="12dp"
-            android:background="@drawable/bg_chat_input"
-            android:hint="Ask anything..."
-            android:importantForAutofill="no"
-            android:inputType="textCapSentences|textMultiLine"
-            android:imeOptions="actionSend"
-            android:maxLines="3"
-            android:paddingStart="20dp"
-            android:paddingEnd="48dp"
-            android:textColor="#000000"
-            android:textColorHint="#757575"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btnPlus"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="HardcodedText"/>
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="8dp"
+            android:text="@string/chatbot_title"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:ellipsize="end"
+            android:maxLines="1"
+            app:layout_constraintBottom_toBottomOf="@id/btnMenu"
+            app:layout_constraintStart_toEndOf="@id/btnMenu"
+            app:layout_constraintTop_toTopOf="@id/btnMenu" />
 
-        <ImageView
-            android:id="@+id/btnMic"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="12dp"
-            android:importantForAccessibility="no"
-            android:src="@drawable/round_mic_24"
-            app:layout_constraintBottom_toBottomOf="@id/etMessageInput"
-            app:layout_constraintEnd_toEndOf="@id/etMessageInput"
-            app:layout_constraintTop_toTopOf="@id/etMessageInput"
-            app:tint="#000000" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerChat"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@+id/previewCard"
+            app:layout_constraintTop_toBottomOf="@id/headerBg" />
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/previewCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#22C55E"
+            app:strokeWidth="1.5dp"
+            app:layout_constraintBottom_toTopOf="@id/layoutInputArea"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:visibility="visible">
+
+            <FrameLayout
+                android:layout_width="90dp"
+                android:layout_height="90dp">
+
+                <ImageView
+                    android:id="@+id/ivSelectedPreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop"
+                    tools:src="@tools:sample/backgrounds/scenic" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btnRemoveImage"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="5dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="#CC000000"
+                    app:cardCornerRadius="11dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <ImageView
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                        app:tint="#FFFFFF" />
+                </com.google.android.material.card.MaterialCardView>
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layoutInputArea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#F4F7F0"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="20dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnPlus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#D8E8D8"
+                app:strokeWidth="1.5dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/round_add_24"
+                    app:tint="#1A3C2E" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/inputCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeColor="#D8E8D8"
+                app:strokeWidth="1.5dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnSend"
+                app:layout_constraintStart_toEndOf="@id/btnPlus"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <EditText
+                        android:id="@+id/etMessageInput"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:hint="Ask anything..."
+                        android:importantForAutofill="no"
+                        android:inputType="textCapSentences|textMultiLine"
+                        android:imeOptions="actionSend"
+                        android:minHeight="48dp"
+                        android:maxLines="4"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="8dp"
+                        android:paddingVertical="12dp"
+                        android:textColor="#111111"
+                        android:textColorHint="#AAAAAA"
+                        android:textSize="15sp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnMic"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/btnMic"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="#F0FDF4"
+                        app:cardCornerRadius="10dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="0dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/round_mic_24"
+                            app:tint="#22C55E" />
+                    </com.google.android.material.card.MaterialCardView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnSend"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                app:cardBackgroundColor="#1A3C2E"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/round_arrow_back_24"
+                    android:rotation="180"
+                    app:tint="#FFFFFF" />
+            </com.google.android.material.card.MaterialCardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <LinearLayout
+        android:id="@+id/drawerPanel"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:fitsSystemWindows="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1A3C2E"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="18dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="18dp">
+
+            <TextView
+                android:id="@+id/tvDrawerTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Chat History"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btnNewChat"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="6dp"
+                android:src="@drawable/round_add_24"
+                android:contentDescription="New Chat"
+                app:tint="#52B788" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerSessions"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingVertical="8dp" />
+
+        <LinearLayout
+            android:id="@+id/layoutDrawerEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No chats yet"
+                android:textColor="#999999"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Tap + to start a new chat"
+                android:textColor="#BBBBBB"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnBackToDashboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="16dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/round_arrow_back_24"
+                app:tint="#1A3C2E" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Back to Dashboard"
+                android:textColor="#1A3C2E"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

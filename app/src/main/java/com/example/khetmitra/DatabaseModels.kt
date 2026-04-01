@@ -1,0 +1,143 @@
+package com.example.khetmitra
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class FarmerProfile(
+    val id: String,
+    val first_name: String,
+    val last_name: String,
+    val phone_number: String,
+    val email: String,
+    val gov_farmer_id: String? = null,
+    val gender: String,
+    val profile_photo_url: String? = null,
+    val date_of_birth: String,
+    val state_location: String,
+    val district: String,
+    val annual_income_range: String? = null
+)
+
+@Serializable
+data class FarmEntry(
+    val id: String? = null,
+    val farmer_id: String,
+    val name: String? = null,
+    val land_size: String,
+    val soil_type: String,
+    val coordinates: String,
+    val crop: String? = "Not Selected",
+    val polygon_id: String? = null,
+    val sand_pct: Double? = null,
+    val silt_pct: Double? = null,
+    val clay_pct: Double? = null
+)
+
+@Serializable
+data class FetchedFarm(
+    val coordinates: String,
+    val land_size: String,
+    val soil_type: String,
+    val sand_pct: Double? = null,
+    val silt_pct: Double? = null,
+    val clay_pct: Double? = null
+)
+
+@Serializable
+data class FieldMonitoring(
+    val user_id: String,
+    val polygon_id: String? = null,
+    val field_name: String,
+    val temperature: Double? = null,
+    val humidity: Double? = null,
+    val weather_condition: String? = null,
+    val soil_moisture: Double? = null,
+    val soil_temperature: Double? = null,
+    val ndvi_score: Double? = null
+)
+
+@Serializable
+data class StateRow(
+    val id: Int,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("state_name") val stateName: String,
+    val status: Int
+)
+
+@Serializable
+data class DistrictRow(
+    val id: Int,
+    @SerialName("district_id") val districtId: Int,
+    @SerialName("district_name") val districtName: String,
+    @SerialName("state_id") val stateId: Int,
+    val status: Int
+)
+
+@Serializable
+data class MarketRow(
+    val id: Int,
+    @SerialName("market_id") val marketId: Int,
+    @SerialName("market_name") val marketName: String,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("district_id") val districtId: Int,
+    val status: Int
+)
+
+@Serializable
+data class CropRow(
+    val id: Int,
+    @SerialName("crop_id") val cropId: Int,
+    @SerialName("crop_name") val cropName: String,
+    @SerialName("crop_group_id") val cropGroupId: Int,
+    val status: Int
+)
+
+@Serializable
+data class CropPriceRow(
+    val id: Int,
+    @SerialName("crop_id") val cropId: Int,
+    @SerialName("crop_name") val cropName: String,
+    @SerialName("crop_group_id") val cropGroupId: Int,
+    @SerialName("crop_group_name") val cropGroupName: String,
+    @SerialName("state_id") val stateId: Int,
+    @SerialName("state_name") val stateName: String,
+    @SerialName("district_id") val districtId: Int,
+    @SerialName("district_name") val districtName: String,
+    @SerialName("market_id") val marketId: Int,
+    @SerialName("market_name") val marketName: String,
+    @SerialName("min_price") val minPrice: Float,
+    @SerialName("max_price") val maxPrice: Float,
+    @SerialName("modal_price") val modalPrice: Float,
+    @SerialName("price_unit") val priceUnit: String,
+    @SerialName("price_date") val priceDate: String,
+    @SerialName("arrival_quantity") val arrivalQuantity: Double = 0.0
+)
+
+@Serializable
+data class ChatSession(
+    val id: String = "",
+    @SerialName("farmer_id") val farmerId: String = "",
+    val title: String = "New Chat",
+    @SerialName("updated_at") val updatedAt: String = ""
+)
+
+@Serializable
+data class ChatMessageEntity(
+    val id: String = "",
+    @SerialName("session_id") val sessionId: String = "",
+    val role: String = "",
+    val text: String = "",
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("file_name") val fileName: String? = null
+)
+
+@Serializable
+data class SavedFarmPlan(
+    val id: Int? = null,
+    val farmer_id: String,
+    val farm_name: String,
+    val crop_name: String,
+    val plan_json: String,
+    val created_at: String? = null
+)

@@ -1,38 +1,55 @@
 package com.example.khetmitra
 
 import android.Manifest
-import android.content.Context
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Spinner
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.core.graphics.toColorInt
+import androidx.core.view.GravityCompat
+import androidx.core.view.get
+import androidx.core.view.size
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.navigation.NavigationView
 import com.google.mlkit.nl.translate.TranslateLanguage
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URL
 
 class MainActivity : BaseActivity() {
-
     private lateinit var adapter: DashboardAdapter
     private val dashboardItems = ArrayList<DataModels>()
     private var currentLangCode = TranslateLanguage.ENGLISH
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
     // Default to Mumbai coordinates if GPS fails
     private val DEFAULT_CITY = "19.07,72.87"
 
@@ -40,30 +57,289 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
+        val profileCard = findViewById<CardView>(R.id.profileCard)
+        val btnStartMapping = findViewById<MaterialCardView>(R.id.btnStartMapping)
+        val btnScanCrop     = findViewById<MaterialCardView>(R.id.btnScanCrop)
+        val navView = findViewById<NavigationView>(R.id.navView)
+        val logoutItem = navView.menu.findItem(R.id.nav_logout)
+        val logoutColor = ColorStateList.valueOf("#EF4444".toColorInt())
+        val logoutTitle = SpannableString(logoutItem.title)
+        logoutTitle.setSpan(ForegroundColorSpan("#EF4444".toColorInt()), 0, logoutTitle.length, 0)
+        logoutItem.title = logoutTitle
+        logoutItem.iconTintList = logoutColor
+
+        profileCard.setOnClickListener {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        val shouldOpenMap = intent.getBooleanExtra("OPEN_MAP_FRAGMENT", false)
+        if (shouldOpenMap) {
+            supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, FieldMeasurementFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
+        val scanCropClickListener = View.OnClickListener {
+            val intent = Intent(this, ChatbotActivity::class.java)
+            intent.putExtra("AUTO_OPEN_CAMERA", true)
+            startActivity(intent)
+        }
+        btnScanCrop.setOnClickListener(scanCropClickListener)
+        navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_profile -> startActivity(Intent(this, ProfileActivity::class.java))
+                R.id.nav_manage_fields -> startActivity(Intent(this, ManageFieldsActivity::class.java))
+                R.id.nav_settings -> startActivity(Intent(this, SettingsActivity::class.java))
+                R.id.nav_help -> startActivity(Intent(this, HelpSupportActivity::class.java))
+                R.id.nav_logout -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            SupabaseManager.client.auth.signOut()
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, t("Logged out successfully"), Toast.LENGTH_SHORT).show()
+                                val intent = Intent(this@MainActivity, LoginActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                startActivity(intent)
+                                finish()
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, t("Error logging out: ") + e.message, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+            }
+            drawerLayout.closeDrawer(GravityCompat.START)
+            true
+        }
+
+        btnStartMapping.setOnClickListener {
+            supportFragmentManager.beginTransaction()
+                .replace(android.R.id.content, FieldMeasurementFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+
         TranslationHelper.initTranslations(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
         currentLangCode = prefs.getString("Language", TranslateLanguage.ENGLISH) ?: TranslateLanguage.ENGLISH
+        translateNavigationDrawer()
         setupInitialData()
+        fetchAndDisplayFarmerName()
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = GridLayoutManager(this, 2)
         val spacingInPixels = (5 * resources.displayMetrics.density).toInt()
         recyclerView.addItemDecoration(VerticalSpacingItemDecoration(spacingInPixels))
 
         adapter = DashboardAdapter(dashboardItems) { selectedItem ->
             val title = selectedItem.title
-            if (title == t("Weather") || title == "Weather") {
-                startActivity(Intent(this, WeatherActivity::class.java))
-            } else if (title == t("Market") || title == "Market") {
-                startActivity(Intent(this, MarketActivity::class.java))
-            } else if (title == t("Chat") || title == "Chat") {
-                startActivity(Intent(this, ChatbotActivity::class.java))
+            when {
+                title == t("Weather") || title == "Weather" ->
+                    startActivity(Intent(this, WeatherActivity::class.java))
+                title == t("Market") || title == "Market" ->
+                    startActivity(Intent(this, MarketActivity::class.java))
+                title == t("Chat") || title == "Chat" ->
+                    startActivity(Intent(this, ChatbotActivity::class.java))
+                title == t("Plans") || title == "Plans" ->
+                    startActivity(Intent(this, PlanDashboardActivity::class.java))
             }
         }
         recyclerView.adapter = adapter
         checkLocationPermissionAndFetch()
-        setupLanguageSpinner()
+
+        if (currentLangCode != TranslateLanguage.ENGLISH) {
+            val rootView = findViewById<View>(android.R.id.content)
+            TranslationHelper.translateViewHierarchy(rootView, currentLangCode) {}
+        }
+    }
+
+    private fun loadProfileImage(url: String, imageView: ImageView?) {
+        if (imageView == null) return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val connection = URL(url).openConnection()
+                connection.doInput = true
+                connection.connect()
+                val inputStream = connection.getInputStream()
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                withContext(Dispatchers.Main) {
+                    imageView.setImageBitmap(bitmap)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to load profile image: ${e.message}")
+            }
+        }
+    }
+
+    private val cardThemes = listOf(
+        CardTheme("#FFF7ED".toColorInt(), "#F97316".toColorInt(), "🌤️", "Live",    "#F97316".toColorInt()),
+        CardTheme("#F0FDF4".toColorInt(), "#22C55E".toColorInt(), "📋", "Today",   "#22C55E".toColorInt()),
+        CardTheme("#F0F9FF".toColorInt(), "#0EA5E9".toColorInt(), "💬", "New",     "#0EA5E9".toColorInt()),
+        CardTheme("#FAF5FF".toColorInt(), "#A855F7".toColorInt(), "📈", "Updated", "#A855F7".toColorInt()),
+    )
+
+    private fun setupInitialData() {
+        dashboardItems.clear()
+        val weatherSubtitle = "${t("Loading")}..."
+        dashboardItems.add(
+            DataModels(
+                title       = t("Weather"),
+                subtitle    = weatherSubtitle,
+                iconRes     = R.drawable.ic_weather,
+                tag         = t("Live"),
+                bgColor     = cardThemes[0].bgColor,
+                accentColor = cardThemes[0].accentColor,
+                emoji       = cardThemes[0].emoji,
+                textColor   = cardThemes[0].textColor
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title       = t("Plans"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_plans,
+                tag         = t("Today"),
+                bgColor     = cardThemes[1].bgColor,
+                accentColor = cardThemes[1].accentColor,
+                emoji       = cardThemes[1].emoji,
+                textColor   = cardThemes[1].textColor
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title       = t("Chat"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_chat,
+                tag         = t("New"),
+                bgColor     = cardThemes[2].bgColor,
+                accentColor = cardThemes[2].accentColor,
+                emoji       = cardThemes[2].emoji,
+                textColor   = cardThemes[2].textColor
+            )
+        )
+        dashboardItems.add(
+            DataModels(
+                title       = t("Market"),
+                subtitle    = "",
+                iconRes     = R.drawable.ic_market,
+                tag         = t("Updated"),
+                bgColor     = cardThemes[3].bgColor,
+                accentColor = cardThemes[3].accentColor,
+                emoji       = cardThemes[3].emoji,
+                textColor   = cardThemes[3].textColor
+            )
+        )
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun fetchAndDisplayFarmerName() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
+                if (userId == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Debug: User ID is null! Session lost.", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
+                val profile = SupabaseManager.client.postgrest["farmers"]
+                    .select { filter { eq("id", userId) } }
+                    .decodeSingleOrNull<FarmerProfile>()
+                withContext(Dispatchers.Main) {
+                    if (profile != null) {
+                        val tvWelcomeMessage = findViewById<TextView>(R.id.tvWelcome)
+                        val tvUsername = findViewById<TextView>(R.id.tvUsername)
+                        if (tvUsername == null) {
+                            Toast.makeText(this@MainActivity, "Debug: tvUsername ID not found in XML!", Toast.LENGTH_LONG).show()
+                        }
+                        val welcomeText = t("Welcome back,")
+                        tvWelcomeMessage?.text = welcomeText
+                        translateWithMLKit("${profile.first_name}!") { translatedFirstName ->
+                            tvUsername?.text = translatedFirstName
+                        }
+                        val navView = findViewById<NavigationView>(R.id.navView)
+                        val headerView = navView?.getHeaderView(0)
+                        val tvHeaderName = headerView?.findViewById<TextView>(R.id.navUserName)
+                        translateWithMLKit(profile.first_name) { translatedFullName ->
+                            tvHeaderName?.text = translatedFullName
+                        }
+                        val ivMainProfile = findViewById<ImageView>(R.id.ivMainProfilePhoto)
+                        val ivNavProfile = headerView?.findViewById<ImageView>(R.id.ivNavProfilePhoto)
+                        if (profile.profile_photo_url.isNullOrEmpty()) {
+                            val defaultAvatar = when (profile.gender.lowercase()) {
+                                "male" -> R.drawable.default_male_farmer
+                                "female" -> R.drawable.default_female_farmer
+                                "other" -> R.drawable.default_other_farmer
+                                else -> R.drawable.round_person_24
+                            }
+                            ivMainProfile?.setImageResource(defaultAvatar)
+                            ivNavProfile?.setImageResource(defaultAvatar)
+                            ivMainProfile?.setBackgroundColor(Color.WHITE)
+                            ivNavProfile?.setBackgroundColor(Color.WHITE)
+                        } else {
+                            loadProfileImage(profile.profile_photo_url, ivMainProfile)
+                            loadProfileImage(profile.profile_photo_url, ivNavProfile)
+                            ivMainProfile?.background = null
+                            ivNavProfile?.background = null
+                        }
+                    } else {
+                        Toast.makeText(this@MainActivity, "Debug: Profile is NULL. Database blocked the read!", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Debug DB Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                Log.e("MainActivity", "Failed to fetch farmer name: ${e.message}")
+            }
+        }
+    }
+
+    private fun translateNavigationDrawer() {
+        if (currentLangCode == TranslateLanguage.ENGLISH) return
+        val navView = findViewById<NavigationView>(R.id.navView) ?: return
+        if (navView.headerCount > 0) {
+            val headerView = navView.getHeaderView(0)
+            TranslationHelper.translateViewHierarchy(headerView, currentLangCode) {}
+        }
+        val menu = navView.menu
+        for (i in 0 until menu.size) {
+            val item = menu[i]
+            if (item.title != null) item.title = t(item.title.toString())
+            if (item.hasSubMenu()) {
+                val subMenu = item.subMenu
+                if (subMenu != null) {
+                    for (j in 0 until subMenu.size) {
+                        val subItem = subMenu[j]
+                        if (subItem.title != null) subItem.title = t(subItem.title.toString())
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkLocationPermissionAndFetch()
+    }
+
+    @Suppress("DEPRECATION")
+    @Deprecated("Use OnBackPressedDispatcher instead")
+    @SuppressLint("GestureBackNavigation")
+    override fun onBackPressed() {
+        val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            super.onBackPressed()
+        }
     }
 
     private fun checkLocationPermissionAndFetch() {
@@ -77,20 +353,14 @@ class MainActivity : BaseActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        if (isGranted) {
-            getUserLocation()
-        } else {
-            fetchWeather(DEFAULT_CITY)
-        }
+        if (isGranted) getUserLocation() else fetchWeather(DEFAULT_CITY)
     }
 
     private fun getUserLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
-                val latLon = "${location.latitude},${location.longitude}"
-                fetchWeather(latLon)
+                fetchWeather("${location.latitude},${location.longitude}")
             } else {
                 fetchWeather(DEFAULT_CITY)
             }
@@ -108,68 +378,58 @@ class MainActivity : BaseActivity() {
         return TranslationHelper.convertDigits(num, currentLangCode)
     }
 
-    private fun setupInitialData() {
-        dashboardItems.clear()
-
-        val weatherSubtitle = "${t("Loading")}..."
-        val plansSubtitle = "${d("3")} ${t("tasks for today")}"
-        val chatSubtitle = "${d("2")} ${t("new messages")}"
-        val marketSubtitle = "${t("Up by")} ${d("10")}%"
-
-        // Default icon before loading
-        dashboardItems.add(DataModels(t("Weather"), weatherSubtitle, R.drawable.ic_weather))
-        dashboardItems.add(DataModels(t("Plans"), plansSubtitle, R.drawable.ic_plans))
-        dashboardItems.add(DataModels(t("Chat"), chatSubtitle, R.drawable.ic_chat))
-        dashboardItems.add(DataModels(t("Market"), marketSubtitle, R.drawable.ic_market))
+    private fun isFahrenheit(prefs: SharedPreferences): Boolean {
+        val tempUnitPref = prefs.getString("TempUnit", "Celsius (°C)") ?: "Celsius (°C)"
+        return tempUnitPref.contains("Fahrenheit")
     }
+
+    private fun convertTemp(celsius: Double, isFahrenheit: Boolean): Int {
+        return if (isFahrenheit) ((celsius * 9 / 5) + 32).toInt() else celsius.toInt()
+    }
+
     private fun fetchWeather(query: String) {
         var lat: Double
         var lon: Double
-
         try {
             val parts = query.split(",")
             lat = parts[0].trim().toDouble()
             lon = parts[1].trim().toDouble()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             lat = 19.07
             lon = 72.87
         }
 
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.open-meteo.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(WeatherService::class.java)
-        service.getForecast(lat, lon).enqueue(object : Callback<OpenMeteoResponse> {
-            override fun onResponse(call: Call<OpenMeteoResponse>, response: Response<OpenMeteoResponse>) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.weatherService.getForecast(lat, lon)
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!
-
-                    val currentTemp = data.current.temperature_2m
+                    val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+                    val useFahrenheit = isFahrenheit(prefs)
+                    val currentTempRaw = data.current.temperature_2m
+                    val tempText = convertTemp(currentTempRaw, useFahrenheit).toString()
                     val weatherCode = data.current.weathercode
                     val isDay = data.current.is_day
-
                     val rawCondition = getConditionText(weatherCode)
-                    val tempText = currentTemp.toInt().toString()
-
                     val iconRes = getIconForCondition(rawCondition, isDay)
-                    val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
-
-                    if (manualTranslation != null) {
-                        updateWeatherCard(manualTranslation, tempText, iconRes)
-                    } else {
-                        translateWithMLKit(rawCondition) { translatedText ->
-                            updateWeatherCard(translatedText, tempText, iconRes)
+                    withContext(Dispatchers.Main) {
+                        val tempSymbol = if (useFahrenheit) t("°F") else t("°C")
+                        val manualTranslation = TranslationHelper.getManualTranslation(rawCondition, currentLangCode)
+                        if (manualTranslation != null) {
+                            updateWeatherCard(manualTranslation, tempText, tempSymbol, iconRes)
+                        } else {
+                            translateWithMLKit(rawCondition) { translatedText ->
+                                updateWeatherCard(translatedText, tempText, tempSymbol, iconRes)
+                            }
                         }
                     }
+                } else {
+                    Log.e("MainActivity", "Weather fetch unsuccessful: ${response.code()}")
                 }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Weather fetch failed: ${e.message}", e)
             }
-
-            override fun onFailure(call: Call<OpenMeteoResponse>, t: Throwable) {
-                Log.e("MainActivity", "Weather fetch failed: ${t.message}", t)
-            }
-        })
+        }
     }
 
     private fun getConditionText(code: Int): String {
@@ -193,11 +453,14 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun updateWeatherCard(condition: String, temp: String, iconRes: Int) {
-        val newSubtitle = "$condition, ${d(temp)}${t("°C")}"
-
+    private fun updateWeatherCard(condition: String, temp: String, unitSymbol: String, iconRes: Int) {
+        val newSubtitle = "$condition, ${d(temp)}$unitSymbol"
         if (dashboardItems.isNotEmpty()) {
-            dashboardItems[0] = DataModels(t("Weather"), newSubtitle, iconRes)
+            val existing = dashboardItems[0]
+            dashboardItems[0] = existing.copy(
+                subtitle = newSubtitle,
+                iconRes = iconRes
+            )
             adapter.notifyItemChanged(0)
         }
     }
@@ -207,94 +470,40 @@ class MainActivity : BaseActivity() {
             callback(text)
             return
         }
-
-        val options = com.google.mlkit.nl.translate.TranslatorOptions.Builder()
+        val options = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH)
             .setTargetLanguage(currentLangCode)
             .build()
-        val client = com.google.mlkit.nl.translate.Translation.getClient(options)
-
+        val client = Translation.getClient(options)
         client.downloadModelIfNeeded().addOnSuccessListener {
             client.translate(text).addOnSuccessListener { result ->
                 callback(result)
-            }.addOnFailureListener {
-                callback(text)
-            }
-        }.addOnFailureListener {
-            callback(text)
-        }
+            }.addOnFailureListener { callback(text) }
+        }.addOnFailureListener { callback(text) }
     }
 
     private fun getIconForCondition(conditionRaw: String, isDay: Int = 1): Int {
         val text = conditionRaw.lowercase()
         return when {
-            // Clear / Sunny
             text.contains("clear") || text.contains("sunny") -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-
-            // Clouds
             text.contains("partly") -> if (isDay == 1) R.raw.partly_cloudy_day else R.raw.partly_cloudy_night
             text.contains("cloudy") -> R.raw.cloudy
             text.contains("overcast") -> R.raw.overcast
-
-            // Atmosphere
             text.contains("mist") -> R.raw.mist
             text.contains("fog") -> R.raw.fog
             text.contains("haze") -> R.raw.haze
             text.contains("dust") -> R.raw.dust
-
-            // Rain / Drizzle
             text.contains("drizzle") -> R.raw.drizzle
             text.contains("sleet") -> R.raw.sleet
-
-            // Thunderstorms
             text.contains("thunder") && text.contains("rain") -> R.raw.thunderstorms_rain
             text.contains("hail") -> R.raw.hail
             text.contains("thunder") -> R.raw.thunderstorms
-
-            // Rain / Snow
             text.contains("rain") -> R.raw.rain
             text.contains("snow") -> R.raw.snow
-
-            // Extreme
             text.contains("tornado") -> R.raw.tornado
             text.contains("hurricane") -> R.raw.hurricane
             text.contains("wind") -> R.raw.wind
-
             else -> if (isDay == 1) R.raw.clear_day else R.raw.clear_night
-        }
-    }
-
-    private fun setupLanguageSpinner() {
-        val spinner = findViewById<Spinner>(R.id.languageSpinner)
-        val languages = listOf("English", "हिंदी", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "தமிழ்", "తెలుగు", "বাংলা")
-        val codes = listOf(
-            TranslateLanguage.ENGLISH,
-            TranslateLanguage.HINDI,
-            TranslateLanguage.MARATHI,
-            TranslateLanguage.GUJARATI,
-            TranslateLanguage.KANNADA,
-            TranslateLanguage.TAMIL,
-            TranslateLanguage.TELUGU,
-            TranslateLanguage.BENGALI
-        )
-
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, languages)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinner.adapter = adapter
-
-        val index = codes.indexOf(currentLangCode)
-        if (index >= 0) spinner.setSelection(index, false)
-
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedCode = codes[position]
-                if (selectedCode != currentLangCode) {
-                    val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-                    prefs.edit { putString("Language", selectedCode) }
-                    recreate()
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
         }
     }
 }

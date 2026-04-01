@@ -1,21 +1,28 @@
 package com.example.khetmitra
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.chip.Chip
 
 class DashboardAdapter(
-    private val itemList: List<DataModels>,
+    private val items: ArrayList<DataModels>,
     private val onItemClick: (DataModels) -> Unit
 ) : RecyclerView.Adapter<DashboardAdapter.ViewHolder>() {
 
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvTitle: TextView = itemView.findViewById(R.id.tvCardTitle)
-        val tvSubtitle: TextView = itemView.findViewById(R.id.tvCardSubtitle)
-        val tvIcon: com.airbnb.lottie.LottieAnimationView = itemView.findViewById(R.id.tvIcon)
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val root: MaterialCardView = view.findViewById(R.id.cardRoot)
+        val cardIcon: MaterialCardView = view.findViewById(R.id.cardIcon)
+        val tvIcon: TextView = view.findViewById(R.id.tvIcon)
+        val tvTitle: TextView = view.findViewById(R.id.tvTitle)
+        val tvSubtitle: TextView = view.findViewById(R.id.tvSubtitle)
+        val chipTag: Chip = view.findViewById(R.id.chipTag)
+        val viewBottomBar: View = view.findViewById(R.id.viewBottomBar)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -25,31 +32,35 @@ class DashboardAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = itemList[position]
+        val item = items[position]
 
         holder.tvTitle.text = item.title
+        holder.tvTitle.setTextColor(item.textColor)
         holder.tvSubtitle.text = item.subtitle
+        holder.tvSubtitle.setTextColor(item.textColor)
+        holder.tvIcon.text = item.emoji
+        holder.chipTag.text = item.tag
+        holder.chipTag.setTextColor(item.textColor)
 
-        holder.tvIcon.cancelAnimation()
-        holder.tvIcon.progress = 0f
+        val accent = item.accentColor
 
-        val cacheKey = "weather_${item.iconDrawable}"
+        holder.root.setCardBackgroundColor(item.bgColor)
+        holder.root.strokeColor = ColorUtils.setAlphaComponent(accent, 50)
 
-        com.airbnb.lottie.LottieCompositionFactory.fromRawRes(holder.itemView.context, item.iconDrawable, cacheKey)
-            .addListener { composition ->
-                holder.tvIcon.setComposition(composition)
-            }
+        holder.cardIcon.setCardBackgroundColor(ColorUtils.setAlphaComponent(accent, 40))
+        holder.cardIcon.strokeColor = ColorUtils.setAlphaComponent(accent, 60)
 
-        // We must clear the 'tag' so the Translator doesn't get confused by old tags from recycled views.
-        holder.tvTitle.tag = null
-        holder.tvSubtitle.tag = null
+        holder.chipTag.setTextColor(accent)
+        holder.chipTag.chipBackgroundColor = ColorStateList.valueOf(
+            ColorUtils.setAlphaComponent(accent, 30)
+        )
+        holder.chipTag.chipStrokeColor = ColorStateList.valueOf(
+            ColorUtils.setAlphaComponent(accent, 55)
+        )
+        holder.viewBottomBar.backgroundTintList = ColorStateList.valueOf(accent)
 
-        holder.itemView.setOnClickListener {
-            onItemClick(item)
-        }
+        holder.root.setOnClickListener { onItemClick(item) }
     }
 
-    override fun getItemCount(): Int {
-        return itemList.size
-    }
+    override fun getItemCount() = items.size
 }

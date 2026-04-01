@@ -5,44 +5,79 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="#F4F7F0">
 
     <View
         android:id="@+id/headerBg"
         android:layout_width="match_parent"
         android:layout_height="100dp"
-        android:background="#E0E0E0"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:background="#1A3C2E"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <ImageView
+    <View
+        android:layout_width="110dp"
+        android:layout_height="110dp"
+        android:background="@drawable/bg_circle_glow_green"
+        android:alpha="0.15"
+        android:layout_marginEnd="-35dp"
+        android:layout_marginTop="-35dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/btnBack"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="45dp"
-        android:background="@drawable/bg_circle_border"
-        android:elevation="4dp"
-        android:padding="8dp"
-        android:src="@drawable/round_arrow_back_24"
+        android:layout_marginTop="42dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        app:cardBackgroundColor="#2D6A4F"
+        app:cardCornerRadius="13dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#52B788"
+        app:strokeWidth="1dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:tint="#333333"
-        tools:ignore="ContentDescription" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/round_arrow_back_24"
+            app:tint="#FFFFFF" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/tvHeaderTitle"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="20dp"
         android:text="@string/weather_title"
-        android:textColor="#333333"
-        android:textSize="22sp"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
         android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@id/tvHeaderSub"
+        app:layout_constraintStart_toEndOf="@id/btnBack"
+        app:layout_constraintTop_toTopOf="@id/btnBack"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <TextView
+        android:id="@+id/tvHeaderSub"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="20dp"
+        android:text="Live forecast"
+        android:textColor="#A8D5B5"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="@id/btnBack"
         app:layout_constraintStart_toEndOf="@id/btnBack"
-        app:layout_constraintTop_toTopOf="@id/btnBack" />
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderTitle"
+        tools:ignore="HardcodedText" />
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
@@ -67,246 +102,332 @@
                     android:id="@+id/cardCurrentWeather"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="20dp"
-                    android:layout_marginTop="24dp"
-                    app:cardBackgroundColor="@color/white"
-                    app:cardCornerRadius="30dp"
-                    app:cardElevation="4dp"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="#1A3C2E"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
                     app:strokeWidth="0dp"
                     app:layout_constraintTop_toTopOf="parent">
 
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="24dp">
+                        android:padding="22dp">
 
-                        <TextView
-                            android:id="@+id/tvLocation"
+                        <View
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:background="@drawable/bg_circle_glow_green"
+                            android:alpha="0.15"
+                            android:layout_marginEnd="-20dp"
+                            android:layout_marginBottom="-20dp"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/locationChip"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:drawablePadding="6dp"
-                            android:text="Mumbai"
-                            android:textColor="#333333"
-                            android:textSize="16sp"
-                            android:textStyle="bold"
-                            app:drawableStartCompat="@drawable/round_location_on_24"
-                            app:drawableTint="#333333"
+                            app:cardBackgroundColor="#2D6A4F"
+                            app:cardCornerRadius="50dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp"
                             app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toTopOf="parent"
-                            tools:ignore="HardcodedText"/>
+                            app:layout_constraintTop_toTopOf="parent">
 
-                        <TextView
-                            android:id="@+id/tvTempBig"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="25°"
-                            android:textColor="#333333"
-                            android:textSize="64sp"
-                            android:includeFontPadding="false"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@id/tvLocation"
-                            tools:ignore="HardcodedText"/>
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="6dp"
+                                tools:ignore="UseCompoundDrawables">
 
-                        <TextView
-                            android:id="@+id/tvFeelsLike"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Feels like 29°"
-                            android:textColor="#888888"
-                            android:textSize="16sp"
-                            android:layout_marginTop="5dp"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@id/tvTempBig"
-                            tools:ignore="HardcodedText" />
+                                <ImageView
+                                    android:layout_width="14dp"
+                                    android:layout_height="14dp"
+                                    android:src="@drawable/round_location_on_24"
+                                    android:importantForAccessibility="no"
+                                    app:tint="#52B788" />
+
+                                <TextView
+                                    android:id="@+id/tvLocation"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:text="Mumbai"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold"
+                                    tools:ignore="HardcodedText" />
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
 
                         <TextView
                             android:id="@+id/tvWeatherCondition"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Partly Cloudy"
-                            android:textColor="#333333"
-                            android:textSize="18sp"
+                            android:textColor="#A8D5B5"
+                            android:textSize="14sp"
                             android:textStyle="bold"
-                            android:gravity="end"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintTop_toTopOf="parent"
-                            app:layout_constraintBottom_toBottomOf="@+id/tvLocation"
-                            tools:ignore="HardcodedText"/>
+                            tools:ignore="HardcodedText" />
+
+                        <TextView
+                            android:id="@+id/tvTempBig"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:text="25°"
+                            android:textColor="#FFFFFF"
+                            android:textSize="72sp"
+                            android:textStyle="bold"
+                            android:includeFontPadding="false"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@id/locationChip"
+                            tools:ignore="HardcodedText" />
 
                         <com.airbnb.lottie.LottieAnimationView
                             android:id="@+id/iconCurrentWeather"
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
-                            android:layout_marginTop="12dp"
+                            android:layout_width="110dp"
+                            android:layout_height="110dp"
                             app:lottie_autoPlay="true"
                             app:lottie_loop="true"
                             app:lottie_rawRes="@raw/clear_day"
                             app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintTop_toBottomOf="@+id/tvWeatherCondition" />
+                            app:layout_constraintTop_toBottomOf="@id/tvWeatherCondition"
+                            app:layout_constraintBottom_toBottomOf="@id/tvTempBig" />
 
                         <TextView
-                            android:id="@+id/tvHighLow"
+                            android:id="@+id/tvFeelsLike"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:background="@drawable/bg_pill_gray"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="4dp"
-                            android:text="↑26° ↓23°"
-                            android:textColor="#333333"
+                            android:text="Feels like 29°"
+                            android:textColor="#A8D5B5"
                             android:textSize="14sp"
-                            android:textStyle="bold"
                             app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toBottomOf="@id/tvFeelsLike"
-                            tools:ignore="HardcodedText"/>
-
-                        <TextView
-                            android:id="@+id/tvAqi"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:background="@drawable/bg_pill_danger"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="4dp"
-                            android:text="AQI: Unhealthy"
-                            android:textColor="#FFFFFF"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            app:layout_constraintBottom_toBottomOf="@+id/tvHighLow"
-                            app:layout_constraintStart_toEndOf="@+id/tvHighLow"
-                            app:layout_constraintTop_toTopOf="@+id/tvHighLow"
-                            tools:ignore="HardcodedText"/>
+                            app:layout_constraintTop_toBottomOf="@id/tvTempBig"
+                            tools:ignore="HardcodedText" />
 
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:id="@+id/layoutPills"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:baselineAligned="false"
+                            android:layout_marginTop="12dp"
                             android:orientation="horizontal"
-                            app:layout_constraintTop_toBottomOf="@id/tvHighLow">
+                            android:gravity="center_vertical"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@id/tvFeelsLike">
 
-                            <LinearLayout
-                                android:layout_width="0dp"
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <ImageView
-                                    android:layout_width="24dp"
-                                    android:layout_height="24dp"
-                                    android:importantForAccessibility="no"
-                                    android:src="@drawable/outline_humidity_mid_24"
-                                    app:tint="#2196F3" />
+                                android:layout_marginEnd="8dp"
+                                app:cardBackgroundColor="#2D6A4F"
+                                app:cardCornerRadius="50dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
 
                                 <TextView
+                                    android:id="@+id/tvHighLow"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    android:text="Humidity"
-                                    android:textColor="#888888"
-                                    android:textSize="12sp"
-                                    tools:ignore="HardcodedText"/>
-
-                                <TextView
-                                    android:id="@+id/tvHumidity"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="80%"
-                                    android:textColor="#333333"
-                                    android:textSize="14sp"
+                                    android:paddingHorizontal="12dp"
+                                    android:paddingVertical="5dp"
+                                    android:text="↑26°  ↓23°"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="13sp"
                                     android:textStyle="bold"
-                                    tools:ignore="HardcodedText"/>
+                                    tools:ignore="HardcodedText" />
+                            </com.google.android.material.card.MaterialCardView>
 
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <ImageView
-                                    android:layout_width="24dp"
-                                    android:layout_height="24dp"
-                                    android:importantForAccessibility="no"
-                                    android:src="@drawable/ic_wind"
-                                    app:tint="#9E9E9E" />
+                                app:cardBackgroundColor="#EF4444"
+                                app:cardCornerRadius="50dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
 
                                 <TextView
+                                    android:id="@+id/tvAqi"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    android:text="Wind"
-                                    android:textColor="#888888"
+                                    android:paddingHorizontal="12dp"
+                                    android:paddingVertical="5dp"
+                                    android:text="AQI: Unhealthy"
+                                    android:textColor="#FFFFFF"
                                     android:textSize="12sp"
-                                    tools:ignore="HardcodedText"/>
-
-                                <TextView
-                                    android:id="@+id/tvWind"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="5 km/h"
-                                    android:textColor="#333333"
-                                    android:textSize="14sp"
                                     android:textStyle="bold"
-                                    tools:ignore="HardcodedText"/>
-
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <ImageView
-                                    android:layout_width="24dp"
-                                    android:layout_height="24dp"
-                                    android:importantForAccessibility="no"
-                                    android:src="@drawable/outline_device_thermostat_24"
-                                    app:tint="#FF5252" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    android:text="Dew Point"
-                                    android:textColor="#888888"
-                                    android:textSize="12sp"
-                                    tools:ignore="HardcodedText"/>
-
-                                <TextView
-                                    android:id="@+id/tvDewPoint"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="21°"
-                                    android:textColor="#333333"
-                                    android:textSize="14sp"
-                                    android:textStyle="bold"
-                                    tools:ignore="HardcodedText"/>
-
-                            </LinearLayout>
+                                    tools:ignore="HardcodedText" />
+                            </com.google.android.material.card.MaterialCardView>
                         </LinearLayout>
 
+                        <LinearLayout
+                            android:id="@+id/layoutStats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="18dp"
+                            android:orientation="horizontal"
+                            android:baselineAligned="false"
+                            app:layout_constraintTop_toBottomOf="@id/layoutPills">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                app:cardBackgroundColor="#2D6A4F"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:paddingVertical="12dp">
+
+                                    <ImageView
+                                        android:layout_width="22dp"
+                                        android:layout_height="22dp"
+                                        android:importantForAccessibility="no"
+                                        android:src="@drawable/outline_humidity_mid_24"
+                                        app:tint="#52B788"
+                                        tools:ignore="TooDeepLayout" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:text="Humidity"
+                                        android:textColor="#A8D5B5"
+                                        android:textSize="11sp"
+                                        tools:ignore="HardcodedText" />
+
+                                    <TextView
+                                        android:id="@+id/tvHumidity"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="80%"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        tools:ignore="HardcodedText" />
+                                </LinearLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                app:cardBackgroundColor="#2D6A4F"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:paddingVertical="12dp">
+
+                                    <ImageView
+                                        android:layout_width="22dp"
+                                        android:layout_height="22dp"
+                                        android:importantForAccessibility="no"
+                                        android:src="@drawable/ic_wind"
+                                        app:tint="#52B788" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:text="Wind"
+                                        android:textColor="#A8D5B5"
+                                        android:textSize="11sp"
+                                        tools:ignore="HardcodedText" />
+
+                                    <TextView
+                                        android:id="@+id/tvWind"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="5 km/h"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        tools:ignore="HardcodedText" />
+                                </LinearLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                app:cardBackgroundColor="#2D6A4F"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:paddingVertical="12dp">
+
+                                    <ImageView
+                                        android:layout_width="22dp"
+                                        android:layout_height="22dp"
+                                        android:importantForAccessibility="no"
+                                        android:src="@drawable/outline_device_thermostat_24"
+                                        app:tint="#52B788" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:text="Dew Point"
+                                        android:textColor="#A8D5B5"
+                                        android:textSize="11sp"
+                                        tools:ignore="HardcodedText" />
+
+                                    <TextView
+                                        android:id="@+id/tvDewPoint"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="21°"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="14sp"
+                                        android:textStyle="bold"
+                                        tools:ignore="HardcodedText" />
+                                </LinearLayout>
+                            </com.google.android.material.card.MaterialCardView>
+                        </LinearLayout>
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <androidx.cardview.widget.CardView
+                <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardQuickSummary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="20dp"
-                    android:layout_marginTop="20dp"
-                    app:cardBackgroundColor="@color/white"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="14dp"
+                    app:cardBackgroundColor="#FFFFFF"
                     app:cardCornerRadius="24dp"
-                    app:cardElevation="4dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#E8EDE0"
+                    app:strokeWidth="1.5dp"
                     app:layout_constraintTop_toBottomOf="@id/cardCurrentWeather">
 
                     <LinearLayout
@@ -315,7 +436,7 @@
                         android:layout_height="wrap_content"
                         android:animateLayoutChanges="true"
                         android:orientation="vertical"
-                        android:padding="20dp">
+                        android:padding="18dp">
 
                         <LinearLayout
                             android:id="@+id/headerSummary"
@@ -324,32 +445,41 @@
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:importantForAccessibility="no"
-                                android:src="@android:drawable/ic_menu_sort_by_size"
-                                app:tint="#333333" />
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_marginEnd="12dp"
+                                app:cardBackgroundColor="#F0FDF4"
+                                app:cardCornerRadius="10dp"
+                                app:cardElevation="0dp"
+                                app:strokeWidth="0dp">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:layout_gravity="center"
+                                    android:importantForAccessibility="no"
+                                    android:src="@android:drawable/ic_menu_sort_by_size"
+                                    app:tint="#22C55E" />
+                            </com.google.android.material.card.MaterialCardView>
 
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
                                 android:layout_weight="1"
                                 android:text="Quick Summary"
-                                android:textColor="#333333"
-                                android:textSize="16sp"
+                                android:textColor="#1A3C2E"
+                                android:textSize="15sp"
                                 android:textStyle="bold"
-                                tools:ignore="HardcodedText"/>
+                                tools:ignore="HardcodedText" />
 
                             <ImageView
                                 android:id="@+id/btnToggleSummary"
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
                                 android:importantForAccessibility="no"
                                 android:src="@drawable/arrow_down"
-                                app:tint="#888888" />
-
+                                app:tint="#52B788" />
                         </LinearLayout>
 
                         <TextView
@@ -361,85 +491,80 @@
                             android:text="Loading summary..."
                             android:textColor="#555555"
                             android:textSize="14sp"
-                            tools:ignore="HardcodedText"/>
-
+                            tools:ignore="HardcodedText" />
                     </LinearLayout>
-                </androidx.cardview.widget.CardView>
+                </com.google.android.material.card.MaterialCardView>
 
                 <TextView
                     android:id="@+id/tvHourlyTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
+                    android:layout_marginStart="22dp"
                     android:layout_marginTop="20dp"
-                    android:text="Hourly Forecast"
-                    android:textColor="#333333"
-                    android:textSize="18sp"
+                    android:text="🕐  Hourly Forecast"
+                    android:textColor="#1A3C2E"
+                    android:textSize="15sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/cardQuickSummary"
-                    tools:ignore="HardcodedText"/>
+                    tools:ignore="HardcodedText" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerHourly"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="10dp"
                     android:clipToPadding="false"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
+                    android:paddingHorizontal="12dp"
                     app:layout_constraintTop_toBottomOf="@id/tvHourlyTitle" />
 
                 <TextView
                     android:id="@+id/tvForecastTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:layout_marginTop="14dp"
-                    android:text="Weekly Forecast"
-                    android:textColor="#333333"
-                    android:textSize="18sp"
+                    android:layout_marginStart="22dp"
+                    android:layout_marginTop="20dp"
+                    android:text="📅  Weekly Forecast"
+                    android:textColor="#1A3C2E"
+                    android:textSize="15sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/recyclerHourly"
-                    tools:ignore="HardcodedText"/>
+                    tools:ignore="HardcodedText" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerForecast"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="10dp"
                     android:clipToPadding="false"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
+                    android:paddingHorizontal="12dp"
                     app:layout_constraintTop_toBottomOf="@id/tvForecastTitle" />
 
                 <TextView
                     android:id="@+id/tvInsightsTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:layout_marginTop="14dp"
-                    android:text="Agriculture Insights"
-                    android:textColor="#333333"
-                    android:textSize="18sp"
+                    android:layout_marginStart="22dp"
+                    android:layout_marginTop="20dp"
+                    android:text="🌾  Agriculture Insights"
+                    android:textColor="#1A3C2E"
+                    android:textSize="15sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/recyclerForecast"
-                    tools:ignore="HardcodedText"/>
+                    tools:ignore="HardcodedText" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerInsights"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="10dp"
                     android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
+                    android:paddingHorizontal="12dp"
                     app:layout_constraintTop_toBottomOf="@id/tvInsightsTitle" />
-
             </androidx.constraintlayout.widget.ConstraintLayout>
         </ScrollView>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
@@ -448,7 +573,7 @@
         android:id="@+id/loadingOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FFFFFF"
+        android:background="#F4F7F0"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
@@ -465,18 +590,18 @@
             <ProgressBar
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:indeterminateTint="@color/black"/>
+                android:indeterminateTint="#52B788" />
 
             <TextView
                 android:id="@+id/tvLoadingText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="80dp"
-                android:text="Loading..."
-                android:textSize="16sp"
-                android:textColor="#000000"
-                tools:ignore="HardcodedText"/>
+                android:layout_marginTop="16dp"
+                android:text="Loading weather..."
+                android:textSize="15sp"
+                android:textColor="#1A3C2E"
+                android:fontFamily="sans-serif-medium"
+                tools:ignore="HardcodedText" />
         </LinearLayout>
     </FrameLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>
