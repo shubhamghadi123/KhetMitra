@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -209,6 +210,13 @@ class WeatherActivity : BaseActivity() {
             val parts = query.split(",")
             lat = parts[0].trim().toDouble()
             lon = parts[1].trim().toDouble()
+            val prefs = getSharedPreferences("AppSettings", MODE_PRIVATE)
+            prefs.edit {
+                putString("LastWeatherLat", lat.toString()).putString(
+                    "LastWeatherLon",
+                    lon.toString()
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

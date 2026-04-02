@@ -119,6 +119,8 @@ dependencies {
     implementation("io.coil-kt:coil:2.4.0")
     implementation("io.github.jan-tennert.supabase:storage-kt:2.5.0")
 
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
     kapt("com.github.bumptech.glide:compiler:5.0.5")

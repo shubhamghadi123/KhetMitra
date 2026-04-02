@@ -23,6 +23,12 @@ data class CardTheme(
     val textColor: Int
 )
 
+data class NotificationItem(
+    val title: String,
+    val message: String,
+    val timestamp: Long
+)
+
 // --- OPEN-METEO API MODELS ---
 data class OpenMeteoResponse(
     val hourly: HourlyUnits,
