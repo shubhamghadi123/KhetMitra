@@ -463,7 +463,6 @@ class ChatbotActivity : AppCompatActivity() {
     }
 
     private fun initializeSmartChatbot() {
-        etInput.hint = t("Loading farm & market data...")
         etInput.isEnabled = false
         btnMicCard.isEnabled = false
 
