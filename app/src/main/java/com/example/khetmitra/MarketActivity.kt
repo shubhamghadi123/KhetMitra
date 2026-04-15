@@ -772,6 +772,7 @@ class MarketActivity : AppCompatActivity() {
         priceHistoryJob?.cancel()
         cardPrice.visibility = View.GONE
         cardGraph.visibility = View.GONE
+        tvNoDataMarket.visibility = View.GONE
         tvPriceValue.text = "₹ --"
         tvMinPrice.text   = "₹ --"
         tvMaxPrice.text   = "₹ --"
@@ -782,7 +783,6 @@ class MarketActivity : AppCompatActivity() {
         lineChart.clear()
         lineChart.fitScreen()
         lineChart.invalidate()
-        showNoData(false)
     }
 
     private fun showNoData(show: Boolean) {
@@ -794,6 +794,7 @@ class MarketActivity : AppCompatActivity() {
         } else {
             tvNoDataMarket.visibility = if (show) View.VISIBLE else View.GONE
             lineChart.visibility = if (show) View.GONE else View.VISIBLE
+            cardGraph.visibility = if (show) View.GONE else View.VISIBLE
         }
     }
 
