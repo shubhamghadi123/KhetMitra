@@ -139,7 +139,7 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
                     } else {
                         tvSatelliteTitle.text = t("Satellite Analysis")
                     }
-                    val mappedSoilData = mapTextureToIndianSoil(fetchedSoil)
+                    val mappedSoilData = mapTextureToIndianSoil(fetchedSoil, fieldLat, fieldLng)
                     val soilName = mappedSoilData.first
                     val colorHint = mappedSoilData.second
                     val translatedSoil = t(soilName)
@@ -275,13 +275,17 @@ class SoilBottomSheetFragment : BottomSheetDialogFragment() {
         }
     }
 
-    private fun mapTextureToIndianSoil(soil: SoilData): Pair<String, String> {
-        return when {
-            soil.clay >= 35.0 -> Pair("Black / Regur Soil", "Black / Dark Brown")
-            soil.sand >= 65.0 -> Pair("Arid / Desert Soil", "Light Brown / Sandy")
-            soil.silt >= 40.0 && soil.sand < 50.0 -> Pair("Alluvial Soil", "Light Gray / Ashy")
-            else -> Pair("Red & Yellow Soil", "Red / Yellowish")
+    private fun mapTextureToIndianSoil(soil: SoilData, lat: Double, lon: Double): Pair<String, String> {
+        if (soil.sand >= 65.0) return Pair("Arid / Desert Soil", "Light Brown / Sandy")
+        val isDeccanPlateau = lat in 15.0..24.0 && lon in 70.0..80.0
+        if (isDeccanPlateau && soil.clay >= 25.0) {
+            return Pair("Black / Regur Soil", "Black / Dark Brown")
         }
+        else if (soil.clay >= 35.0) {
+            return Pair("Black / Regur Soil", "Black / Dark Brown")
+        }
+        if (soil.silt >= 40.0 && soil.sand < 50.0) return Pair("Alluvial Soil", "Light Gray / Ashy")
+        return Pair("Red & Yellow Soil", "Red / Yellowish")
     }
 
     private fun saveFinalFarmData(soilType: String, cropType: String = "Not Selected") {
